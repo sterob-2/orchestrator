@@ -9,10 +9,10 @@
   <ItemGroup>
     <PackageReference Include="dotenv.net" Version="4.0.0" />
     <PackageReference Include="LibGit2Sharp" Version="0.31.0" />
-    <PackageReference Include="Microsoft.Agents.AI" Version="1.0.0-preview.251001.3" />
-    <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.0.0-preview.251001.3" />
-    <PackageReference Include="Microsoft.Agents.AI.Workflows" Version="1.0.0-preview.251001.3" />
+    <PackageReference Include="Microsoft.Agents.AI" Version="1.0.0-preview.251219.1" />
+    <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.0.0-preview.251219.1" />
+    <PackageReference Include="Microsoft.Agents.AI.Workflows" Version="1.0.0-preview.251219.1" />
     <PackageReference Include="Octokit" Version="13.0.1" />
-    <PackageReference Include="OpenAI" Version="2.4.0" />
+    <PackageReference Include="OpenAI" Version="2.8.0" />
   </ItemGroup>
 </Project>
