@@ -14,22 +14,13 @@ env:
 jobs:
   build-and-test:
     name: Build & Test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-      fail-fast: false
+    runs-on: [self-hosted]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Restore dependencies
       run: dotnet restore ${{ env.SOLUTION_PATH }}
@@ -41,7 +32,6 @@ jobs:
       run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
 
     - name: Upload coverage reports
-      if: matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
@@ -50,18 +40,13 @@ jobs:
 
   code-quality:
     name: Code Quality Analysis
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Restore dependencies
       run: dotnet restore ${{ env.SOLUTION_PATH }}
@@ -70,7 +55,7 @@ jobs:
       run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore /p:EnforceCodeStyleInBuild=true /p:TreatWarningsAsErrors=false
 
     - name: Install dotnet-format
-      run: dotnet tool install -g dotnet-format
+      run: dotnet tool update -g dotnet-format
 
     - name: Check code formatting
       run: dotnet format ${{ env.SOLUTION_PATH }} --verify-no-changes --verbosity diagnostic
@@ -78,16 +63,11 @@ jobs:
 
   dependency-scan:
     name: Dependency Vulnerability Scan
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Restore dependencies
       run: dotnet restore ${{ env.SOLUTION_PATH }}
@@ -103,7 +83,7 @@ jobs:
 
   quality-gate:
     name: SonarCloud Quality Gate
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     needs: [build-and-test]
 
     steps:
@@ -112,18 +92,13 @@ jobs:
 
   publish-artifacts:
     name: Publish Build Artifacts
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     needs: [build-and-test, code-quality, quality-gate]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Publish application
       run: dotnet publish ${{ env.SOLUTION_PATH }} --configuration Release --output ./publish
