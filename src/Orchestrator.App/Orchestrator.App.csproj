@@ -19,4 +19,10 @@
     <PackageReference Include="Octokit" Version="13.0.1" />
     <PackageReference Include="OpenAI" Version="2.4.0" />
   </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>Orchestrator.App.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 </Project>
