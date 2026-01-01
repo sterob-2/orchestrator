@@ -3,7 +3,7 @@ using Orchestrator.App;
 
 namespace Orchestrator.App.Tests.TestHelpers;
 
-public static class MockWorkContext
+internal static class MockWorkContext
 {
     public static WorkContext Create(
         WorkItem? workItem = null,

@@ -2,20 +2,20 @@ using Orchestrator.App;
 
 namespace Orchestrator.App.Tests.TestHelpers;
 
-public sealed class TempWorkspace : IDisposable
+internal sealed class TempWorkspace : IDisposable
 {
     private readonly string _path;
     private readonly RepoWorkspace _workspace;
 
     public TempWorkspace()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"test-workspace-{Guid.NewGuid()}");
+        _path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"test-workspace-{Guid.NewGuid()}");
         Directory.CreateDirectory(_path);
         _workspace = new RepoWorkspace(_path);
     }
 
     public RepoWorkspace Workspace => _workspace;
-    public string Path => _path;
+    public string WorkspacePath => _path;
 
     public void CreateFile(string relativePath, string content)
     {
