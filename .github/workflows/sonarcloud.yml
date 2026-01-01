@@ -101,7 +101,7 @@ jobs:
 
     - name: Upload coverage to artifacts
       if: steps.check_token.outputs.has_token == 'true'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: sonar-coverage
         path: coverage.xml
