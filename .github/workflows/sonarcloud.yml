@@ -66,7 +66,7 @@ jobs:
 
     - name: Restore dependencies
       if: steps.check_token.outputs.has_token == 'true'
-      run: dotnet restore src/Orchestrator.App/Orchestrator.App.csproj
+      run: dotnet restore tests/Orchestrator.App.Tests.csproj
 
     - name: Begin SonarCloud scan
       if: steps.check_token.outputs.has_token == 'true'
@@ -85,11 +85,11 @@ jobs:
 
     - name: Build
       if: steps.check_token.outputs.has_token == 'true'
-      run: dotnet build src/Orchestrator.App/Orchestrator.App.csproj --configuration Release --no-restore
+      run: dotnet build tests/Orchestrator.App.Tests.csproj --configuration Release --no-restore
 
     - name: Collect code coverage
       if: steps.check_token.outputs.has_token == 'true'
-      run: dotnet-coverage collect 'dotnet test src/Orchestrator.App/Orchestrator.App.csproj --configuration Release --no-build' -f xml -o 'coverage.xml'
+      run: dotnet-coverage collect 'dotnet test tests/Orchestrator.App.Tests.csproj --configuration Release --no-build' -f xml -o 'coverage.xml'
       continue-on-error: true
 
     - name: End SonarCloud scan
