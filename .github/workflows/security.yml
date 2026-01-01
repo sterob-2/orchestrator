@@ -83,7 +83,7 @@ jobs:
       uses: actions/checkout@v6
 
     - name: Install CycloneDX
-      run: dotnet tool install --global CycloneDX
+      run: dotnet tool update --global CycloneDX
 
     - name: Generate SBOM
       run: dotnet CycloneDX src/Orchestrator.App/Orchestrator.App.csproj -o ./ -f sbom
