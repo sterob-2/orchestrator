@@ -29,7 +29,7 @@ jobs:
       uses: actions/checkout@v6
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
+      uses: github/codeql-action/init@v4
       with:
         languages: ${{ matrix.language }}
         queries: security-extended,security-and-quality
@@ -38,7 +38,7 @@ jobs:
       run: dotnet build src/Orchestrator.App/Orchestrator.App.csproj --configuration Release
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+      uses: github/codeql-action/analyze@v4
       with:
         category: "/language:${{matrix.language}}"
 
@@ -89,7 +89,7 @@ jobs:
       run: dotnet CycloneDX src/Orchestrator.App/Orchestrator.App.csproj -o ./ -f sbom
 
     - name: Upload SBOM
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: sbom
         path: ./bom.xml
