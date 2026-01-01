@@ -1,0 +1,109 @@
+name: SonarCloud Quality Gate
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: [self-hosted]
+    if: github.event.repository.fork == false
+
+    steps:
+    - name: Check for SonarCloud token
+      id: check_token
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        if [ -z "$SONAR_TOKEN" ]; then
+          echo "has_token=false" >> $GITHUB_OUTPUT
+          echo "::warning::SONAR_TOKEN secret not set. Skipping SonarCloud analysis."
+        else
+          echo "has_token=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Checkout code
+      if: steps.check_token.outputs.has_token == 'true'
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Shallow clones should be disabled for better analysis
+
+    - name: Cache SonarCloud packages
+      if: steps.check_token.outputs.has_token == 'true'
+      uses: actions/cache@v3
+      with:
+        path: ~/sonar/cache
+        key: ${{ runner.os }}-sonar
+        restore-keys: ${{ runner.os }}-sonar
+
+    - name: Cache SonarCloud scanner
+      if: steps.check_token.outputs.has_token == 'true'
+      id: cache-sonar-scanner
+      uses: actions/cache@v3
+      with:
+        path: ./.sonar/scanner
+        key: ${{ runner.os }}-sonar-scanner
+        restore-keys: ${{ runner.os }}-sonar-scanner
+
+    - name: Install SonarCloud scanner
+      if: steps.check_token.outputs.has_token == 'true' && steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p ./.sonar/scanner
+        dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
+
+    - name: Install coverage tools
+      if: steps.check_token.outputs.has_token == 'true'
+      run: dotnet tool update --global dotnet-coverage
+
+    - name: Restore dependencies
+      if: steps.check_token.outputs.has_token == 'true'
+      run: dotnet restore src/Orchestrator.App/Orchestrator.App.csproj
+
+    - name: Begin SonarCloud scan
+      if: steps.check_token.outputs.has_token == 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        ./.sonar/scanner/dotnet-sonarscanner begin \
+          /k:"sterob-2_orchestrator" \
+          /o:"sterob-2" \
+          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
+          /d:sonar.host.url="https://sonarcloud.io" \
+          /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml \
+          /d:sonar.coverage.exclusions="**Tests*.cs" \
+          /d:sonar.exclusions="**/bin/**,**/obj/**,**/*.dll,**/*.exe"
+
+    - name: Build
+      if: steps.check_token.outputs.has_token == 'true'
+      run: dotnet build src/Orchestrator.App/Orchestrator.App.csproj --configuration Release --no-restore
+
+    - name: Collect code coverage
+      if: steps.check_token.outputs.has_token == 'true'
+      run: dotnet-coverage collect 'dotnet test src/Orchestrator.App/Orchestrator.App.csproj --configuration Release --no-build' -f xml -o 'coverage.xml'
+      continue-on-error: true
+
+    - name: End SonarCloud scan
+      if: steps.check_token.outputs.has_token == 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+    - name: Upload coverage to artifacts
+      if: steps.check_token.outputs.has_token == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: sonar-coverage
+        path: coverage.xml
+        retention-days: 30
+      continue-on-error: true

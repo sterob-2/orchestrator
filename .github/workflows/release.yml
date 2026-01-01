@@ -18,18 +18,13 @@ permissions:
 jobs:
   create-release:
     name: Create Release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.0.x'
 
     - name: Restore dependencies
       run: dotnet restore src/Orchestrator.App/Orchestrator.App.csproj
@@ -88,7 +83,7 @@ jobs:
 
   publish-docker-release:
     name: Publish Docker Release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     needs: create-release
 
     steps:
@@ -123,6 +118,6 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64
         cache-from: type=gha
         cache-to: type=gha,mode=max
