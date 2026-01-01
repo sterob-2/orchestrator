@@ -10,6 +10,7 @@ on:
 env:
   DOTNET_VERSION: '8.0.x'
   SOLUTION_PATH: 'src/Orchestrator.App/Orchestrator.App.csproj'
+  TEST_PROJECT_PATH: 'tests/Orchestrator.App.Tests.csproj'
 
 jobs:
   build-and-test:
@@ -23,13 +24,13 @@ jobs:
         fetch-depth: 0
 
     - name: Restore dependencies
-      run: dotnet restore ${{ env.SOLUTION_PATH }}
+      run: dotnet restore ${{ env.TEST_PROJECT_PATH }}
 
     - name: Build
-      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+      run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
 
     - name: Run tests
-      run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+      run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
 
     - name: Upload coverage reports
       uses: actions/upload-artifact@v6
