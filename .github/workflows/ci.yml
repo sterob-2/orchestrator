@@ -101,10 +101,19 @@ jobs:
         fi
       continue-on-error: true
 
+  quality-gate:
+    name: SonarCloud Quality Gate
+    runs-on: ubuntu-latest
+    needs: [build-and-test]
+
+    steps:
+    - name: Check SonarCloud Quality Gate
+      run: echo "SonarCloud quality gate check runs in separate workflow"
+
   publish-artifacts:
     name: Publish Build Artifacts
     runs-on: ubuntu-latest
-    needs: [build-and-test, code-quality]
+    needs: [build-and-test, code-quality, quality-gate]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     steps:

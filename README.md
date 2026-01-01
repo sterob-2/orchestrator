@@ -59,6 +59,47 @@ Build and start:
 - docker compose -f orchestrator/docker-compose.yml up -d --build
 - docker compose -f orchestrator/docker-compose.yml logs -f
 
+## CI/CD Pipeline
+
+This repository includes a comprehensive CI/CD pipeline with quality gates:
+
+### Quality Gates
+- **Build & Test**: Multi-platform builds (Linux, Windows, macOS)
+- **Code Quality**: Code formatting and style enforcement
+- **SonarCloud**: Code quality and security analysis
+- **Security Scanning**: CodeQL, secret detection, dependency vulnerabilities
+- **Docker**: Multi-architecture container builds with vulnerability scanning
+
+### SonarCloud Setup
+
+To enable SonarCloud quality gate:
+
+1. Sign up at [SonarCloud](https://sonarcloud.io) with your GitHub account
+2. Import the `sterob-2/orchestrator` repository
+3. Get your organization key and project key (already configured in `sonar-project.properties`)
+4. Add the `SONAR_TOKEN` secret to your GitHub repository:
+   - Go to Repository Settings > Secrets and variables > Actions
+   - Create new repository secret named `SONAR_TOKEN`
+   - Paste your SonarCloud token
+
+The SonarCloud workflow will automatically:
+- Run on every push and pull request
+- Analyze code quality, bugs, vulnerabilities, and code smells
+- Generate coverage reports
+- Block PRs that don't meet quality standards
+- Provide detailed quality metrics in the PR
+
+### Status Badges
+
+Add these badges to track your project status:
+
+```markdown
+[![CI](https://github.com/sterob-2/orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/sterob-2/orchestrator/actions/workflows/ci.yml)
+[![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=sterob-2_orchestrator&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=sterob-2_orchestrator)
+[![Security](https://github.com/sterob-2/orchestrator/actions/workflows/security.yml/badge.svg)](https://github.com/sterob-2/orchestrator/actions/workflows/security.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=sterob-2_orchestrator&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=sterob-2_orchestrator)
+```
+
 ## Notes
 
 This version keeps the role agents as placeholders and focuses on:
