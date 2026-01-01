@@ -8,7 +8,8 @@ internal sealed record WorkContext(
     OrchestratorConfig Config,
     RepoWorkspace Workspace,
     RepoGit Repo,
-    LlmClient Llm);
+    LlmClient Llm,
+    McpClientManager? Mcp = null);
 
 internal sealed record RepoFile(string Path, string Content, string Sha);
 

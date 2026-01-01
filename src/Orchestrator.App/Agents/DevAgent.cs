@@ -37,7 +37,7 @@ internal sealed class DevAgent : IRoleAgent
         }
 
         var branch = WorkItemBranch.BuildBranchName(ctx.WorkItem);
-        var specPath = $"orchestrator/specs/issue-{ctx.WorkItem.Number}.md";
+        var specPath = $"specs/issue-{ctx.WorkItem.Number}.md";
 
         if (!ctx.Workspace.Exists(specPath))
         {
@@ -318,7 +318,7 @@ internal sealed class DevAgent : IRoleAgent
 
     private static string TryGetQuestionAnswers(WorkContext ctx)
     {
-        var questionsPath = $"orchestrator/questions/issue-{ctx.WorkItem.Number}.md";
+        var questionsPath = $"questions/issue-{ctx.WorkItem.Number}.md";
         if (!ctx.Workspace.Exists(questionsPath))
         {
             return "None";
@@ -332,8 +332,8 @@ internal sealed class DevAgent : IRoleAgent
     private static async Task<AgentResult> CreateSpecQuestionAsync(WorkContext ctx, string question, string nextStageLabel)
     {
         var branch = WorkItemBranch.BuildBranchName(ctx.WorkItem);
-        var questionsPath = $"orchestrator/questions/issue-{ctx.WorkItem.Number}.md";
-        var templatePath = "orchestrator/docs/templates/questions.md";
+        var questionsPath = $"questions/issue-{ctx.WorkItem.Number}.md";
+        var templatePath = "docs/templates/questions.md";
         var tokens = AgentTemplateUtil.BuildTokens(ctx);
         if (ctx.Workspace.Exists(questionsPath))
         {
@@ -372,7 +372,7 @@ internal sealed class DevAgent : IRoleAgent
 
     private static bool IsQuestionsClarified(WorkContext ctx)
     {
-        var questionsPath = $"orchestrator/questions/issue-{ctx.WorkItem.Number}.md";
+        var questionsPath = $"questions/issue-{ctx.WorkItem.Number}.md";
         if (!ctx.Workspace.Exists(questionsPath))
         {
             return false;

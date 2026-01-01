@@ -39,7 +39,7 @@ internal sealed class PlannerExecutor : Executor<WorkflowInput, WorkflowOutput>
         IWorkflowContext context,
         CancellationToken cancellationToken = default)
     {
-        var planPath = $"orchestrator/plans/issue-{input.IssueNumber}.md";
+        var planPath = $"plans/issue-{input.IssueNumber}.md";
 
         // Check if plan already exists and is complete (idempotent)
         if (_context.Workspace.Exists(planPath))
@@ -60,7 +60,7 @@ internal sealed class PlannerExecutor : Executor<WorkflowInput, WorkflowOutput>
         _context.Repo.EnsureBranch(branch, _context.Config.DefaultBaseBranch);
 
         // Generate plan content from template
-        var templatePath = "orchestrator/docs/templates/plan.md";
+        var templatePath = "docs/templates/plan.md";
         var tokens = AgentTemplateUtil.BuildTokens(_context);
         var planContent = _context.Workspace.ReadOrTemplate(planPath, templatePath, tokens);
         planContent = AgentTemplateUtil.UpdateStatus(planContent, "COMPLETE");

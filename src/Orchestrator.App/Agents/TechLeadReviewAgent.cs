@@ -18,15 +18,15 @@ internal sealed class TechLeadReviewAgent : IRoleAgent
         var architecture = ctx.Workspace.Exists("Assets/Docs/architecture.md")
             ? ctx.Workspace.ReadAllText("Assets/Docs/architecture.md")
             : "";
-        var specPath = $"orchestrator/specs/issue-{ctx.WorkItem.Number}.md";
+        var specPath = $"specs/issue-{ctx.WorkItem.Number}.md";
         var spec = ctx.Workspace.Exists(specPath) ? ctx.Workspace.ReadAllText(specPath) : "";
 
         var systemPrompt = "You are a tech lead reviewer. Review the diff against the spec and architecture guidelines. Respond with either APPROVED or CHANGES_REQUESTED, then a bullet list of findings. If approved, no blocking issues.";
         var userPrompt = $"Architecture Guidelines:\\n{architecture}\\n\\nSpec:\\n{spec}\\n\\nPR Diff:\\n{diff}";
         var response = await ctx.Llm.GetUpdatedFileAsync(ctx.Config.TechLeadModel, systemPrompt, userPrompt);
         var reviewNotes = $"TechLead review for PR #{prNumber.Value}:\n\n{response}";
-        var reviewPath = $"orchestrator/reviews/issue-{ctx.WorkItem.Number}.md";
-        var templatePath = "orchestrator/docs/templates/review.md";
+        var reviewPath = $"reviews/issue-{ctx.WorkItem.Number}.md";
+        var templatePath = "docs/templates/review.md";
         var tokens = AgentTemplateUtil.BuildTokens(ctx);
         var reviewContent = AgentTemplateUtil.RenderTemplate(
             ctx.Workspace,

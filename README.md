@@ -170,6 +170,28 @@ The orchestrator implements a state machine workflow for processing GitHub issue
 5. **Code Review**: Optional automated code review
 6. **Pull Request**: Opens draft PR with implemented changes
 
+## Documentation
+
+### MCP Integration
+
+The orchestrator uses [Model Context Protocol (MCP)](https://modelcontextprotocol.io) for providing AI agents with access to filesystem, git, and GitHub operations.
+
+- **[MCP Setup Guide](docs/MCP_SETUP.md)** - Installing MCP server dependencies
+- **[Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md)** - Running orchestrator with MCP in Docker
+- **[MCP Agent Migration Plan](docs/MCP_AGENT_MIGRATION_PLAN.md)** - Roadmap for migrating agents to use MCP tools
+
+**Current MCP Status:**
+- ✅ Filesystem MCP Server: 14 tools
+- ✅ Git MCP Server: 12 tools
+- ✅ GitHub MCP Server: 40 tools
+- **Total: 66 tools available**
+
+### Additional Resources
+
+- [Microsoft Agent Framework](https://github.com/microsoft/agents) - Core framework documentation
+- [GitHub Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects) - Project board integration
+- [OpenAI API](https://platform.openai.com/docs/api-reference) - LLM API reference
+
 ## License
 
 This project is licensed under the MIT License.

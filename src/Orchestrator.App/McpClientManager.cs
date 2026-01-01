@@ -1,0 +1,251 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.Extensions.AI;
+using ModelContextProtocol.Client;
+
+namespace Orchestrator.App;
+
+/// <summary>
+/// Manages MCP (Model Context Protocol) client connections and provides AI tools
+/// for filesystem, git, and GitHub operations.
+/// </summary>
+internal sealed class McpClientManager : IAsyncDisposable
+{
+    private readonly List<McpClient> _clients = new();
+    private readonly List<McpClientTool> _tools = new();
+    private readonly Dictionary<string, string> _toolToServer = new();
+    private bool _initialized = false;
+
+    /// <summary>
+    /// Gets all tools available across all MCP servers.
+    /// </summary>
+    public IReadOnlyList<McpClientTool> Tools => _tools.AsReadOnly();
+
+    /// <summary>
+    /// Gets tools filtered by server name.
+    /// </summary>
+    public IEnumerable<McpClientTool> GetToolsByServer(string serverName)
+    {
+        return _tools.Where(tool => _toolToServer.TryGetValue(tool.Name, out var server) && server == serverName);
+    }
+
+    /// <summary>
+    /// Initializes all MCP clients and retrieves their tools.
+    /// </summary>
+    public async Task InitializeAsync(OrchestratorConfig config)
+    {
+        if (_initialized)
+        {
+            throw new InvalidOperationException("MCP clients already initialized.");
+        }
+
+        try
+        {
+            Logger.WriteLine("[MCP] Initializing MCP clients...");
+
+            // Initialize Filesystem MCP server
+            if (!string.IsNullOrWhiteSpace(config.WorkspaceHostPath))
+            {
+                await InitializeFilesystemServerAsync(config.WorkspaceHostPath);
+            }
+
+            // Initialize Git MCP server
+            if (!string.IsNullOrWhiteSpace(config.WorkspaceHostPath))
+            {
+                await InitializeGitServerAsync(config.WorkspaceHostPath);
+            }
+
+            // Initialize GitHub MCP server
+            if (!string.IsNullOrWhiteSpace(config.GitHubToken))
+            {
+                await InitializeGitHubServerAsync(config.GitHubToken);
+            }
+
+            _initialized = true;
+            Logger.WriteLine($"[MCP] Initialization complete. Total tools available: {_tools.Count}");
+
+            // Log available tools for debugging
+            foreach (var tool in _tools)
+            {
+                var serverName = _toolToServer.TryGetValue(tool.Name, out var server) ? server : "unknown";
+                Logger.WriteLine($"[MCP]   - {tool.Name} ({serverName})");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.WriteLine($"[MCP] Initialization failed: {ex.Message}");
+            await DisposeAsync();
+            throw;
+        }
+    }
+
+    private async Task InitializeFilesystemServerAsync(string workspaceHostPath)
+    {
+        try
+        {
+            Logger.WriteLine("[MCP] Connecting to Filesystem MCP server...");
+
+            // Use Docker to run the Filesystem MCP server
+            var transport = new StdioClientTransport(new StdioClientTransportOptions
+            {
+                Name = "FilesystemServer",
+                Command = "docker",
+                Arguments = [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-v",
+                    $"{workspaceHostPath}:/workspace:ro",
+                    "-w",
+                    "/workspace",
+                    "node:lts-alpine",
+                    "sh",
+                    "-c",
+                    "npx -y @modelcontextprotocol/server-filesystem /workspace"
+                ]
+            });
+
+            var client = await McpClient.CreateAsync(transport);
+
+            _clients.Add(client);
+
+            var tools = await client.ListToolsAsync().ConfigureAwait(false);
+            foreach (var tool in tools)
+            {
+                _tools.Add(tool);
+                _toolToServer[tool.Name] = "filesystem";
+            }
+
+            Logger.WriteLine($"[MCP] Filesystem server connected. Tools: {tools.Count}");
+        }
+        catch (Exception ex)
+        {
+            Logger.WriteLine($"[MCP] Warning: Failed to connect to Filesystem server: {ex.Message}");
+            Logger.WriteLine($"[MCP] Ensure Docker is installed and workspace path is accessible.");
+        }
+    }
+
+    private async Task InitializeGitServerAsync(string repositoryHostPath)
+    {
+        try
+        {
+            Logger.WriteLine("[MCP] Connecting to Git MCP server...");
+
+            // Use Docker to run the Git MCP server
+            var transport = new StdioClientTransport(new StdioClientTransportOptions
+            {
+                Name = "GitServer",
+                Command = "docker",
+                Arguments = [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-v",
+                    $"{repositoryHostPath}:/workspace",
+                    "-w",
+                    "/workspace",
+                    "python:3.12-alpine",
+                    "sh",
+                    "-c",
+                    "apk add --no-cache git && pip install --no-cache-dir uv > /dev/null 2>&1 && uvx mcp-server-git --repository /workspace"
+                ]
+            });
+
+            var client = await McpClient.CreateAsync(transport);
+
+            _clients.Add(client);
+
+            var tools = await client.ListToolsAsync().ConfigureAwait(false);
+            foreach (var tool in tools)
+            {
+                _tools.Add(tool);
+                _toolToServer[tool.Name] = "git";
+            }
+
+            Logger.WriteLine($"[MCP] Git server connected. Tools: {tools.Count}");
+        }
+        catch (Exception ex)
+        {
+            Logger.WriteLine($"[MCP] Warning: Failed to connect to Git server: {ex.Message}");
+            Logger.WriteLine($"[MCP] Ensure Docker is installed and repository path is accessible.");
+        }
+    }
+
+    private async Task InitializeGitHubServerAsync(string githubToken)
+    {
+        try
+        {
+            Logger.WriteLine("[MCP] Connecting to GitHub MCP server...");
+
+            // Set GitHub token as environment variable for the Docker container
+            var previousToken = Environment.GetEnvironmentVariable("GITHUB_PERSONAL_ACCESS_TOKEN");
+            Environment.SetEnvironmentVariable("GITHUB_PERSONAL_ACCESS_TOKEN", githubToken);
+
+            try
+            {
+                // Use Docker to run the official GitHub MCP server
+                var transport = new StdioClientTransport(new StdioClientTransportOptions
+                {
+                    Name = "GitHubServer",
+                    Command = "docker",
+                    Arguments = [
+                        "run",
+                        "-i",
+                        "--rm",
+                        "-e",
+                        "GITHUB_PERSONAL_ACCESS_TOKEN",
+                        "ghcr.io/github/github-mcp-server"
+                    ]
+                });
+
+                var client = await McpClient.CreateAsync(transport);
+
+                _clients.Add(client);
+
+                var tools = await client.ListToolsAsync().ConfigureAwait(false);
+                foreach (var tool in tools)
+                {
+                    _tools.Add(tool);
+                    _toolToServer[tool.Name] = "github";
+                }
+
+                Logger.WriteLine($"[MCP] GitHub server connected. Tools: {tools.Count}");
+            }
+            finally
+            {
+                // Restore previous token value
+                Environment.SetEnvironmentVariable("GITHUB_PERSONAL_ACCESS_TOKEN", previousToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.WriteLine($"[MCP] Warning: Failed to connect to GitHub server: {ex.Message}");
+            Logger.WriteLine($"[MCP] Ensure Docker is installed, running, and GitHub token is valid.");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Logger.WriteLine("[MCP] Disposing MCP clients...");
+
+        foreach (var client in _clients)
+        {
+            try
+            {
+                await client.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.WriteLine($"[MCP] Error disposing client: {ex.Message}");
+            }
+        }
+
+        _clients.Clear();
+        _tools.Clear();
+        _initialized = false;
+
+        Logger.WriteLine("[MCP] MCP clients disposed.");
+    }
+}
