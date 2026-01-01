@@ -36,7 +36,8 @@ internal sealed class PlannerExecutor : Executor<WorkflowInput, WorkflowOutput>
 
     public override async ValueTask<WorkflowOutput> HandleAsync(
         WorkflowInput input,
-        IWorkflowContext context)
+        IWorkflowContext context,
+        CancellationToken cancellationToken = default)
     {
         var planPath = $"orchestrator/plans/issue-{input.IssueNumber}.md";
 
