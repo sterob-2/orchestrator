@@ -46,7 +46,9 @@ internal static class WorkItemBranch
 
         foreach (var ch in input.ToLowerInvariant())
         {
-            var normalized = char.IsLetterOrDigit(ch) ? ch : '-';
+            // Only allow ASCII letters (a-z) and digits (0-9)
+            var isAsciiLetterOrDigit = (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9');
+            var normalized = isAsciiLetterOrDigit ? ch : '-';
             if (normalized == '-')
             {
                 if (dash) continue;
