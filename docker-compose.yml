@@ -1,0 +1,10 @@
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - /opt/repos/conjunction:/workspace
+    restart: unless-stopped
