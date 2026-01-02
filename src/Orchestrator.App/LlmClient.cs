@@ -89,12 +89,7 @@ internal sealed class LlmClient
                     }
                     catch (OperationCanceledException)
                     {
-                        // Preserve cancellation semantics
-                        throw;
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        // Preserve task cancellation semantics
+                        // Preserve cancellation semantics (includes TaskCanceledException)
                         throw;
                     }
                     catch (Exception ex)
