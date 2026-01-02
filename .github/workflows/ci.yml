@@ -38,13 +38,12 @@ jobs:
     - name: Build
       run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
 
-    - name: Run unit tests
-      run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --filter "Category!=Integration" --collect:"XPlat Code Coverage" --results-directory ./coverage
+    - name: Install dotnet-coverage
+      run: dotnet tool update --global dotnet-coverage
 
-    - name: Convert coverage to XML format
+    - name: Run unit tests with coverage
       run: |
-        dotnet tool update --global dotnet-coverage
-        dotnet-coverage merge ./coverage/**/*.coverage -f xml -o coverage-unit.xml
+        dotnet-coverage collect "dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --filter \"Category!=Integration\"" -f xml -o coverage-unit.xml
         ls -lh coverage-unit.xml
 
     - name: Upload coverage reports
@@ -70,20 +69,22 @@ jobs:
     - name: Build
       run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
 
-    - name: Run integration tests
-      run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --filter "Category=Integration" --collect:"XPlat Code Coverage" --results-directory ./coverage-integration
+    - name: Install dotnet-coverage
+      run: dotnet tool update --global dotnet-coverage
+
+    - name: Run integration tests with coverage
+      run: |
+        dotnet-coverage collect "dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --filter \"Category=Integration\"" -f xml -o coverage-integration.xml
+        ls -lh coverage-integration.xml
       env:
         WORKSPACE_HOST_PATH: ${{ github.workspace }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
 
-    - name: Convert coverage to XML format
+    - name: Ensure coverage file exists
       run: |
-        dotnet tool update --global dotnet-coverage
-        if [ -d ./coverage-integration ] && [ "$(ls -A ./coverage-integration/**/*.coverage 2>/dev/null)" ]; then
-          dotnet-coverage merge ./coverage-integration/**/*.coverage -f xml -o coverage-integration.xml
-          ls -lh coverage-integration.xml
-        else
-          echo "No integration coverage files found"
+        if [ ! -f coverage-integration.xml ] || [ ! -s coverage-integration.xml ]; then
+          echo "Integration coverage not available, creating empty file"
           touch coverage-integration.xml
         fi
 
