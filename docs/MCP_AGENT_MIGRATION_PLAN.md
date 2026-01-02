@@ -21,9 +21,66 @@
 - `docker-compose.yml` - Added Docker socket mount and workspace configuration
 - `.env` - Added WORKSPACE_HOST_PATH configuration
 
-### ⏭️ Phase 2: Agent Migration (NEXT)
+### ✅ Phase 2.1: LlmClient Modernization (COMPLETED)
 
-**Goal:** Migrate agents from custom tool implementations to use MCP tools via Microsoft.Extensions.AI
+**Accomplished:**
+- Added Microsoft.Extensions.AI.OpenAI package (v10.1.1-preview.1.25612.2)
+- Implemented `CompleteChatWithMcpToolsAsync` with full tool calling support
+- Converted MCP tools to AIFunction objects using AIFunctionFactory
+- Used ChatClientBuilder with UseFunctionInvocation middleware
+- Tool call loop handled automatically by Microsoft.Extensions.AI
+- Added logging for tool invocations and results
+
+**Files Modified:**
+- `src/Orchestrator.App/Orchestrator.App.csproj` - Added Microsoft.Extensions.AI.OpenAI
+- `src/Orchestrator.App/LlmClient.cs` - Implemented tool calling method
+- `src/Orchestrator.App/McpClientManager.cs` - Added CallToolAsync method
+
+### ✅ Phase 2.2: Tool-Enabled Agent Base (COMPLETED)
+
+**Accomplished:**
+- Created `ToolEnabledAgentBase` abstract class
+- Implemented `GetRequiredTools()` virtual method for tool selection
+- Implemented `BuildSystemPromptWithTools()` for prompt enhancement
+- Implemented `RunWithToolsAsync()` for tool-enabled LLM completion
+- Created `McpToolFilters` helper class with extension methods
+- Filesystem MCP server updated to read-write access
+
+**Files Created:**
+- `src/Orchestrator.App/Agents/ToolEnabledAgentBase.cs`
+
+**Files Modified:**
+- `src/Orchestrator.App/McpClientManager.cs` - Removed `:ro` flag for read-write access
+
+### ⏭️ Phase 2.3: Migrate DevAgent (IN PROGRESS)
+
+**Challenge:**
+DevAgent has complex procedural orchestration that doesn't fit the autonomous tool-calling pattern well. The agent performs:
+1. Spec validation and question checking
+2. File validation and test file requirements
+3. Sequential file updates with LLM
+4. Self-check verification
+5. Remediation if needed
+6. Git commit and push
+
+**Migration Options:**
+
+**Option A: Full Autonomous**
+Replace entire workflow with single LLM prompt that has access to all MCP tools. Let LLM decide when to read/write files, run checks, commit, etc.
+- Pro: Fully leverages MCP capabilities
+- Con: Unpredictable, high risk, significant behavior change
+
+**Option B: Hybrid Orchestration**
+Keep agent's orchestration logic but use MCP tools for specific operations within each step.
+- Pro: Predictable, incremental, testable
+- Con: Not fully autonomous
+
+**Option C: Decompose into Sub-Agents**
+Break DevAgent into smaller tool-enabled agents (FileValidator, FileUpdater, SelfChecker, etc.) each using MCP tools.
+- Pro: Modular, testable, fits tool-calling pattern
+- Con: Requires architectural changes
+
+**Recommended: Option B (Hybrid) for initial migration, then Option C long-term**
 
 **Current Agent Architecture:**
 ```
