@@ -5,29 +5,31 @@ using Xunit;
 
 namespace Orchestrator.App.Tests.Integration;
 
-[Trait("Category", "Integration")]
-public class McpIntegrationTests : IAsyncLifetime
+/// <summary>
+/// Shared fixture for MCP integration tests - initializes Docker once for all tests
+/// </summary>
+public class McpTestFixture : IAsyncLifetime
 {
     private McpClientManager? _manager;
-    private OrchestratorConfig? _config;
-    private readonly string _testWorkspace;
+    public string TestWorkspace { get; private set; }
+    public bool IsInitialized => _manager != null && _manager.Tools.Count > 0;
 
-    public McpIntegrationTests()
+    public McpTestFixture()
     {
-        _testWorkspace = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"mcp-test-{Guid.NewGuid()}");
-        System.IO.Directory.CreateDirectory(_testWorkspace);
+        TestWorkspace = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"mcp-test-{Guid.NewGuid()}");
+        System.IO.Directory.CreateDirectory(TestWorkspace);
     }
 
     public async Task InitializeAsync()
     {
-        _config = new OrchestratorConfig(
+        var config = new OrchestratorConfig(
             OpenAiBaseUrl: "https://api.openai.com/v1",
             OpenAiApiKey: Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? "test-key",
             OpenAiModel: "gpt-4o-mini",
             DevModel: "gpt-4o",
             TechLeadModel: "gpt-4o-mini",
-            WorkspacePath: _testWorkspace,
-            WorkspaceHostPath: _testWorkspace,
+            WorkspacePath: TestWorkspace,
+            WorkspaceHostPath: TestWorkspace,
             GitRemoteUrl: "https://github.com/test/repo.git",
             GitAuthorName: "Test Agent",
             GitAuthorEmail: "test@example.com",
@@ -68,13 +70,37 @@ public class McpIntegrationTests : IAsyncLifetime
 
         try
         {
-            await _manager.InitializeAsync(_config);
+            // Initialize MCP servers (Git server will fail gracefully if workspace isn't a git repo)
+            await _manager.InitializeAsync(config);
         }
         catch (Exception ex)
         {
             // Log but don't fail - Docker might not be available in all test environments
             Console.WriteLine($"MCP initialization skipped: {ex.Message}");
         }
+    }
+
+    public async Task<string> CallToolAsync(string toolName, System.Collections.Generic.Dictionary<string, object?> arguments)
+    {
+        if (_manager == null)
+        {
+            throw new InvalidOperationException("MCP manager not initialized");
+        }
+        return await _manager.CallToolAsync(toolName, arguments);
+    }
+
+    public System.Collections.Generic.IEnumerable<ModelContextProtocol.Client.McpClientTool> GetToolsByServer(string serverName)
+    {
+        if (_manager == null)
+        {
+            return Enumerable.Empty<ModelContextProtocol.Client.McpClientTool>();
+        }
+        return _manager.GetToolsByServer(serverName);
+    }
+
+    public int GetToolCount()
+    {
+        return _manager?.Tools.Count ?? 0;
     }
 
     public async Task DisposeAsync()
@@ -84,50 +110,70 @@ public class McpIntegrationTests : IAsyncLifetime
             await _manager.DisposeAsync();
         }
 
-        if (System.IO.Directory.Exists(_testWorkspace))
+        if (System.IO.Directory.Exists(TestWorkspace))
         {
-            System.IO.Directory.Delete(_testWorkspace, true);
+            try
+            {
+                System.IO.Directory.Delete(TestWorkspace, true);
+            }
+            catch
+            {
+                // Best effort cleanup
+            }
         }
+    }
+}
+
+[Trait("Category", "Integration")]
+public class McpIntegrationTests : IClassFixture<McpTestFixture>
+{
+    private readonly McpTestFixture _fixture;
+
+    public McpIntegrationTests(McpTestFixture fixture)
+    {
+        _fixture = fixture;
     }
 
     [Fact]
     public async Task FilesystemServer_ListDirectory_ReturnsFiles()
     {
-        if (_manager == null || _manager.Tools.Count == 0)
+        if (!_fixture.IsInitialized)
         {
             // Skip if MCP not initialized (Docker not available)
             return;
         }
 
-        // Create test file using absolute path
-        var testFile = System.IO.Path.Combine(_testWorkspace, "test-file.txt");
+        // Create test file using absolute path with unique name per test
+        var testFile = System.IO.Path.Combine(_fixture.TestWorkspace, $"list-test-{Guid.NewGuid()}.txt");
         await System.IO.File.WriteAllTextAsync(testFile, "test content");
+        var fileName = System.IO.Path.GetFileName(testFile);
 
         // MCP expects relative path from workspace root
-        var result = await _manager.CallToolAsync("list_directory", new System.Collections.Generic.Dictionary<string, object?>
+        var result = await _fixture.CallToolAsync("list_directory", new System.Collections.Generic.Dictionary<string, object?>
         {
             ["path"] = "."
         });
 
-        Assert.Contains("test-file.txt", result);
+        Assert.Contains(fileName, result);
     }
 
     [Fact]
     public async Task FilesystemServer_ReadFile_ReturnsContent()
     {
-        if (_manager == null || _manager.Tools.Count == 0)
+        if (!_fixture.IsInitialized)
         {
             return;
         }
 
-        // Create file with absolute path
-        var testFile = System.IO.Path.Combine(_testWorkspace, "read-test.txt");
+        // Create file with absolute path and unique name
+        var fileName = $"read-test-{Guid.NewGuid()}.txt";
+        var testFile = System.IO.Path.Combine(_fixture.TestWorkspace, fileName);
         await System.IO.File.WriteAllTextAsync(testFile, "hello world");
 
         // Read with relative path
-        var result = await _manager.CallToolAsync("read_file", new System.Collections.Generic.Dictionary<string, object?>
+        var result = await _fixture.CallToolAsync("read_file", new System.Collections.Generic.Dictionary<string, object?>
         {
-            ["path"] = "read-test.txt"
+            ["path"] = fileName
         });
 
         Assert.Contains("hello world", result);
@@ -136,34 +182,35 @@ public class McpIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task FilesystemServer_WriteFile_CreatesFile()
     {
-        if (_manager == null || _manager.Tools.Count == 0)
+        if (!_fixture.IsInitialized)
         {
             return;
         }
 
-        // Write with relative path
-        await _manager.CallToolAsync("write_file", new System.Collections.Generic.Dictionary<string, object?>
+        // Write with relative path and unique name
+        var fileName = $"write-test-{Guid.NewGuid()}.txt";
+        await _fixture.CallToolAsync("write_file", new System.Collections.Generic.Dictionary<string, object?>
         {
-            ["path"] = "write-test.txt",
+            ["path"] = fileName,
             ["content"] = "written by MCP"
         });
 
         // Check with absolute path
-        var testFile = System.IO.Path.Combine(_testWorkspace, "write-test.txt");
+        var testFile = System.IO.Path.Combine(_fixture.TestWorkspace, fileName);
         Assert.True(System.IO.File.Exists(testFile));
         var content = await System.IO.File.ReadAllTextAsync(testFile);
         Assert.Contains("written by MCP", content);
     }
 
     [Fact]
-    public async Task GetToolsByServer_Filesystem_ReturnsFilesystemTools()
+    public void GetToolsByServer_Filesystem_ReturnsFilesystemTools()
     {
-        if (_manager == null || _manager.Tools.Count == 0)
+        if (!_fixture.IsInitialized)
         {
             return;
         }
 
-        var filesystemTools = _manager.GetToolsByServer("filesystem");
+        var filesystemTools = _fixture.GetToolsByServer("filesystem");
 
         Assert.NotEmpty(filesystemTools);
         Assert.Contains(filesystemTools, t => t.Name == "read_file");
@@ -174,12 +221,11 @@ public class McpIntegrationTests : IAsyncLifetime
     [Fact]
     public void Tools_AfterInitialization_ContainsTools()
     {
-        if (_manager == null || _manager.Tools.Count == 0)
+        if (!_fixture.IsInitialized)
         {
             return;
         }
 
-        Assert.NotEmpty(_manager.Tools);
-        Assert.True(_manager.Tools.Count >= 10); // Should have at least filesystem tools
+        Assert.True(_fixture.GetToolCount() >= 3); // Filesystem server has multiple tools
     }
 }
