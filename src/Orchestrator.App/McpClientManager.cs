@@ -234,45 +234,33 @@ internal class McpClientManager : IAsyncDisposable
         {
             Logger.WriteLine("[MCP] Connecting to GitHub MCP server...");
 
-            // Set GitHub token as environment variable for the Docker container
-            var previousToken = Environment.GetEnvironmentVariable("GITHUB_PERSONAL_ACCESS_TOKEN");
-            Environment.SetEnvironmentVariable("GITHUB_PERSONAL_ACCESS_TOKEN", githubToken);
-
-            try
+            // Use Docker to run the official GitHub MCP server
+            var transport = new StdioClientTransport(new StdioClientTransportOptions
             {
-                // Use Docker to run the official GitHub MCP server
-                var transport = new StdioClientTransport(new StdioClientTransportOptions
-                {
-                    Name = "GitHubServer",
-                    Command = "docker",
-                    Arguments = [
-                        "run",
-                        "-i",
-                        "--rm",
-                        "-e",
-                        "GITHUB_PERSONAL_ACCESS_TOKEN",
-                        "ghcr.io/github/github-mcp-server"
-                    ]
-                });
+                Name = "GitHubServer",
+                Command = "docker",
+                Arguments = [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-e",
+                    $"GITHUB_PERSONAL_ACCESS_TOKEN={githubToken}",
+                    "ghcr.io/github/github-mcp-server"
+                ]
+            });
 
-                var client = await McpClient.CreateAsync(transport);
+            var client = await McpClient.CreateAsync(transport);
 
-                _clients.Add(client);
+            _clients.Add(client);
 
-                var tools = await client.ListToolsAsync().ConfigureAwait(false);
-                foreach (var tool in tools)
-                {
-                    _tools.Add(tool);
-                    _toolToServer[tool.Name] = "github";
-                }
-
-                Logger.WriteLine($"[MCP] GitHub server connected. Tools: {tools.Count}");
-            }
-            finally
+            var tools = await client.ListToolsAsync().ConfigureAwait(false);
+            foreach (var tool in tools)
             {
-                // Restore previous token value
-                Environment.SetEnvironmentVariable("GITHUB_PERSONAL_ACCESS_TOKEN", previousToken);
+                _tools.Add(tool);
+                _toolToServer[tool.Name] = "github";
             }
+
+            Logger.WriteLine($"[MCP] GitHub server connected. Tools: {tools.Count}");
         }
         catch (InvalidOperationException ex)
         {
