@@ -73,7 +73,7 @@ jobs:
       run: dotnet tool update --global dotnet-coverage
 
     - name: Restore dependencies
-      run: dotnet restore ${{ env.SOLUTION_PATH }}
+      run: dotnet restore ${{ env.TEST_PROJECT_PATH }}
 
     - name: Begin SonarCloud scan
       if: steps.check_token.outputs.has_token == 'true'
@@ -91,7 +91,7 @@ jobs:
           /d:sonar.exclusions="**/bin/**,**/obj/**,**/*.dll,**/*.exe"
 
     - name: Build
-      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+      run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
 
     - name: Run unit tests with coverage
       run: |
