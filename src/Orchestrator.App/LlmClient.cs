@@ -87,6 +87,16 @@ internal sealed class LlmClient
                         Logger.WriteLine($"[LLM] Tool {tool.Name} result: {result.Substring(0, Math.Min(100, result.Length))}...");
                         return result;
                     }
+                    catch (OperationCanceledException)
+                    {
+                        // Preserve cancellation semantics
+                        throw;
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        // Preserve task cancellation semantics
+                        throw;
+                    }
                     catch (Exception ex)
                     {
                         Logger.WriteLine($"[LLM] Error invoking tool {tool.Name}: {ex.Message}");
