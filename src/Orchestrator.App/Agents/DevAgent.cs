@@ -39,19 +39,39 @@ internal sealed class DevAgent : IRoleAgent
         var branch = WorkItemBranch.BuildBranchName(ctx.WorkItem);
         var specPath = $"specs/issue-{ctx.WorkItem.Number}.md";
 
-        if (!ctx.Workspace.Exists(specPath))
-        {
-            return new AgentResult(
-                Success: true,
-                Notes: "Spec file missing. Please provide a spec.",
-                NextStageLabel: ctx.Config.TechLeadLabel,
-                AddLabels: new[] { ctx.Config.SpecQuestionsLabel }
-            );
-        }
+        // Use MCP file operations if available, fallback to Workspace
+        bool specExists;
+        string specContent;
 
-        var specContent = ctx.Workspace.ReadAllText(specPath);
+        if (ctx.McpFiles != null)
+        {
+            specExists = await ctx.McpFiles.ExistsAsync(specPath);
+            if (!specExists)
+            {
+                return new AgentResult(
+                    Success: true,
+                    Notes: "Spec file missing. Please provide a spec.",
+                    NextStageLabel: ctx.Config.TechLeadLabel,
+                    AddLabels: new[] { ctx.Config.SpecQuestionsLabel }
+                );
+            }
+            specContent = await ctx.McpFiles.ReadAllTextAsync(specPath);
+        }
+        else
+        {
+            if (!ctx.Workspace.Exists(specPath))
+            {
+                return new AgentResult(
+                    Success: true,
+                    Notes: "Spec file missing. Please provide a spec.",
+                    NextStageLabel: ctx.Config.TechLeadLabel,
+                    AddLabels: new[] { ctx.Config.SpecQuestionsLabel }
+                );
+            }
+            specContent = ctx.Workspace.ReadAllText(specPath);
+        }
         var reviewNotes = TryGetReviewNotes(ctx);
-        var questionAnswers = TryGetQuestionAnswers(ctx);
+        var questionAnswers = await TryGetQuestionAnswersAsync(ctx);
         var reviewFiles = TryGetReviewFiles(ctx);
         var files = reviewFiles.Count > 0 ? reviewFiles : WorkItemParsers.TryParseSpecFiles(specContent);
         if (files.Count == 0)
@@ -88,7 +108,18 @@ internal sealed class DevAgent : IRoleAgent
                 continue;
             }
 
-            var currentContent = ctx.Workspace.Exists(file) ? ctx.Workspace.ReadAllText(file) : "";
+            // Use MCP to read file if available
+            string currentContent;
+            if (ctx.McpFiles != null)
+            {
+                var fileExists = await ctx.McpFiles.ExistsAsync(file);
+                currentContent = fileExists ? await ctx.McpFiles.ReadAllTextAsync(file) : "";
+            }
+            else
+            {
+                currentContent = ctx.Workspace.Exists(file) ? ctx.Workspace.ReadAllText(file) : "";
+            }
+
             var updated = await GetUpdatedFileAsync(ctx, specContent, reviewNotes, questionAnswers, file, currentContent);
             if (string.IsNullOrWhiteSpace(updated))
             {
@@ -99,7 +130,15 @@ internal sealed class DevAgent : IRoleAgent
                 );
             }
 
-            ctx.Workspace.WriteAllText(file, updated);
+            // Use MCP to write file if available
+            if (ctx.McpFiles != null)
+            {
+                await ctx.McpFiles.WriteAllTextAsync(file, updated);
+            }
+            else
+            {
+                ctx.Workspace.WriteAllText(file, updated);
+            }
             updatedFiles.Add(file);
         }
 
@@ -123,7 +162,15 @@ internal sealed class DevAgent : IRoleAgent
         var updatedSpec = WorkItemParsers.MarkAcceptanceCriteriaDone(specContent);
         if (!string.Equals(updatedSpec, specContent, StringComparison.Ordinal))
         {
-            ctx.Workspace.WriteAllText(specPath, updatedSpec);
+            // Use MCP to write spec file if available
+            if (ctx.McpFiles != null)
+            {
+                await ctx.McpFiles.WriteAllTextAsync(specPath, updatedSpec);
+            }
+            else
+            {
+                ctx.Workspace.WriteAllText(specPath, updatedSpec);
+            }
             updatedFiles.Add(specPath);
         }
 
@@ -194,9 +241,20 @@ internal sealed class DevAgent : IRoleAgent
         string filePath,
         string currentContent)
     {
-        var architecture = ctx.Workspace.Exists("Assets/Docs/architecture.md")
-            ? ctx.Workspace.ReadAllText("Assets/Docs/architecture.md")
-            : "";
+        // Use MCP to read architecture file if available
+        string architecture;
+        if (ctx.McpFiles != null)
+        {
+            var archExists = await ctx.McpFiles.ExistsAsync("Assets/Docs/architecture.md");
+            architecture = archExists ? await ctx.McpFiles.ReadAllTextAsync("Assets/Docs/architecture.md") : "";
+        }
+        else
+        {
+            architecture = ctx.Workspace.Exists("Assets/Docs/architecture.md")
+                ? ctx.Workspace.ReadAllText("Assets/Docs/architecture.md")
+                : "";
+        }
+
         var systemPrompt = "You are a senior engineer. Update the file according to the spec, review notes, and architecture guidelines. Output ONLY the full file content, no markdown, no code fences.";
         var userPrompt = $"Architecture Guidelines:\\n{architecture}\\n\\nSpec:\\n{spec}\\n\\nTechLead Review Notes:\\n{reviewNotes}\\n\\nTechLead Answers:\\n{questionAnswers}\\n\\nFile: {filePath}\\n\\nCurrent content:\\n{currentContent}";
         var response = await ctx.Llm.GetUpdatedFileAsync(ctx.Config.DevModel, systemPrompt, userPrompt);
@@ -218,12 +276,28 @@ internal sealed class DevAgent : IRoleAgent
         var fileBlocks = new List<string>();
         foreach (var file in updatedFiles)
         {
-            if (!ctx.Workspace.Exists(file))
+            // Use MCP to read files for self-check
+            bool fileExists;
+            string content;
+
+            if (ctx.McpFiles != null)
             {
-                continue;
+                fileExists = await ctx.McpFiles.ExistsAsync(file);
+                if (!fileExists)
+                {
+                    continue;
+                }
+                content = await ctx.McpFiles.ReadAllTextAsync(file);
+            }
+            else
+            {
+                if (!ctx.Workspace.Exists(file))
+                {
+                    continue;
+                }
+                content = ctx.Workspace.ReadAllText(file);
             }
 
-            var content = ctx.Workspace.ReadAllText(file);
             fileBlocks.Add($"File: {file}\n{AgentHelpers.Truncate(content, 8000)}");
         }
 
@@ -279,11 +353,29 @@ internal sealed class DevAgent : IRoleAgent
         var remediationNotes = reviewNotes + "\n\nAnswers:\n" + questionAnswers + "\n\nMissing items to address:\n- " + string.Join("\n- ", missingItems);
         foreach (var file in updatedFiles)
         {
-            var currentContent = ctx.Workspace.Exists(file) ? ctx.Workspace.ReadAllText(file) : "";
+            // Use MCP to read/write files if available
+            string currentContent;
+            if (ctx.McpFiles != null)
+            {
+                var fileExists = await ctx.McpFiles.ExistsAsync(file);
+                currentContent = fileExists ? await ctx.McpFiles.ReadAllTextAsync(file) : "";
+            }
+            else
+            {
+                currentContent = ctx.Workspace.Exists(file) ? ctx.Workspace.ReadAllText(file) : "";
+            }
+
             var updated = await GetUpdatedFileAsync(ctx, spec, remediationNotes, questionAnswers, file, currentContent);
             if (!string.IsNullOrWhiteSpace(updated))
             {
-                ctx.Workspace.WriteAllText(file, updated);
+                if (ctx.McpFiles != null)
+                {
+                    await ctx.McpFiles.WriteAllTextAsync(file, updated);
+                }
+                else
+                {
+                    ctx.Workspace.WriteAllText(file, updated);
+                }
             }
         }
     }
@@ -316,15 +408,36 @@ internal sealed class DevAgent : IRoleAgent
         return WorkItemParsers.TryParseSpecFiles(content);
     }
 
-    private static string TryGetQuestionAnswers(WorkContext ctx)
+    private static async Task<string> TryGetQuestionAnswersAsync(WorkContext ctx)
     {
         var questionsPath = $"questions/issue-{ctx.WorkItem.Number}.md";
-        if (!ctx.Workspace.Exists(questionsPath))
+
+        // Use MCP to read questions file
+        bool questionsExists;
+        string? content = null;
+
+        if (ctx.McpFiles != null)
+        {
+            questionsExists = await ctx.McpFiles.ExistsAsync(questionsPath);
+            if (questionsExists)
+            {
+                content = await ctx.McpFiles.ReadAllTextAsync(questionsPath);
+            }
+        }
+        else
+        {
+            questionsExists = ctx.Workspace.Exists(questionsPath);
+            if (questionsExists)
+            {
+                content = ctx.Workspace.ReadAllText(questionsPath);
+            }
+        }
+
+        if (content == null)
         {
             return "None";
         }
 
-        var content = ctx.Workspace.ReadAllText(questionsPath);
         var answers = WorkItemParsers.TryParseSection(content, "## Answers");
         return string.IsNullOrWhiteSpace(answers) ? "None" : answers.Trim();
     }
@@ -335,15 +448,36 @@ internal sealed class DevAgent : IRoleAgent
         var questionsPath = $"questions/issue-{ctx.WorkItem.Number}.md";
         var templatePath = "docs/templates/questions.md";
         var tokens = AgentTemplateUtil.BuildTokens(ctx);
-        if (ctx.Workspace.Exists(questionsPath))
+
+        // Use MCP to check and read existing questions file
+        bool questionsExists;
+        string? existingContent = null;
+
+        if (ctx.McpFiles != null)
         {
-            var existing = ctx.Workspace.ReadAllText(questionsPath);
-            if (AgentTemplateUtil.IsStatus(existing, "CLARIFIED"))
+            questionsExists = await ctx.McpFiles.ExistsAsync(questionsPath);
+            if (questionsExists)
+            {
+                existingContent = await ctx.McpFiles.ReadAllTextAsync(questionsPath);
+            }
+        }
+        else
+        {
+            questionsExists = ctx.Workspace.Exists(questionsPath);
+            if (questionsExists)
+            {
+                existingContent = ctx.Workspace.ReadAllText(questionsPath);
+            }
+        }
+
+        if (existingContent != null)
+        {
+            if (AgentTemplateUtil.IsStatus(existingContent, "CLARIFIED"))
             {
                 return AgentResult.Fail($"Spec questions already clarified, but Dev still needs clarification: {question}");
             }
 
-            if (existing.Contains(question, StringComparison.OrdinalIgnoreCase))
+            if (existingContent.Contains(question, StringComparison.OrdinalIgnoreCase))
             {
                 return new AgentResult(
                     Success: true,
@@ -359,7 +493,17 @@ internal sealed class DevAgent : IRoleAgent
         updated = AgentTemplateUtil.AppendQuestion(updated, question);
 
         ctx.Repo.EnsureBranch(branch, ctx.Config.DefaultBaseBranch);
-        ctx.Workspace.WriteAllText(questionsPath, updated);
+
+        // Use MCP to write questions file
+        if (ctx.McpFiles != null)
+        {
+            await ctx.McpFiles.WriteAllTextAsync(questionsPath, updated);
+        }
+        else
+        {
+            ctx.Workspace.WriteAllText(questionsPath, updated);
+        }
+
         ctx.Repo.CommitAndPush(branch, $"docs: add spec questions for issue {ctx.WorkItem.Number}", new[] { questionsPath });
 
         return new AgentResult(
