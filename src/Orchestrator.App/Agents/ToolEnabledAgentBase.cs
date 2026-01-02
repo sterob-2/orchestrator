@@ -104,7 +104,8 @@ Use these tools when needed to accomplish your goals. Call tools by their exact 
             model,
             enhancedPrompt,
             userPrompt,
-            tools);
+            tools,
+            ctx.Mcp);
     }
 
     /// <summary>

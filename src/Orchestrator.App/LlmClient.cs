@@ -1,7 +1,9 @@
 using System;
 using System.ClientModel;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 using OpenAI;
 using OpenAI.Chat;
@@ -11,9 +13,14 @@ namespace Orchestrator.App;
 internal sealed class LlmClient
 {
     private readonly OpenAIClient _openAiClient;
+    private readonly string _apiKey;
+    private readonly string _baseUrl;
 
     public LlmClient(OrchestratorConfig cfg)
     {
+        _apiKey = cfg.OpenAiApiKey;
+        _baseUrl = cfg.OpenAiBaseUrl;
+
         var options = new OpenAIClientOptions
         {
             Endpoint = new Uri(cfg.OpenAiBaseUrl)
@@ -29,7 +36,7 @@ internal sealed class LlmClient
     {
         var temperature = model.StartsWith("gpt-5", StringComparison.OrdinalIgnoreCase) ? 1f : 0.2f;
 
-        var messages = new ChatMessage[]
+        var messages = new OpenAI.Chat.ChatMessage[]
         {
             new SystemChatMessage(systemPrompt),
             new UserChatMessage(userPrompt)
@@ -48,25 +55,74 @@ internal sealed class LlmClient
 
     /// <summary>
     /// Chat completion with MCP tool calling support.
-    /// NOTE: This is a stub implementation. Tool calling integration requires additional
-    /// research into the MCP Client API for proper tool schema conversion and invocation.
-    /// See docs/MCP_AGENT_MIGRATION_PLAN.md Phase 2.1 for implementation details.
+    /// Uses Microsoft.Extensions.AI for automatic function invocation.
     /// </summary>
     public async Task<string> CompleteChatWithMcpToolsAsync(
         string model,
         string systemPrompt,
         string userPrompt,
-        IEnumerable<McpClientTool> mcpTools)
+        IEnumerable<McpClientTool> mcpTools,
+        McpClientManager mcpManager)
     {
-        // TODO: Implement tool calling
-        // Current blockers:
-        // 1. Need to convert McpClientTool to OpenAI ChatTool format (schema conversion)
-        // 2. Need to properly invoke MCP tools with parsed arguments
-        // 3. Need to handle tool call loop with message history
-        //
-        // For now, fall back to standard completion
-        Logger.WriteLine("[LLM] Warning: MCP tool calling not yet implemented, using standard completion");
+        var toolsList = mcpTools.ToList();
+        if (toolsList.Count == 0)
+        {
+            return await GetUpdatedFileAsync(model, systemPrompt, userPrompt);
+        }
 
-        return await GetUpdatedFileAsync(model, systemPrompt, userPrompt);
+        Logger.WriteLine($"[LLM] Using MCP tool calling with {toolsList.Count} tools");
+
+        // Convert MCP tools to AIFunction objects
+        var aiFunctions = new List<AIFunction>();
+        foreach (var tool in toolsList)
+        {
+            // Create a function that calls the MCP tool via the manager
+            var function = AIFunctionFactory.Create(
+                async (IDictionary<string, object?> args) =>
+                {
+                    Logger.WriteLine($"[LLM] Invoking MCP tool: {tool.Name}");
+                    try
+                    {
+                        var result = await mcpManager.CallToolAsync(tool.Name, args);
+                        Logger.WriteLine($"[LLM] Tool {tool.Name} result: {result.Substring(0, Math.Min(100, result.Length))}...");
+                        return result;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.WriteLine($"[LLM] Error invoking tool {tool.Name}: {ex.Message}");
+                        return $"Error: {ex.Message}";
+                    }
+                },
+                tool.Name,
+                tool.Description ?? $"MCP tool: {tool.Name}");
+
+            aiFunctions.Add(function);
+        }
+
+        // Create IChatClient with function invocation enabled
+        var baseChatClient = _openAiClient.GetChatClient(model).AsIChatClient();
+        var chatClient = new ChatClientBuilder(baseChatClient)
+            .UseFunctionInvocation()
+            .Build();
+
+        // Prepare messages
+        var messages = new List<Microsoft.Extensions.AI.ChatMessage>
+        {
+            new(ChatRole.System, systemPrompt),
+            new(ChatRole.User, userPrompt)
+        };
+
+        // Prepare options with tools
+        var temperature = model.StartsWith("gpt-5", StringComparison.OrdinalIgnoreCase) ? 1f : 0.2f;
+        var options = new ChatOptions
+        {
+            Temperature = temperature,
+            Tools = aiFunctions.Cast<AITool>().ToList()
+        };
+
+        // Get completion with automatic tool invocation
+        var response = await chatClient.GetResponseAsync(messages, options);
+
+        return response.Text ?? "";
     }
 }

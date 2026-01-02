@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 
 namespace Orchestrator.App;
 
@@ -29,6 +30,44 @@ internal sealed class McpClientManager : IAsyncDisposable
     public IEnumerable<McpClientTool> GetToolsByServer(string serverName)
     {
         return _tools.Where(tool => _toolToServer.TryGetValue(tool.Name, out var server) && server == serverName);
+    }
+
+    /// <summary>
+    /// Invokes an MCP tool by name with the specified arguments.
+    /// </summary>
+    /// <param name="toolName">The name of the tool to invoke</param>
+    /// <param name="arguments">Tool arguments as a dictionary</param>
+    /// <returns>The tool invocation result as a string</returns>
+    public async Task<string> CallToolAsync(string toolName, IDictionary<string, object?> arguments)
+    {
+        // Find the tool
+        var tool = _tools.FirstOrDefault(t => t.Name == toolName);
+        if (tool == null)
+        {
+            throw new InvalidOperationException($"Tool '{toolName}' not found in MCP tools");
+        }
+
+        // Find which client owns this tool
+        if (!_toolToServer.TryGetValue(toolName, out var serverName))
+        {
+            throw new InvalidOperationException($"Server for tool '{toolName}' not found");
+        }
+
+        // Find the client for this server
+        var client = _clients.FirstOrDefault(c => c.ServerInfo?.Name?.Contains(serverName, StringComparison.OrdinalIgnoreCase) ?? false);
+        if (client == null)
+        {
+            throw new InvalidOperationException($"Client for server '{serverName}' not found");
+        }
+
+        // Invoke the tool - convert to IReadOnlyDictionary
+        var readOnlyArgs = arguments as IReadOnlyDictionary<string, object?>
+            ?? new Dictionary<string, object?>(arguments);
+        var result = await client.CallToolAsync(toolName, readOnlyArgs);
+
+        // Extract text from result
+        var textBlocks = result.Content.OfType<TextContentBlock>();
+        return string.Join("\n", textBlocks.Select(block => block.Text));
     }
 
     /// <summary>
