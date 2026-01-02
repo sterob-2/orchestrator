@@ -12,7 +12,7 @@ namespace Orchestrator.App;
 /// Manages MCP (Model Context Protocol) client connections and provides AI tools
 /// for filesystem, git, and GitHub operations.
 /// </summary>
-internal sealed class McpClientManager : IAsyncDisposable
+internal class McpClientManager : IAsyncDisposable
 {
     private readonly List<McpClient> _clients = new();
     private readonly List<McpClientTool> _tools = new();
@@ -22,12 +22,12 @@ internal sealed class McpClientManager : IAsyncDisposable
     /// <summary>
     /// Gets all tools available across all MCP servers.
     /// </summary>
-    public IReadOnlyList<McpClientTool> Tools => _tools.AsReadOnly();
+    public virtual IReadOnlyList<McpClientTool> Tools => _tools.AsReadOnly();
 
     /// <summary>
     /// Gets tools filtered by server name.
     /// </summary>
-    public IEnumerable<McpClientTool> GetToolsByServer(string serverName)
+    public virtual IEnumerable<McpClientTool> GetToolsByServer(string serverName)
     {
         return _tools.Where(tool => _toolToServer.TryGetValue(tool.Name, out var server) && server == serverName);
     }
@@ -38,7 +38,7 @@ internal sealed class McpClientManager : IAsyncDisposable
     /// <param name="toolName">The name of the tool to invoke</param>
     /// <param name="arguments">Tool arguments as a dictionary</param>
     /// <returns>The tool invocation result as a string</returns>
-    public async Task<string> CallToolAsync(string toolName, IDictionary<string, object?> arguments)
+    public virtual async Task<string> CallToolAsync(string toolName, IDictionary<string, object?> arguments)
     {
         // Find the tool
         var tool = _tools.FirstOrDefault(t => t.Name == toolName);
