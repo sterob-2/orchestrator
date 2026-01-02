@@ -106,7 +106,7 @@ internal sealed class DevAgent : IRoleAgent
 
         var reviewForCheck = reviewNotes == "None" ? "" : reviewNotes;
         var answersForCheck = questionAnswers == "None" ? "" : questionAnswers;
-        var (checkOk, checkNotes, missing) = await RunSelfCheckAsync(ctx, specContent, reviewForCheck, answersForCheck, updatedFiles);
+        var (checkOk, _, missing) = await RunSelfCheckAsync(ctx, specContent, reviewForCheck, answersForCheck, updatedFiles);
         if (!checkOk)
         {
             await RemediateFilesAsync(ctx, specContent, reviewForCheck, answersForCheck, updatedFiles, missing);

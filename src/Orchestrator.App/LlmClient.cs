@@ -13,14 +13,9 @@ namespace Orchestrator.App;
 internal sealed class LlmClient
 {
     private readonly OpenAIClient _openAiClient;
-    private readonly string _apiKey;
-    private readonly string _baseUrl;
 
     public LlmClient(OrchestratorConfig cfg)
     {
-        _apiKey = cfg.OpenAiApiKey;
-        _baseUrl = cfg.OpenAiBaseUrl;
-
         var options = new OpenAIClientOptions
         {
             Endpoint = new Uri(cfg.OpenAiBaseUrl)

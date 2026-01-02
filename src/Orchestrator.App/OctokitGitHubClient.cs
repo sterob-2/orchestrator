@@ -207,8 +207,6 @@ internal sealed class OctokitGitHubClient
     /// </summary>
     public async Task<string> GetPullRequestDiffAsync(int prNumber)
     {
-        var pr = await _octokit.PullRequest.Get(_cfg.RepoOwner, _cfg.RepoName, prNumber);
-
         // Get files changed in the PR
         var files = await _octokit.PullRequest.Files(_cfg.RepoOwner, _cfg.RepoName, prNumber);
 

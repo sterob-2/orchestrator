@@ -79,14 +79,14 @@ internal sealed class TechLeadAgent : IRoleAgent
 
         var content = await ctx.Llm.GetUpdatedFileAsync(ctx.Config.OpenAiModel, systemPrompt, userPrompt);
         var spec = AgentHelpers.StripCodeFence(content);
-        spec = EnsureFilesSection(spec, ctx, appFiles.ToList(), testFiles.ToList());
+        spec = EnsureFilesSection(spec, ctx, appFiles.ToList());
         spec = EnsureValidFilesSection(spec, ctx, appFiles.ToList(), testFiles.ToList());
         spec = AgentTemplateUtil.EnsureTemplateHeader(spec, ctx, "docs/templates/spec.md");
         spec = AgentTemplateUtil.UpdateStatus(spec, "COMPLETE");
         return spec;
     }
 
-    private static string EnsureFilesSection(string spec, WorkContext ctx, List<string> appFiles, List<string> testFiles)
+    private static string EnsureFilesSection(string spec, WorkContext ctx, List<string> appFiles)
     {
         var files = WorkItemParsers.TryParseSpecFiles(spec);
         if (files.Count > 0)

@@ -53,11 +53,6 @@ internal sealed class PlannerAgent : IRoleAgent
         return AgentResult.Ok(summaryNotes);
     }
 
-    private static string BuildPlan(WorkContext ctx)
-    {
-        return AppendAcceptanceCriteria("", ctx);
-    }
-
     private static string AppendAcceptanceCriteria(string content, WorkContext ctx)
     {
         var criteria = WorkItemParsers.TryParseAcceptanceCriteria(ctx.WorkItem.Body);
