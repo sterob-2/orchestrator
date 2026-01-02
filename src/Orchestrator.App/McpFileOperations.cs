@@ -60,8 +60,14 @@ internal sealed class McpFileOperations
             await _mcpManager.CallToolAsync("get_file_info", args);
             return true;
         }
-        catch
+        catch (ArgumentException)
         {
+            // Treat invalid path or similar argument issues as "file does not exist"
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            // Treat expected operational failures (e.g., not found) as "file does not exist"
             return false;
         }
     }
