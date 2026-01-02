@@ -1,10 +1,11 @@
 name: SonarCloud Quality Gate
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
   workflow_dispatch:
 
 permissions:
@@ -29,6 +30,32 @@ jobs:
         else
           echo "has_token=true" >> $GITHUB_OUTPUT
         fi
+
+    - name: Wait for CI workflow to complete
+      if: steps.check_token.outputs.has_token == 'true' && github.event_name == 'pull_request'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        echo "Waiting for CI workflow (including integration tests) to complete..."
+        # Wait up to 20 minutes for CI to complete
+        for i in {1..40}; do
+          status=$(gh run list --workflow=CI --branch=${{ github.head_ref }} --limit=1 --json status --jq '.[0].status')
+          conclusion=$(gh run list --workflow=CI --branch=${{ github.head_ref }} --limit=1 --json conclusion --jq '.[0].conclusion')
+          echo "CI workflow status: $status, conclusion: $conclusion"
+
+          if [ "$status" = "completed" ]; then
+            if [ "$conclusion" = "success" ]; then
+              echo "CI workflow completed successfully"
+              break
+            else
+              echo "::error::CI workflow failed with conclusion: $conclusion"
+              exit 1
+            fi
+          fi
+
+          echo "Waiting for CI... (attempt $i/40)"
+          sleep 30
+        done
 
     - name: Checkout code
       if: steps.check_token.outputs.has_token == 'true'
