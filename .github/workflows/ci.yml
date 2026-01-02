@@ -23,8 +23,9 @@ env:
 
 jobs:
   build-and-test:
-    name: Build & Test
+    name: Build, Test & Quality Gate
     runs-on: [self-hosted]
+    if: github.event.repository.fork == false
 
     steps:
     - name: Checkout code
@@ -32,68 +33,100 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Restore dependencies
-      run: dotnet restore ${{ env.TEST_PROJECT_PATH }}
+    - name: Check for SonarCloud token
+      id: check_token
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        if [ -z "$SONAR_TOKEN" ]; then
+          echo "has_token=false" >> $GITHUB_OUTPUT
+          echo "::warning::SONAR_TOKEN secret not set. Skipping SonarCloud analysis."
+        else
+          echo "has_token=true" >> $GITHUB_OUTPUT
+        fi
 
-    - name: Build
-      run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
+    - name: Cache SonarCloud packages
+      if: steps.check_token.outputs.has_token == 'true'
+      uses: actions/cache@v3
+      with:
+        path: ~/sonar/cache
+        key: ${{ runner.os }}-sonar
+        restore-keys: ${{ runner.os }}-sonar
+
+    - name: Cache SonarCloud scanner
+      if: steps.check_token.outputs.has_token == 'true'
+      id: cache-sonar-scanner
+      uses: actions/cache@v3
+      with:
+        path: ./.sonar/scanner
+        key: ${{ runner.os }}-sonar-scanner
+        restore-keys: ${{ runner.os }}-sonar-scanner
+
+    - name: Install SonarCloud scanner
+      if: steps.check_token.outputs.has_token == 'true' && steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p ./.sonar/scanner
+        dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
 
     - name: Install dotnet-coverage
+      if: steps.check_token.outputs.has_token == 'true'
       run: dotnet tool update --global dotnet-coverage
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+    - name: Begin SonarCloud scan
+      if: steps.check_token.outputs.has_token == 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        ./.sonar/scanner/dotnet-sonarscanner begin \
+          /k:"sterob-2_orchestrator" \
+          /o:"sterob-2" \
+          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
+          /d:sonar.host.url="https://sonarcloud.io" \
+          /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml \
+          /d:sonar.coverage.exclusions="**Tests*.cs" \
+          /d:sonar.exclusions="**/bin/**,**/obj/**,**/*.dll,**/*.exe"
+
+    - name: Build
+      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
 
     - name: Run unit tests with coverage
       run: |
-        dotnet-coverage collect "dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --filter \"Category!=Integration\"" -f xml -o coverage-unit.xml
-        ls -lh coverage-unit.xml
-
-    - name: Upload coverage reports
-      uses: actions/upload-artifact@v6
-      with:
-        name: coverage-unit
-        path: coverage-unit.xml
-        retention-days: 30
-
-  integration-tests:
-    name: Integration Tests
-    runs-on: [self-hosted]
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-
-    - name: Restore dependencies
-      run: dotnet restore ${{ env.TEST_PROJECT_PATH }}
-
-    - name: Build
-      run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
-
-    - name: Install dotnet-coverage
-      run: dotnet tool update --global dotnet-coverage
+        dotnet-coverage collect "dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --filter \"Category!=Integration\"" -f xml -o coverage.xml
+        ls -lh coverage.xml
 
     - name: Run integration tests with coverage
       run: |
         dotnet-coverage collect "dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --filter \"Category=Integration\"" -f xml -o coverage-integration.xml
-        ls -lh coverage-integration.xml
+        if [ -f coverage-integration.xml ] && [ -s coverage-integration.xml ]; then
+          echo "Merging coverage reports"
+          dotnet-coverage merge -f xml -o coverage-merged.xml coverage.xml coverage-integration.xml
+          mv coverage-merged.xml coverage.xml
+        fi
+        ls -lh coverage.xml
       env:
         WORKSPACE_HOST_PATH: ${{ github.workspace }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       continue-on-error: true
 
-    - name: Ensure coverage file exists
-      run: |
-        if [ ! -f coverage-integration.xml ] || [ ! -s coverage-integration.xml ]; then
-          echo "Integration coverage not available, creating empty file"
-          touch coverage-integration.xml
-        fi
+    - name: End SonarCloud scan
+      if: steps.check_token.outputs.has_token == 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
-    - name: Upload integration coverage reports
+    - name: Upload coverage to artifacts
+      if: steps.check_token.outputs.has_token == 'true'
       uses: actions/upload-artifact@v6
       with:
-        name: coverage-integration
-        path: coverage-integration.xml
+        name: sonar-coverage
+        path: coverage.xml
         retention-days: 30
+      continue-on-error: true
 
   docker-build:
     name: Build Docker Image
@@ -220,130 +253,10 @@ jobs:
         fi
       continue-on-error: true
 
-  quality-gate:
-    name: SonarCloud Quality Gate
-    runs-on: [self-hosted]
-    needs: [build-and-test, integration-tests]
-    if: github.event.repository.fork == false
-
-    steps:
-    - name: Check for SonarCloud token
-      id: check_token
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      run: |
-        if [ -z "$SONAR_TOKEN" ]; then
-          echo "has_token=false" >> $GITHUB_OUTPUT
-          echo "::warning::SONAR_TOKEN secret not set. Skipping SonarCloud analysis."
-        else
-          echo "has_token=true" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Checkout code
-      if: steps.check_token.outputs.has_token == 'true'
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-
-    - name: Download unit test coverage
-      if: steps.check_token.outputs.has_token == 'true'
-      uses: actions/download-artifact@v6
-      with:
-        name: coverage-unit
-        path: .
-
-    - name: Download integration test coverage
-      if: steps.check_token.outputs.has_token == 'true'
-      uses: actions/download-artifact@v6
-      with:
-        name: coverage-integration
-        path: .
-      continue-on-error: true
-
-    - name: Cache SonarCloud packages
-      if: steps.check_token.outputs.has_token == 'true'
-      uses: actions/cache@v3
-      with:
-        path: ~/sonar/cache
-        key: ${{ runner.os }}-sonar
-        restore-keys: ${{ runner.os }}-sonar
-
-    - name: Cache SonarCloud scanner
-      if: steps.check_token.outputs.has_token == 'true'
-      id: cache-sonar-scanner
-      uses: actions/cache@v3
-      with:
-        path: ./.sonar/scanner
-        key: ${{ runner.os }}-sonar-scanner
-        restore-keys: ${{ runner.os }}-sonar-scanner
-
-    - name: Install SonarCloud scanner
-      if: steps.check_token.outputs.has_token == 'true' && steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-      run: |
-        mkdir -p ./.sonar/scanner
-        dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
-
-    - name: Install coverage tools
-      if: steps.check_token.outputs.has_token == 'true'
-      run: dotnet tool update --global dotnet-coverage
-
-    - name: Merge coverage reports
-      if: steps.check_token.outputs.has_token == 'true'
-      run: |
-        ls -lh coverage-*.xml || echo "Coverage files not found"
-        if [ -f coverage-integration.xml ] && [ -s coverage-integration.xml ]; then
-          echo "Merging unit and integration coverage"
-          dotnet-coverage merge -f xml -o coverage.xml coverage-unit.xml coverage-integration.xml
-        else
-          echo "Using unit coverage only (integration coverage empty or missing)"
-          cp coverage-unit.xml coverage.xml
-        fi
-        echo "Final coverage report:"
-        ls -lh coverage.xml
-
-    - name: Restore dependencies
-      if: steps.check_token.outputs.has_token == 'true'
-      run: dotnet restore ${{ env.SOLUTION_PATH }}
-
-    - name: Begin SonarCloud scan
-      if: steps.check_token.outputs.has_token == 'true'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      run: |
-        ./.sonar/scanner/dotnet-sonarscanner begin \
-          /k:"sterob-2_orchestrator" \
-          /o:"sterob-2" \
-          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
-          /d:sonar.host.url="https://sonarcloud.io" \
-          /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml \
-          /d:sonar.coverage.exclusions="**Tests*.cs" \
-          /d:sonar.exclusions="**/bin/**,**/obj/**,**/*.dll,**/*.exe"
-
-    - name: Build
-      if: steps.check_token.outputs.has_token == 'true'
-      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
-
-    - name: End SonarCloud scan
-      if: steps.check_token.outputs.has_token == 'true'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      run: ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-
-    - name: Upload coverage to artifacts
-      if: steps.check_token.outputs.has_token == 'true'
-      uses: actions/upload-artifact@v6
-      with:
-        name: sonar-coverage
-        path: coverage.xml
-        retention-days: 30
-      continue-on-error: true
-
   publish-artifacts:
     name: Publish Build Artifacts
     runs-on: [self-hosted]
-    needs: [build-and-test, code-quality, quality-gate]
+    needs: [build-and-test, code-quality]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     steps:
@@ -363,7 +276,7 @@ jobs:
   docker-publish:
     name: Publish Docker Image
     runs-on: [self-hosted]
-    needs: [docker-build, docker-lint, quality-gate]
+    needs: [docker-build, docker-lint, build-and-test]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     steps:
