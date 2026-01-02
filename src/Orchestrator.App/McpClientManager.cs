@@ -136,7 +136,7 @@ internal sealed class McpClientManager : IAsyncDisposable
                     "-i",
                     "--rm",
                     "-v",
-                    $"{workspaceHostPath}:/workspace:ro",
+                    $"{workspaceHostPath}:/workspace",
                     "-w",
                     "/workspace",
                     "node:lts-alpine",
