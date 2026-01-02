@@ -159,10 +159,18 @@ internal sealed class McpClientManager : IAsyncDisposable
 
             Logger.WriteLine($"[MCP] Filesystem server connected. Tools: {tools.Count}");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            Logger.WriteLine($"[MCP] Warning: Failed to connect to Filesystem server: {ex.Message}");
+            Logger.WriteLine($"[MCP] Warning: Filesystem server configuration error: {ex.Message}");
+        }
+        catch (System.IO.IOException ex)
+        {
+            Logger.WriteLine($"[MCP] Warning: Failed to start Filesystem server: {ex.Message}");
             Logger.WriteLine($"[MCP] Ensure Docker is installed and workspace path is accessible.");
+        }
+        catch (TimeoutException ex)
+        {
+            Logger.WriteLine($"[MCP] Warning: Filesystem server connection timeout: {ex.Message}");
         }
     }
 
@@ -205,10 +213,18 @@ internal sealed class McpClientManager : IAsyncDisposable
 
             Logger.WriteLine($"[MCP] Git server connected. Tools: {tools.Count}");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            Logger.WriteLine($"[MCP] Warning: Failed to connect to Git server: {ex.Message}");
+            Logger.WriteLine($"[MCP] Warning: Git server configuration error: {ex.Message}");
+        }
+        catch (System.IO.IOException ex)
+        {
+            Logger.WriteLine($"[MCP] Warning: Failed to start Git server: {ex.Message}");
             Logger.WriteLine($"[MCP] Ensure Docker is installed and repository path is accessible.");
+        }
+        catch (TimeoutException ex)
+        {
+            Logger.WriteLine($"[MCP] Warning: Git server connection timeout: {ex.Message}");
         }
     }
 
@@ -258,10 +274,18 @@ internal sealed class McpClientManager : IAsyncDisposable
                 Environment.SetEnvironmentVariable("GITHUB_PERSONAL_ACCESS_TOKEN", previousToken);
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            Logger.WriteLine($"[MCP] Warning: Failed to connect to GitHub server: {ex.Message}");
+            Logger.WriteLine($"[MCP] Warning: GitHub server configuration error: {ex.Message}");
+        }
+        catch (System.IO.IOException ex)
+        {
+            Logger.WriteLine($"[MCP] Warning: Failed to start GitHub server: {ex.Message}");
             Logger.WriteLine($"[MCP] Ensure Docker is installed, running, and GitHub token is valid.");
+        }
+        catch (TimeoutException ex)
+        {
+            Logger.WriteLine($"[MCP] Warning: GitHub server connection timeout: {ex.Message}");
         }
     }
 
@@ -275,9 +299,13 @@ internal sealed class McpClientManager : IAsyncDisposable
             {
                 await client.DisposeAsync();
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 Logger.WriteLine($"[MCP] Error disposing client: {ex.Message}");
+            }
+            catch (System.IO.IOException ex)
+            {
+                Logger.WriteLine($"[MCP] I/O error disposing client: {ex.Message}");
             }
         }
 
