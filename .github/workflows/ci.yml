@@ -29,14 +29,43 @@ jobs:
     - name: Build
       run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
 
-    - name: Run tests
-      run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+    - name: Run unit tests
+      run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --filter "Category!=Integration" --collect:"XPlat Code Coverage" --results-directory ./coverage
 
     - name: Upload coverage reports
       uses: actions/upload-artifact@v6
       with:
-        name: coverage-report
+        name: coverage-report-unit
         path: ./coverage/**/coverage.cobertura.xml
+        retention-days: 30
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: [self-hosted]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.TEST_PROJECT_PATH }}
+
+    - name: Build
+      run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
+
+    - name: Run integration tests
+      run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --filter "Category=Integration" --collect:"XPlat Code Coverage" --results-directory ./coverage-integration
+      env:
+        WORKSPACE_HOST_PATH: ${{ github.workspace }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload integration coverage reports
+      uses: actions/upload-artifact@v6
+      with:
+        name: coverage-report-integration
+        path: ./coverage-integration/**/coverage.cobertura.xml
         retention-days: 30
 
   code-quality:

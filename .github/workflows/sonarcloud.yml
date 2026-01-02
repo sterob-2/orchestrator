@@ -87,9 +87,22 @@ jobs:
       if: steps.check_token.outputs.has_token == 'true'
       run: dotnet build tests/Orchestrator.App.Tests.csproj --configuration Release --no-restore
 
-    - name: Collect code coverage
+    - name: Collect unit test coverage
       if: steps.check_token.outputs.has_token == 'true'
-      run: dotnet-coverage collect 'dotnet test tests/Orchestrator.App.Tests.csproj --configuration Release --no-build' -f xml -o 'coverage.xml'
+      run: dotnet-coverage collect 'dotnet test tests/Orchestrator.App.Tests.csproj --configuration Release --no-build --filter "Category!=Integration"' -f xml -o 'coverage-unit.xml'
+      continue-on-error: true
+
+    - name: Collect integration test coverage
+      if: steps.check_token.outputs.has_token == 'true'
+      run: dotnet-coverage collect 'dotnet test tests/Orchestrator.App.Tests.csproj --configuration Release --no-build --filter "Category=Integration"' -f xml -o 'coverage-integration.xml'
+      env:
+        WORKSPACE_HOST_PATH: ${{ github.workspace }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
+
+    - name: Merge coverage reports
+      if: steps.check_token.outputs.has_token == 'true'
+      run: dotnet-coverage merge -f xml -o coverage.xml coverage-unit.xml coverage-integration.xml
       continue-on-error: true
 
     - name: End SonarCloud scan
