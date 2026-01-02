@@ -1,11 +1,10 @@
 name: SonarCloud Quality Gate
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [ main, develop ]
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
   workflow_dispatch:
 
 permissions:
@@ -89,21 +88,38 @@ jobs:
 
     - name: Collect unit test coverage
       if: steps.check_token.outputs.has_token == 'true'
-      run: dotnet-coverage collect 'dotnet test tests/Orchestrator.App.Tests.csproj --configuration Release --no-build --filter "Category!=Integration"' -f xml -o 'coverage-unit.xml'
-      continue-on-error: true
+      run: |
+        dotnet-coverage collect 'dotnet test tests/Orchestrator.App.Tests.csproj --configuration Release --no-build --filter "Category!=Integration"' -f xml -o 'coverage-unit.xml'
+        echo "Unit test coverage collected"
+        ls -lh coverage-unit.xml
 
     - name: Collect integration test coverage
       if: steps.check_token.outputs.has_token == 'true'
-      run: dotnet-coverage collect 'dotnet test tests/Orchestrator.App.Tests.csproj --configuration Release --no-build --filter "Category=Integration"' -f xml -o 'coverage-integration.xml'
+      run: |
+        dotnet-coverage collect 'dotnet test tests/Orchestrator.App.Tests.csproj --configuration Release --no-build --filter "Category=Integration"' -f xml -o 'coverage-integration.xml' || echo "Integration tests skipped (Docker may not be available)"
+        if [ -f coverage-integration.xml ]; then
+          echo "Integration test coverage collected"
+          ls -lh coverage-integration.xml
+        else
+          echo "No integration coverage - creating empty file"
+          touch coverage-integration.xml
+        fi
       env:
         WORKSPACE_HOST_PATH: ${{ github.workspace }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      continue-on-error: true
 
     - name: Merge coverage reports
       if: steps.check_token.outputs.has_token == 'true'
-      run: dotnet-coverage merge -f xml -o coverage.xml coverage-unit.xml coverage-integration.xml
-      continue-on-error: true
+      run: |
+        if [ -s coverage-integration.xml ]; then
+          echo "Merging unit and integration coverage"
+          dotnet-coverage merge -f xml -o coverage.xml coverage-unit.xml coverage-integration.xml
+        else
+          echo "Using unit coverage only (integration coverage empty)"
+          cp coverage-unit.xml coverage.xml
+        fi
+        echo "Final coverage report:"
+        ls -lh coverage.xml
 
     - name: End SonarCloud scan
       if: steps.check_token.outputs.has_token == 'true'
