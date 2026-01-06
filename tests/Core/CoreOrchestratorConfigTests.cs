@@ -250,6 +250,21 @@ public class CoreOrchestratorConfigTests
     }
 
     [Fact]
+    public void FromEnvironment_UsesWorkspaceHostPathWhenProvided()
+    {
+        using var scope = new EnvScope(new Dictionary<string, string?>
+        {
+            ["WORKSPACE_PATH"] = "/tmp/overridden",
+            ["WORKSPACE_HOST_PATH"] = "/host/path"
+        });
+
+        var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
+
+        Assert.Equal("/tmp/overridden", actual.WorkspacePath);
+        Assert.Equal("/host/path", actual.WorkspaceHostPath);
+    }
+
+    [Fact]
     public void FromEnvironment_IgnoresWhitespaceValues()
     {
         using var scope = new EnvScope(new Dictionary<string, string?>
