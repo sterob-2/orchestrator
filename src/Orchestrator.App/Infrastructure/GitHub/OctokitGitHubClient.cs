@@ -335,41 +335,29 @@ internal sealed class OctokitGitHubClient
 query($login: String!, $number: Int!) {
   user(login: $login) {
     projectV2(number: $number) {
-      title
-      items(first: 100) {
-        nodes {
-          content {
-            ... on Issue { number title url }
-            ... on DraftIssue { title }
-          }
-          fieldValues(first: 20) {
-            nodes {
-              ... on ProjectV2ItemFieldSingleSelectValue {
-                name
-                field { ... on ProjectV2SingleSelectField { name } }
-              }
-            }
-          }
-        }
-      }
+      ...ProjectFields
     }
   }
   organization(login: $login) {
     projectV2(number: $number) {
-      title
-      items(first: 100) {
+      ...ProjectFields
+    }
+  }
+}
+
+fragment ProjectFields on ProjectV2 {
+  title
+  items(first: 100) {
+    nodes {
+      content {
+        ... on Issue { number title url }
+        ... on DraftIssue { title }
+      }
+      fieldValues(first: 20) {
         nodes {
-          content {
-            ... on Issue { number title url }
-            ... on DraftIssue { title }
-          }
-          fieldValues(first: 20) {
-            nodes {
-              ... on ProjectV2ItemFieldSingleSelectValue {
-                name
-                field { ... on ProjectV2SingleSelectField { name } }
-              }
-            }
+          ... on ProjectV2ItemFieldSingleSelectValue {
+            name
+            field { ... on ProjectV2SingleSelectField { name } }
           }
         }
       }
