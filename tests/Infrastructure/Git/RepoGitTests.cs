@@ -1,6 +1,7 @@
 using System.IO;
 using Orchestrator.App.Infrastructure.Git;
 using Orchestrator.App.Tests.TestHelpers;
+using LibGit2Sharp;
 using Xunit;
 
 namespace Orchestrator.App.Tests.Infrastructure.Git;
@@ -22,14 +23,14 @@ public class RepoGitTests
     public void IsGitRepo_WithValidGitDirectory_ReturnsTrue()
     {
         var config = MockWorkContext.CreateConfig();
-        var root = FindGitRoot() ?? Directory.GetCurrentDirectory();
+        var root = FindGitRoot();
 
-        var repoGit = new RepoGit(config, root);
-
-        var result = repoGit.IsGitRepo();
-
-        // Should be true if we're in a git repository
-        Assert.True(result || !Directory.Exists(Path.Combine(root, ".git")));
+        if (root != null)
+        {
+            var repoGit = new RepoGit(config, root);
+            var result = repoGit.IsGitRepo();
+            Assert.True(result);
+        }
     }
 
     [Fact]
@@ -79,6 +80,30 @@ public class RepoGitTests
                 Directory.Delete(tempDir, true);
             }
         }
+    }
+
+    [Fact]
+    public void EnsureConfigured_WithValidGitRepo_ConfiguresUserInfo()
+    {
+        var gitRoot = FindGitRoot();
+        if (gitRoot == null)
+        {
+            // Skip if not in git repo
+            return;
+        }
+
+        var config = MockWorkContext.CreateConfig();
+        var repoGit = new RepoGit(config, gitRoot);
+
+        repoGit.EnsureConfigured();
+
+        // Verify configuration was set
+        using var repo = new Repository(gitRoot);
+        var userName = repo.Config.Get<string>("user.name");
+        var userEmail = repo.Config.Get<string>("user.email");
+
+        Assert.NotNull(userName);
+        Assert.NotNull(userEmail);
     }
 
     private static string? FindGitRoot()

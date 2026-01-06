@@ -12,23 +12,20 @@ internal sealed class OctokitGitHubClient
     private readonly OrchestratorConfig _cfg;
     private readonly HttpClient _http;
 
-    private string RepoOwner => RepoOwner;
-    private string RepoName => RepoName;
+    private string RepoOwner => _cfg.RepoOwner;
+    private string RepoName => _cfg.RepoName;
 
-    public OctokitGitHubClient(OrchestratorConfig cfg)
+    public OctokitGitHubClient(OrchestratorConfig cfg) : this(cfg, CreateDefaultGitHubClient(cfg), new HttpClient())
+    {
+    }
+
+    internal OctokitGitHubClient(OrchestratorConfig cfg, Octokit.GitHubClient octokitClient, HttpClient httpClient)
     {
         _cfg = cfg;
+        _octokit = octokitClient;
+        _http = httpClient;
 
-        // Initialize Octokit client for REST API
-        _octokit = new Octokit.GitHubClient(new ProductHeaderValue("conjunction-orchestrator", "0.3"));
-
-        if (!string.IsNullOrWhiteSpace(cfg.GitHubToken))
-        {
-            _octokit.Credentials = new Credentials(cfg.GitHubToken);
-        }
-
-        // Initialize HttpClient for GraphQL
-        _http = new HttpClient();
+        // Configure HttpClient for GraphQL
         _http.DefaultRequestHeaders.UserAgent.Add(new System.Net.Http.Headers.ProductInfoHeaderValue("conjunction-orchestrator", "0.3"));
         _http.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
 
@@ -36,6 +33,18 @@ internal sealed class OctokitGitHubClient
         {
             _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", cfg.GitHubToken);
         }
+    }
+
+    private static Octokit.GitHubClient CreateDefaultGitHubClient(OrchestratorConfig cfg)
+    {
+        var client = new Octokit.GitHubClient(new ProductHeaderValue("conjunction-orchestrator", "0.3"));
+
+        if (!string.IsNullOrWhiteSpace(cfg.GitHubToken))
+        {
+            client.Credentials = new Credentials(cfg.GitHubToken);
+        }
+
+        return client;
     }
 
     // ========================================
