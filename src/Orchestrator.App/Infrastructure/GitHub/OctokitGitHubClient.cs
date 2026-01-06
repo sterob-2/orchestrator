@@ -12,6 +12,9 @@ internal sealed class OctokitGitHubClient
     private readonly OrchestratorConfig _cfg;
     private readonly HttpClient _http;
 
+    private string RepoOwner => RepoOwner;
+    private string RepoName => RepoName;
+
     public OctokitGitHubClient(OrchestratorConfig cfg)
     {
         _cfg = cfg;
@@ -56,8 +59,8 @@ internal sealed class OctokitGitHubClient
         };
 
         var issues = await _octokit.Issue.GetAllForRepository(
-            _cfg.RepoOwner,
-            _cfg.RepoName,
+            RepoOwner,
+            RepoName,
             issueRequest,
             apiOptions
         );
@@ -80,7 +83,7 @@ internal sealed class OctokitGitHubClient
     /// </summary>
     public async Task<IReadOnlyList<string>> GetIssueLabelsAsync(int issueNumber)
     {
-        var issue = await _octokit.Issue.Get(_cfg.RepoOwner, _cfg.RepoName, issueNumber);
+        var issue = await _octokit.Issue.Get(RepoOwner, RepoName, issueNumber);
         return issue.Labels.Select(l => l.Name).ToList();
     }
 
@@ -94,7 +97,7 @@ internal sealed class OctokitGitHubClient
             Body = body
         };
 
-        var pr = await _octokit.PullRequest.Create(_cfg.RepoOwner, _cfg.RepoName, newPr);
+        var pr = await _octokit.PullRequest.Create(RepoOwner, RepoName, newPr);
         return pr.HtmlUrl;
     }
 
@@ -104,8 +107,8 @@ internal sealed class OctokitGitHubClient
     public async Task<int?> GetPullRequestNumberAsync(string branchName)
     {
         var prs = await _octokit.PullRequest.GetAllForRepository(
-            _cfg.RepoOwner,
-            _cfg.RepoName,
+            RepoOwner,
+            RepoName,
             new PullRequestRequest { State = ItemStateFilter.All }
         );
 
@@ -123,7 +126,7 @@ internal sealed class OctokitGitHubClient
             State = ItemState.Closed
         };
 
-        await _octokit.PullRequest.Update(_cfg.RepoOwner, _cfg.RepoName, prNumber, update);
+        await _octokit.PullRequest.Update(RepoOwner, RepoName, prNumber, update);
     }
 
     /// <summary>
@@ -132,8 +135,8 @@ internal sealed class OctokitGitHubClient
     public async Task<IReadOnlyList<Core.Models.IssueComment>> GetIssueCommentsAsync(int issueNumber)
     {
         var comments = await _octokit.Issue.Comment.GetAllForIssue(
-            _cfg.RepoOwner,
-            _cfg.RepoName,
+            RepoOwner,
+            RepoName,
             issueNumber
         );
 
@@ -149,8 +152,8 @@ internal sealed class OctokitGitHubClient
     public async Task CommentOnWorkItemAsync(int issueNumber, string comment)
     {
         await _octokit.Issue.Comment.Create(
-            _cfg.RepoOwner,
-            _cfg.RepoName,
+            RepoOwner,
+            RepoName,
             issueNumber,
             comment
         );
@@ -164,8 +167,8 @@ internal sealed class OctokitGitHubClient
         if (labels.Length == 0) return;
 
         await _octokit.Issue.Labels.AddToIssue(
-            _cfg.RepoOwner,
-            _cfg.RepoName,
+            RepoOwner,
+            RepoName,
             issueNumber,
             labels
         );
@@ -179,8 +182,8 @@ internal sealed class OctokitGitHubClient
         try
         {
             await _octokit.Issue.Labels.RemoveFromIssue(
-                _cfg.RepoOwner,
-                _cfg.RepoName,
+                RepoOwner,
+                RepoName,
                 issueNumber,
                 label
             );
@@ -208,7 +211,7 @@ internal sealed class OctokitGitHubClient
     public async Task<string> GetPullRequestDiffAsync(int prNumber)
     {
         // Get files changed in the PR
-        var files = await _octokit.PullRequest.Files(_cfg.RepoOwner, _cfg.RepoName, prNumber);
+        var files = await _octokit.PullRequest.Files(RepoOwner, RepoName, prNumber);
 
         // Build a simplified diff from file changes
         var diff = new System.Text.StringBuilder();
@@ -233,13 +236,13 @@ internal sealed class OctokitGitHubClient
     /// </summary>
     public async Task CreateBranchAsync(string branchName)
     {
-        var baseBranch = await _octokit.Git.Reference.Get(_cfg.RepoOwner, _cfg.RepoName, $"heads/{_cfg.DefaultBaseBranch}");
+        var baseBranch = await _octokit.Git.Reference.Get(RepoOwner, RepoName, $"heads/{_cfg.DefaultBaseBranch}");
 
         try
         {
             await _octokit.Git.Reference.Create(
-                _cfg.RepoOwner,
-                _cfg.RepoName,
+                RepoOwner,
+                RepoName,
                 new NewReference($"refs/heads/{branchName}", baseBranch.Object.Sha)
             );
         }
@@ -256,7 +259,7 @@ internal sealed class OctokitGitHubClient
     {
         try
         {
-            await _octokit.Git.Reference.Delete(_cfg.RepoOwner, _cfg.RepoName, $"heads/{branchName}");
+            await _octokit.Git.Reference.Delete(RepoOwner, RepoName, $"heads/{branchName}");
         }
         catch (NotFoundException)
         {
@@ -269,7 +272,7 @@ internal sealed class OctokitGitHubClient
     /// </summary>
     public async Task<bool> HasCommitsAsync(string baseBranch, string headBranch)
     {
-        var comparison = await _octokit.Repository.Commit.Compare(_cfg.RepoOwner, _cfg.RepoName, baseBranch, headBranch);
+        var comparison = await _octokit.Repository.Commit.Compare(RepoOwner, RepoName, baseBranch, headBranch);
         return comparison.AheadBy > 0;
     }
 
@@ -280,7 +283,7 @@ internal sealed class OctokitGitHubClient
     {
         try
         {
-            var contents = await _octokit.Repository.Content.GetAllContentsByRef(_cfg.RepoOwner, _cfg.RepoName, path, branch);
+            var contents = await _octokit.Repository.Content.GetAllContentsByRef(RepoOwner, RepoName, path, branch);
             if (contents.Count == 0)
             {
                 return null;
@@ -305,8 +308,8 @@ internal sealed class OctokitGitHubClient
         if (existing != null)
         {
             await _octokit.Repository.Content.UpdateFile(
-                _cfg.RepoOwner,
-                _cfg.RepoName,
+                RepoOwner,
+                RepoName,
                 path,
                 new UpdateFileRequest(message, content, existing.Sha, branch)
             );
@@ -314,8 +317,8 @@ internal sealed class OctokitGitHubClient
         else
         {
             await _octokit.Repository.Content.CreateFile(
-                _cfg.RepoOwner,
-                _cfg.RepoName,
+                RepoOwner,
+                RepoName,
                 path,
                 new CreateFileRequest(message, content, branch)
             );
