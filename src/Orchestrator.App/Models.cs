@@ -8,7 +8,14 @@ internal sealed record WorkContext(
     OrchestratorConfig Config,
     RepoWorkspace Workspace,
     RepoGit Repo,
-    LlmClient Llm);
+    LlmClient Llm,
+    McpClientManager? Mcp = null)
+{
+    /// <summary>
+    /// Gets MCP-based file operations. Returns null if MCP is not available.
+    /// </summary>
+    public McpFileOperations? McpFiles => Mcp != null ? new McpFileOperations(Mcp) : null;
+};
 
 internal sealed record RepoFile(string Path, string Content, string Sha);
 

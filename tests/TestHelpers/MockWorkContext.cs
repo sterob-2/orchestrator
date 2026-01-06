@@ -50,6 +50,7 @@ internal static class MockWorkContext
             DevModel: "gpt-4o",
             TechLeadModel: "gpt-4o-mini",
             WorkspacePath: workspacePath ?? "/tmp/test-workspace",
+            WorkspaceHostPath: workspacePath ?? "/tmp/test-workspace",
             GitRemoteUrl: "https://github.com/test/repo.git",
             GitAuthorName: "Test Agent",
             GitAuthorEmail: "test@example.com",

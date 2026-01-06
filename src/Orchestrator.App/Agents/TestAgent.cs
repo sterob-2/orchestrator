@@ -7,7 +7,7 @@ internal sealed class TestAgent : IRoleAgent
     public Task<AgentResult> RunAsync(WorkContext ctx)
     {
         var branch = WorkItemBranch.BuildBranchName(ctx.WorkItem);
-        var specPath = $"orchestrator/specs/issue-{ctx.WorkItem.Number}.md";
+        var specPath = $"specs/issue-{ctx.WorkItem.Number}.md";
         var updatedSpec = TryMarkAcceptanceCriteriaAsync(ctx, specPath);
 
         var notes = updatedSpec

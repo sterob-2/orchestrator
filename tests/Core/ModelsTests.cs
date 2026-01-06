@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Moq;
 using Orchestrator.App;
 using Orchestrator.App.Agents;
 using Xunit;
@@ -95,5 +96,29 @@ public class ModelsTests
         Assert.True(output.Success);
         Assert.Equal("notes", output.Notes);
         Assert.Equal("Next", output.NextStage);
+    }
+
+    [Fact]
+    public void WorkContext_McpFiles_WithMcp_ReturnsOperationsInstance()
+    {
+        var item = new WorkItem(1, "Title", "Body", "https://example.com", new List<string>());
+        var config = OrchestratorConfig.FromEnvironment();
+        var mockMcp = new Mock<McpClientManager>();
+
+        var context = new WorkContext(item, null!, config, null!, null!, null!, mockMcp.Object);
+
+        Assert.NotNull(context.McpFiles);
+        Assert.IsType<McpFileOperations>(context.McpFiles);
+    }
+
+    [Fact]
+    public void WorkContext_McpFiles_WithoutMcp_ReturnsNull()
+    {
+        var item = new WorkItem(1, "Title", "Body", "https://example.com", new List<string>());
+        var config = OrchestratorConfig.FromEnvironment();
+
+        var context = new WorkContext(item, null!, config, null!, null!, null!, null);
+
+        Assert.Null(context.McpFiles);
     }
 }

@@ -51,6 +51,18 @@ internal static class Program
             Logger.WriteLine($"Workspace path not found: {cfg.WorkspacePath}");
         }
 
+        // Initialize MCP client manager
+        var mcpManager = new McpClientManager();
+        try
+        {
+            await mcpManager.InitializeAsync(cfg);
+        }
+        catch (Exception ex)
+        {
+            Logger.WriteLine($"Warning: MCP initialization failed: {ex.Message}");
+            Logger.WriteLine("Continuing without MCP tools.");
+        }
+
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
@@ -72,7 +84,7 @@ internal static class Program
                     var labels = FormatLabels(workItem);
                     Logger.WriteLine($"Picked work item #{workItem.Number}: {workItem.Title} (stage: {stage}, labels: {labels})");
 
-                    await HandleWorkItemAsync(github, cfg, workItem, workspace, repoGit, llm);
+                    await HandleWorkItemAsync(github, cfg, workItem, workspace, repoGit, llm, mcpManager);
                 }
             }
             catch (Exception ex)
@@ -92,6 +104,10 @@ internal static class Program
         }
 
         Logger.WriteLine("Orchestrator stopped");
+
+        // Dispose MCP client manager
+        await mcpManager.DisposeAsync();
+
         return 0;
     }
 
@@ -133,7 +149,8 @@ internal static class Program
         WorkItem item,
         RepoWorkspace workspace,
         RepoGit repoGit,
-        LlmClient llm)
+        LlmClient llm,
+        McpClientManager mcpManager)
     {
         await ClearStaleSpecQuestionsAsync(github, cfg, item, workspace);
         if (HasLabel(item, cfg.ResetLabel))
@@ -172,13 +189,13 @@ internal static class Program
             if (cfg.UseWorkflowMode)
             {
                 Logger.WriteLine($"[Workflow] PlannerExecutor handling work item #{item.Number}.");
-                await HandlePlannerWorkflowAsync(github, cfg, item, workspace, repoGit, llm);
+                await HandlePlannerWorkflowAsync(github, cfg, item, workspace, repoGit, llm, mcpManager);
                 return;
             }
 
             // Legacy mode: use old PlannerAgent
             Logger.WriteLine($"PlannerAgent handling work item #{item.Number}.");
-            await HandleStageAsync(github, cfg, item, cfg.PlannerLabel, cfg.TechLeadLabel, new PlannerAgent(), workspace, repoGit, llm);
+            await HandleStageAsync(github, cfg, item, cfg.PlannerLabel, cfg.TechLeadLabel, new PlannerAgent(), workspace, repoGit, llm, mcpManager);
             return;
         }
 
@@ -186,7 +203,7 @@ internal static class Program
         {
             Logger.WriteLine($"TechLeadAgent handling work item #{item.Number}.");
             Logger.WriteLine($"Work item #{item.Number} state: stage={GetStageName(item, cfg)} labels={FormatLabels(item)}");
-            await HandleStageAsync(github, cfg, item, cfg.TechLeadLabel, cfg.DevLabel, new TechLeadAgent(), workspace, repoGit, llm);
+            await HandleStageAsync(github, cfg, item, cfg.TechLeadLabel, cfg.DevLabel, new TechLeadAgent(), workspace, repoGit, llm, mcpManager);
             return;
         }
 
@@ -194,7 +211,7 @@ internal static class Program
         {
             Logger.WriteLine($"DevAgent handling work item #{item.Number}.");
             Logger.WriteLine($"Work item #{item.Number} state: stage={GetStageName(item, cfg)} labels={FormatLabels(item)}");
-            await HandleDevStageAsync(github, cfg, item, new DevAgent(), workspace, repoGit, llm);
+            await HandleDevStageAsync(github, cfg, item, new DevAgent(), workspace, repoGit, llm, mcpManager);
             return;
         }
 
@@ -202,7 +219,7 @@ internal static class Program
         {
             Logger.WriteLine($"TestAgent handling work item #{item.Number}.");
             Logger.WriteLine($"Work item #{item.Number} state: stage={GetStageName(item, cfg)} labels={FormatLabels(item)}");
-            await HandleStageAsync(github, cfg, item, cfg.TestLabel, cfg.ReleaseLabel, new TestAgent(), workspace, repoGit, llm);
+            await HandleStageAsync(github, cfg, item, cfg.TestLabel, cfg.ReleaseLabel, new TestAgent(), workspace, repoGit, llm, mcpManager);
             return;
         }
 
@@ -210,7 +227,7 @@ internal static class Program
         {
             Logger.WriteLine($"ReleaseAgent handling work item #{item.Number}.");
             Logger.WriteLine($"Work item #{item.Number} state: stage={GetStageName(item, cfg)} labels={FormatLabels(item)}");
-            await HandleReleaseStageAsync(github, cfg, item, new ReleaseAgent(), workspace, repoGit, llm);
+            await HandleReleaseStageAsync(github, cfg, item, new ReleaseAgent(), workspace, repoGit, llm, mcpManager);
         }
     }
 
@@ -220,7 +237,8 @@ internal static class Program
         WorkItem item,
         RepoWorkspace workspace,
         RepoGit repoGit,
-        LlmClient llm)
+        LlmClient llm,
+        McpClientManager mcpManager)
     {
         try
         {
@@ -231,7 +249,8 @@ internal static class Program
                 GitHub: github,
                 Workspace: workspace,
                 Repo: repoGit,
-                Llm: llm
+                Llm: llm,
+                Mcp: mcpManager
             );
 
             // Build workflow
@@ -283,7 +302,8 @@ internal static class Program
         IRoleAgent agent,
         RepoWorkspace workspace,
         RepoGit repoGit,
-        LlmClient llm)
+        LlmClient llm,
+        McpClientManager mcpManager)
     {
         var requiresReview = HasLabel(item, cfg.UserReviewRequiredLabel) ||
             string.Equals(stageLabel, cfg.TestLabel, StringComparison.OrdinalIgnoreCase);
@@ -305,7 +325,7 @@ internal static class Program
             return;
         }
 
-        var ctx = new WorkContext(item, github, cfg, workspace, repoGit, llm);
+        var ctx = new WorkContext(item, github, cfg, workspace, repoGit, llm, mcpManager);
         var result = await agent.RunAsync(ctx);
 
         if (!result.Success)
@@ -360,7 +380,8 @@ internal static class Program
         IRoleAgent agent,
         RepoWorkspace workspace,
         RepoGit repoGit,
-        LlmClient llm)
+        LlmClient llm,
+        McpClientManager mcpManager)
     {
         if (HasLabel(item, cfg.CodeReviewNeededLabel) && !HasLabel(item, cfg.CodeReviewApprovedLabel))
         {
@@ -381,7 +402,7 @@ internal static class Program
                 Logger.WriteLine($"Work item #{item.Number} review commit check failed: {ex.Message}");
             }
 
-            var reviewCtx = new WorkContext(item, github, cfg, workspace, repoGit, llm);
+            var reviewCtx = new WorkContext(item, github, cfg, workspace, repoGit, llm, mcpManager);
             var reviewResult = await new TechLeadReviewAgent().RunAsync(reviewCtx);
             if (!reviewResult.Success)
             {
@@ -421,7 +442,7 @@ internal static class Program
             return;
         }
 
-        var ctx = new WorkContext(item, github, cfg, workspace, repoGit, llm);
+        var ctx = new WorkContext(item, github, cfg, workspace, repoGit, llm, mcpManager);
         var result = await agent.RunAsync(ctx);
 
         if (!result.Success)
@@ -463,7 +484,8 @@ internal static class Program
         IRoleAgent agent,
         RepoWorkspace workspace,
         RepoGit repoGit,
-        LlmClient llm)
+        LlmClient llm,
+        McpClientManager mcpManager)
     {
         var requiresReview = HasLabel(item, cfg.UserReviewRequiredLabel);
         if (requiresReview && HasLabel(item, cfg.ReviewNeededLabel) && !HasLabel(item, cfg.ReviewedLabel))
@@ -484,7 +506,7 @@ internal static class Program
             return;
         }
 
-        var ctx = new WorkContext(item, github, cfg, workspace, repoGit, llm);
+        var ctx = new WorkContext(item, github, cfg, workspace, repoGit, llm, mcpManager);
         var result = await agent.RunAsync(ctx);
 
         if (!result.Success)

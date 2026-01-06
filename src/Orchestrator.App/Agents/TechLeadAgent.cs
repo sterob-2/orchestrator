@@ -15,7 +15,7 @@ internal sealed class TechLeadAgent : IRoleAgent
     private static async Task<AgentResult> RunTechLeadAsync(WorkContext ctx)
     {
         var branch = WorkItemBranch.BuildBranchName(ctx.WorkItem);
-        var specPath = $"orchestrator/specs/issue-{ctx.WorkItem.Number}.md";
+        var specPath = $"specs/issue-{ctx.WorkItem.Number}.md";
         if (ctx.Workspace.Exists(specPath) &&
             !ctx.WorkItem.Labels.Contains(ctx.Config.SpecQuestionsLabel, StringComparer.OrdinalIgnoreCase))
         {
@@ -61,13 +61,13 @@ internal sealed class TechLeadAgent : IRoleAgent
 
     private static async Task<string> BuildSpecAsync(WorkContext ctx)
     {
-        var planPath = $"orchestrator/plans/issue-{ctx.WorkItem.Number}.md";
+        var planPath = $"plans/issue-{ctx.WorkItem.Number}.md";
         var plan = ctx.Workspace.Exists(planPath) ? ctx.Workspace.ReadAllText(planPath) : "";
-        var questionsPath = $"orchestrator/questions/issue-{ctx.WorkItem.Number}.md";
+        var questionsPath = $"questions/issue-{ctx.WorkItem.Number}.md";
         var devQuestions = ctx.Workspace.Exists(questionsPath) ? ctx.Workspace.ReadAllText(questionsPath) : "None";
-        var filesHint = "- Use existing C# files under orchestrator/src/Orchestrator.App and add tests under orchestrator/tests or Assets/Tests.";
-        var appFiles = ctx.Workspace.ListFiles("orchestrator/src/Orchestrator.App", "*.cs", 200);
-        var testFiles = ctx.Workspace.ListFiles("orchestrator/tests", "*.cs", 200);
+        var filesHint = "- Use existing C# files under src/Orchestrator.App and add tests under tests or Assets/Tests.";
+        var appFiles = ctx.Workspace.ListFiles("src/Orchestrator.App", "*.cs", 200);
+        var testFiles = ctx.Workspace.ListFiles("tests", "*.cs", 200);
         var appFileList = string.Join("\n", appFiles);
         var testFileList = string.Join("\n", testFiles);
 
@@ -79,14 +79,14 @@ internal sealed class TechLeadAgent : IRoleAgent
 
         var content = await ctx.Llm.GetUpdatedFileAsync(ctx.Config.OpenAiModel, systemPrompt, userPrompt);
         var spec = AgentHelpers.StripCodeFence(content);
-        spec = EnsureFilesSection(spec, ctx, appFiles.ToList(), testFiles.ToList());
+        spec = EnsureFilesSection(spec, ctx, appFiles.ToList());
         spec = EnsureValidFilesSection(spec, ctx, appFiles.ToList(), testFiles.ToList());
-        spec = AgentTemplateUtil.EnsureTemplateHeader(spec, ctx, "orchestrator/docs/templates/spec.md");
+        spec = AgentTemplateUtil.EnsureTemplateHeader(spec, ctx, "docs/templates/spec.md");
         spec = AgentTemplateUtil.UpdateStatus(spec, "COMPLETE");
         return spec;
     }
 
-    private static string EnsureFilesSection(string spec, WorkContext ctx, List<string> appFiles, List<string> testFiles)
+    private static string EnsureFilesSection(string spec, WorkContext ctx, List<string> appFiles)
     {
         var files = WorkItemParsers.TryParseSpecFiles(spec);
         if (files.Count > 0)
@@ -98,9 +98,9 @@ internal sealed class TechLeadAgent : IRoleAgent
             ctx.WorkItem.Body.Contains("orchestrator", StringComparison.OrdinalIgnoreCase);
 
         var appFallback = appFiles.FirstOrDefault() ??
-            (isOrchestrator ? "orchestrator/src/Orchestrator.App/Program.cs" : "Assets/Scripts/Placeholder.cs");
+            (isOrchestrator ? "src/Orchestrator.App/Program.cs" : "Assets/Scripts/Placeholder.cs");
         var testFallback = isOrchestrator
-            ? $"orchestrator/tests/Issue{ctx.WorkItem.Number}Tests.cs"
+            ? $"tests/Issue{ctx.WorkItem.Number}Tests.cs"
             : $"Assets/Tests/Issue{ctx.WorkItem.Number}Tests.cs";
 
         var filesSection = $"\n\n## Files\n- {appFallback}\n- {testFallback}\n";
@@ -123,16 +123,16 @@ internal sealed class TechLeadAgent : IRoleAgent
             return spec;
         }
 
-        var appFallback = appFiles.FirstOrDefault() ?? "orchestrator/src/Orchestrator.App/Program.cs";
-        var testFallback = testFiles.FirstOrDefault() ?? $"orchestrator/tests/Issue{ctx.WorkItem.Number}Tests.cs";
+        var appFallback = appFiles.FirstOrDefault() ?? "src/Orchestrator.App/Program.cs";
+        var testFallback = testFiles.FirstOrDefault() ?? $"tests/Issue{ctx.WorkItem.Number}Tests.cs";
         var filesSection = $"## Files\n- {appFallback}\n- {testFallback}\n";
         return AgentTemplateUtil.ReplaceSection(spec, "## Files", filesSection);
     }
 
     private static bool UpdateQuestionsWithAnswers(WorkContext ctx, string specContent)
     {
-        var questionsPath = $"orchestrator/questions/issue-{ctx.WorkItem.Number}.md";
-        var templatePath = "orchestrator/docs/templates/questions.md";
+        var questionsPath = $"questions/issue-{ctx.WorkItem.Number}.md";
+        var templatePath = "docs/templates/questions.md";
         var tokens = AgentTemplateUtil.BuildTokens(ctx);
         var content = ctx.Workspace.ReadOrTemplate(questionsPath, templatePath, tokens);
         var answers = GenerateAnswers(ctx, specContent, content);

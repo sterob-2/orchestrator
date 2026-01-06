@@ -331,12 +331,12 @@ internal sealed class RepoGit
             .Select(s => s.FilePath)
             .Where(path =>
                 !path.StartsWith(".orchestrator-backup/", StringComparison.OrdinalIgnoreCase) &&
-                (path.StartsWith("orchestrator/plans/", StringComparison.OrdinalIgnoreCase) ||
-                 path.StartsWith("orchestrator/specs/", StringComparison.OrdinalIgnoreCase) ||
-                 path.StartsWith("orchestrator/reviews/", StringComparison.OrdinalIgnoreCase) ||
-                 path.StartsWith("orchestrator/questions/", StringComparison.OrdinalIgnoreCase) ||
-                 path.StartsWith("orchestrator/release/", StringComparison.OrdinalIgnoreCase) ||
-                 path.StartsWith("orchestrator/tests/", StringComparison.OrdinalIgnoreCase)))
+                (path.StartsWith("plans/", StringComparison.OrdinalIgnoreCase) ||
+                 path.StartsWith("specs/", StringComparison.OrdinalIgnoreCase) ||
+                 path.StartsWith("reviews/", StringComparison.OrdinalIgnoreCase) ||
+                 path.StartsWith("questions/", StringComparison.OrdinalIgnoreCase) ||
+                 path.StartsWith("release/", StringComparison.OrdinalIgnoreCase) ||
+                 path.StartsWith("tests/", StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
         if (candidates.Count == 0)

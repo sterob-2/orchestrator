@@ -12,7 +12,7 @@ internal sealed class PlannerAgent : IRoleAgent
 
     private static async Task<AgentResult> RunPlannerAsync(WorkContext ctx)
     {
-        var planPath = $"orchestrator/plans/issue-{ctx.WorkItem.Number}.md";
+        var planPath = $"plans/issue-{ctx.WorkItem.Number}.md";
         if (ctx.Workspace.Exists(planPath))
         {
             var existing = ctx.Workspace.ReadAllText(planPath);
@@ -25,7 +25,7 @@ internal sealed class PlannerAgent : IRoleAgent
         var branch = WorkItemBranch.BuildBranchName(ctx.WorkItem);
         ctx.Repo.EnsureBranch(branch, ctx.Config.DefaultBaseBranch);
 
-        var templatePath = "orchestrator/docs/templates/plan.md";
+        var templatePath = "docs/templates/plan.md";
         var tokens = AgentTemplateUtil.BuildTokens(ctx);
         var planContent = ctx.Workspace.ReadOrTemplate(planPath, templatePath, tokens);
         planContent = AgentTemplateUtil.UpdateStatus(planContent, "COMPLETE");
@@ -51,11 +51,6 @@ internal sealed class PlannerAgent : IRoleAgent
 
         var summaryNotes = $"Planner created branch `{branch}`, opened a draft PR, and wrote `{planPath}`.";
         return AgentResult.Ok(summaryNotes);
-    }
-
-    private static string BuildPlan(WorkContext ctx)
-    {
-        return AppendAcceptanceCriteria("", ctx);
     }
 
     private static string AppendAcceptanceCriteria(string content, WorkContext ctx)

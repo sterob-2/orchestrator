@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Orchestrator.App.Utilities;
 
 namespace Orchestrator.App.Agents;
 
@@ -37,9 +38,10 @@ internal sealed class DevAgent : IRoleAgent
         }
 
         var branch = WorkItemBranch.BuildBranchName(ctx.WorkItem);
-        var specPath = $"orchestrator/specs/issue-{ctx.WorkItem.Number}.md";
+        var specPath = $"specs/issue-{ctx.WorkItem.Number}.md";
 
-        if (!ctx.Workspace.Exists(specPath))
+        var specContent = await FileOperationHelper.ReadAllTextIfExistsAsync(ctx, specPath);
+        if (specContent == null)
         {
             return new AgentResult(
                 Success: true,
@@ -48,10 +50,8 @@ internal sealed class DevAgent : IRoleAgent
                 AddLabels: new[] { ctx.Config.SpecQuestionsLabel }
             );
         }
-
-        var specContent = ctx.Workspace.ReadAllText(specPath);
         var reviewNotes = TryGetReviewNotes(ctx);
-        var questionAnswers = TryGetQuestionAnswers(ctx);
+        var questionAnswers = await TryGetQuestionAnswersAsync(ctx);
         var reviewFiles = TryGetReviewFiles(ctx);
         var files = reviewFiles.Count > 0 ? reviewFiles : WorkItemParsers.TryParseSpecFiles(specContent);
         if (files.Count == 0)
@@ -88,7 +88,8 @@ internal sealed class DevAgent : IRoleAgent
                 continue;
             }
 
-            var currentContent = ctx.Workspace.Exists(file) ? ctx.Workspace.ReadAllText(file) : "";
+            var currentContent = await FileOperationHelper.ReadAllTextIfExistsAsync(ctx, file) ?? "";
+
             var updated = await GetUpdatedFileAsync(ctx, specContent, reviewNotes, questionAnswers, file, currentContent);
             if (string.IsNullOrWhiteSpace(updated))
             {
@@ -99,13 +100,13 @@ internal sealed class DevAgent : IRoleAgent
                 );
             }
 
-            ctx.Workspace.WriteAllText(file, updated);
+            await FileOperationHelper.WriteAllTextAsync(ctx, file, updated);
             updatedFiles.Add(file);
         }
 
         var reviewForCheck = reviewNotes == "None" ? "" : reviewNotes;
         var answersForCheck = questionAnswers == "None" ? "" : questionAnswers;
-        var (checkOk, checkNotes, missing) = await RunSelfCheckAsync(ctx, specContent, reviewForCheck, answersForCheck, updatedFiles);
+        var (checkOk, _, missing) = await RunSelfCheckAsync(ctx, specContent, reviewForCheck, answersForCheck, updatedFiles);
         if (!checkOk)
         {
             await RemediateFilesAsync(ctx, specContent, reviewForCheck, answersForCheck, updatedFiles, missing);
@@ -123,7 +124,7 @@ internal sealed class DevAgent : IRoleAgent
         var updatedSpec = WorkItemParsers.MarkAcceptanceCriteriaDone(specContent);
         if (!string.Equals(updatedSpec, specContent, StringComparison.Ordinal))
         {
-            ctx.Workspace.WriteAllText(specPath, updatedSpec);
+            await FileOperationHelper.WriteAllTextAsync(ctx, specPath, updatedSpec);
             updatedFiles.Add(specPath);
         }
 
@@ -194,9 +195,8 @@ internal sealed class DevAgent : IRoleAgent
         string filePath,
         string currentContent)
     {
-        var architecture = ctx.Workspace.Exists("Assets/Docs/architecture.md")
-            ? ctx.Workspace.ReadAllText("Assets/Docs/architecture.md")
-            : "";
+        var architecture = await FileOperationHelper.ReadAllTextIfExistsAsync(ctx, "Assets/Docs/architecture.md") ?? "";
+
         var systemPrompt = "You are a senior engineer. Update the file according to the spec, review notes, and architecture guidelines. Output ONLY the full file content, no markdown, no code fences.";
         var userPrompt = $"Architecture Guidelines:\\n{architecture}\\n\\nSpec:\\n{spec}\\n\\nTechLead Review Notes:\\n{reviewNotes}\\n\\nTechLead Answers:\\n{questionAnswers}\\n\\nFile: {filePath}\\n\\nCurrent content:\\n{currentContent}";
         var response = await ctx.Llm.GetUpdatedFileAsync(ctx.Config.DevModel, systemPrompt, userPrompt);
@@ -218,12 +218,12 @@ internal sealed class DevAgent : IRoleAgent
         var fileBlocks = new List<string>();
         foreach (var file in updatedFiles)
         {
-            if (!ctx.Workspace.Exists(file))
+            var content = await FileOperationHelper.ReadAllTextIfExistsAsync(ctx, file);
+            if (content == null)
             {
                 continue;
             }
 
-            var content = ctx.Workspace.ReadAllText(file);
             fileBlocks.Add($"File: {file}\n{AgentHelpers.Truncate(content, 8000)}");
         }
 
@@ -279,11 +279,12 @@ internal sealed class DevAgent : IRoleAgent
         var remediationNotes = reviewNotes + "\n\nAnswers:\n" + questionAnswers + "\n\nMissing items to address:\n- " + string.Join("\n- ", missingItems);
         foreach (var file in updatedFiles)
         {
-            var currentContent = ctx.Workspace.Exists(file) ? ctx.Workspace.ReadAllText(file) : "";
+            var currentContent = await FileOperationHelper.ReadAllTextIfExistsAsync(ctx, file) ?? "";
+
             var updated = await GetUpdatedFileAsync(ctx, spec, remediationNotes, questionAnswers, file, currentContent);
             if (!string.IsNullOrWhiteSpace(updated))
             {
-                ctx.Workspace.WriteAllText(file, updated);
+                await FileOperationHelper.WriteAllTextAsync(ctx, file, updated);
             }
         }
     }
@@ -316,15 +317,16 @@ internal sealed class DevAgent : IRoleAgent
         return WorkItemParsers.TryParseSpecFiles(content);
     }
 
-    private static string TryGetQuestionAnswers(WorkContext ctx)
+    private static async Task<string> TryGetQuestionAnswersAsync(WorkContext ctx)
     {
-        var questionsPath = $"orchestrator/questions/issue-{ctx.WorkItem.Number}.md";
-        if (!ctx.Workspace.Exists(questionsPath))
+        var questionsPath = $"questions/issue-{ctx.WorkItem.Number}.md";
+
+        var content = await FileOperationHelper.ReadAllTextIfExistsAsync(ctx, questionsPath);
+        if (content == null)
         {
             return "None";
         }
 
-        var content = ctx.Workspace.ReadAllText(questionsPath);
         var answers = WorkItemParsers.TryParseSection(content, "## Answers");
         return string.IsNullOrWhiteSpace(answers) ? "None" : answers.Trim();
     }
@@ -332,18 +334,20 @@ internal sealed class DevAgent : IRoleAgent
     private static async Task<AgentResult> CreateSpecQuestionAsync(WorkContext ctx, string question, string nextStageLabel)
     {
         var branch = WorkItemBranch.BuildBranchName(ctx.WorkItem);
-        var questionsPath = $"orchestrator/questions/issue-{ctx.WorkItem.Number}.md";
-        var templatePath = "orchestrator/docs/templates/questions.md";
+        var questionsPath = $"questions/issue-{ctx.WorkItem.Number}.md";
+        var templatePath = "docs/templates/questions.md";
         var tokens = AgentTemplateUtil.BuildTokens(ctx);
-        if (ctx.Workspace.Exists(questionsPath))
+
+        var existingContent = await FileOperationHelper.ReadAllTextIfExistsAsync(ctx, questionsPath);
+
+        if (existingContent != null)
         {
-            var existing = ctx.Workspace.ReadAllText(questionsPath);
-            if (AgentTemplateUtil.IsStatus(existing, "CLARIFIED"))
+            if (AgentTemplateUtil.IsStatus(existingContent, "CLARIFIED"))
             {
                 return AgentResult.Fail($"Spec questions already clarified, but Dev still needs clarification: {question}");
             }
 
-            if (existing.Contains(question, StringComparison.OrdinalIgnoreCase))
+            if (existingContent.Contains(question, StringComparison.OrdinalIgnoreCase))
             {
                 return new AgentResult(
                     Success: true,
@@ -359,7 +363,9 @@ internal sealed class DevAgent : IRoleAgent
         updated = AgentTemplateUtil.AppendQuestion(updated, question);
 
         ctx.Repo.EnsureBranch(branch, ctx.Config.DefaultBaseBranch);
-        ctx.Workspace.WriteAllText(questionsPath, updated);
+
+        await FileOperationHelper.WriteAllTextAsync(ctx, questionsPath, updated);
+
         ctx.Repo.CommitAndPush(branch, $"docs: add spec questions for issue {ctx.WorkItem.Number}", new[] { questionsPath });
 
         return new AgentResult(
@@ -372,7 +378,7 @@ internal sealed class DevAgent : IRoleAgent
 
     private static bool IsQuestionsClarified(WorkContext ctx)
     {
-        var questionsPath = $"orchestrator/questions/issue-{ctx.WorkItem.Number}.md";
+        var questionsPath = $"questions/issue-{ctx.WorkItem.Number}.md";
         if (!ctx.Workspace.Exists(questionsPath))
         {
             return false;

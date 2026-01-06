@@ -7,14 +7,196 @@ on:
     branches: [ main, master, develop ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: write
+  packages: write
+  security-events: write
+  actions: read
+
 env:
   DOTNET_VERSION: '8.0.x'
   SOLUTION_PATH: 'src/Orchestrator.App/Orchestrator.App.csproj'
   TEST_PROJECT_PATH: 'tests/Orchestrator.App.Tests.csproj'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-test:
-    name: Build & Test
+    name: Build, Test & Quality Gate
+    runs-on: [self-hosted]
+    if: github.event.repository.fork == false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Check for SonarCloud token
+      id: check_token
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        if [ -z "$SONAR_TOKEN" ]; then
+          echo "has_token=false" >> $GITHUB_OUTPUT
+          echo "::warning::SONAR_TOKEN secret not set. Skipping SonarCloud analysis."
+        else
+          echo "has_token=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Cache SonarCloud packages
+      if: steps.check_token.outputs.has_token == 'true'
+      uses: actions/cache@v3
+      with:
+        path: ~/sonar/cache
+        key: ${{ runner.os }}-sonar
+        restore-keys: ${{ runner.os }}-sonar
+
+    - name: Cache SonarCloud scanner
+      if: steps.check_token.outputs.has_token == 'true'
+      id: cache-sonar-scanner
+      uses: actions/cache@v3
+      with:
+        path: ./.sonar/scanner
+        key: ${{ runner.os }}-sonar-scanner
+        restore-keys: ${{ runner.os }}-sonar-scanner
+
+    - name: Install SonarCloud scanner
+      if: steps.check_token.outputs.has_token == 'true' && steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p ./.sonar/scanner
+        dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
+
+    - name: Install dotnet-coverage
+      if: steps.check_token.outputs.has_token == 'true'
+      run: dotnet tool update --global dotnet-coverage
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.TEST_PROJECT_PATH }}
+
+    - name: Begin SonarCloud scan
+      if: steps.check_token.outputs.has_token == 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        ./.sonar/scanner/dotnet-sonarscanner begin \
+          /k:"sterob-2_orchestrator" \
+          /o:"sterob-2" \
+          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
+          /d:sonar.host.url="https://sonarcloud.io" \
+          /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml \
+          /d:sonar.coverage.exclusions="**Tests*.cs" \
+          /d:sonar.exclusions="**/bin/**,**/obj/**,**/*.dll,**/*.exe"
+
+    - name: Build
+      run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
+
+    - name: Run unit tests with coverage
+      run: |
+        dotnet-coverage collect "dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --filter \"Category!=Integration\"" -f xml -o coverage.xml
+        ls -lh coverage.xml
+
+    - name: Run integration tests with coverage
+      run: |
+        dotnet-coverage collect "dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --filter \"Category=Integration\"" -f xml -o coverage-integration.xml
+        if [ -f coverage-integration.xml ] && [ -s coverage-integration.xml ]; then
+          echo "Merging coverage reports"
+          dotnet-coverage merge -f xml -o coverage-merged.xml coverage.xml coverage-integration.xml
+          mv coverage-merged.xml coverage.xml
+        fi
+        ls -lh coverage.xml
+      env:
+        WORKSPACE_HOST_PATH: ${{ github.workspace }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
+
+    - name: End SonarCloud scan
+      if: steps.check_token.outputs.has_token == 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+    - name: Upload coverage to artifacts
+      if: steps.check_token.outputs.has_token == 'true'
+      uses: actions/upload-artifact@v6
+      with:
+        name: sonar-coverage
+        path: coverage.xml
+        retention-days: 30
+      continue-on-error: true
+
+  docker-build:
+    name: Build Docker Image
+    runs-on: [self-hosted]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        push: false
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        platforms: linux/amd64
+        load: true
+
+  docker-lint:
+    name: Lint Dockerfile
+    runs-on: [self-hosted]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Run hadolint
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: Dockerfile
+        failure-threshold: warning
+
+  security-codeql:
+    name: CodeQL Security Analysis
+    runs-on: [self-hosted]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: csharp
+        queries: security-extended,security-and-quality
+
+    - name: Build for CodeQL
+      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v4
+      with:
+        category: "/language:csharp"
+
+  security-secrets:
+    name: Secret Scanning
     runs-on: [self-hosted]
 
     steps:
@@ -23,21 +205,10 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Restore dependencies
-      run: dotnet restore ${{ env.TEST_PROJECT_PATH }}
-
-    - name: Build
-      run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
-
-    - name: Run tests
-      run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
-
-    - name: Upload coverage reports
-      uses: actions/upload-artifact@v6
+    - name: TruffleHog Secret Scan
+      uses: trufflesecurity/trufflehog@main
       with:
-        name: coverage-report
-        path: ./coverage/**/coverage.cobertura.xml
-        retention-days: 30
+        extra_args: --only-verified
 
   code-quality:
     name: Code Quality Analysis
@@ -82,19 +253,10 @@ jobs:
         fi
       continue-on-error: true
 
-  quality-gate:
-    name: SonarCloud Quality Gate
-    runs-on: [self-hosted]
-    needs: [build-and-test]
-
-    steps:
-    - name: Check SonarCloud Quality Gate
-      run: echo "SonarCloud quality gate check runs in separate workflow"
-
   publish-artifacts:
     name: Publish Build Artifacts
     runs-on: [self-hosted]
-    needs: [build-and-test, code-quality, quality-gate]
+    needs: [build-and-test, code-quality]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     steps:
@@ -110,3 +272,57 @@ jobs:
         name: orchestrator-app
         path: ./publish
         retention-days: 90
+
+  docker-publish:
+    name: Publish Docker Image
+    runs-on: [self-hosted]
+    needs: [docker-build, docker-lint, build-and-test]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=sha
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        platforms: linux/amd64
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: 'trivy-results.sarif'
+      continue-on-error: true
