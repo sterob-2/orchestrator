@@ -129,7 +129,7 @@ internal sealed class OctokitGitHubClient
     /// <summary>
     /// Get comments on an issue
     /// </summary>
-    public async Task<IReadOnlyList<IssueComment>> GetIssueCommentsAsync(int issueNumber)
+    public async Task<IReadOnlyList<Core.Models.IssueComment>> GetIssueCommentsAsync(int issueNumber)
     {
         var comments = await _octokit.Issue.Comment.GetAllForIssue(
             _cfg.RepoOwner,
@@ -137,7 +137,7 @@ internal sealed class OctokitGitHubClient
             issueNumber
         );
 
-        return comments.Select(c => new IssueComment(
+        return comments.Select(c => new Core.Models.IssueComment(
             Author: c.User.Login,
             Body: c.Body
         )).ToList();

@@ -4,9 +4,16 @@ global using System.Linq;
 global using System.Threading.Tasks;
 global using Xunit;
 
+// Core
+global using Orchestrator.App.Core.Configuration;
+global using Orchestrator.App.Core.Models;
+
 // Infrastructure
 global using Orchestrator.App.Infrastructure.GitHub;
 global using Orchestrator.App.Infrastructure.Git;
 global using Orchestrator.App.Infrastructure.Filesystem;
 global using Orchestrator.App.Infrastructure.Llm;
 global using Orchestrator.App.Infrastructure.Mcp;
+
+// Utilities
+global using Orchestrator.App.Utilities;
