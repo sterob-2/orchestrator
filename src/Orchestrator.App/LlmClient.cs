@@ -7,10 +7,11 @@ using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 using OpenAI;
 using OpenAI.Chat;
+using Orchestrator.App.Core.Adapters;
 
 namespace Orchestrator.App;
 
-internal sealed class LlmClient
+internal sealed class LlmClient : ILegacyLlmClient
 {
     private readonly OpenAIClient _openAiClient;
 

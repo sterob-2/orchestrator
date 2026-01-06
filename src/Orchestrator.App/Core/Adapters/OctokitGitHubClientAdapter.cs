@@ -6,9 +6,9 @@ namespace Orchestrator.App.Core.Adapters;
 
 internal sealed class OctokitGitHubClientAdapter : IGitHubClient
 {
-    private readonly global::Orchestrator.App.OctokitGitHubClient _client;
+    private readonly ILegacyGitHubClient _client;
 
-    public OctokitGitHubClientAdapter(global::Orchestrator.App.OctokitGitHubClient client)
+    public OctokitGitHubClientAdapter(ILegacyGitHubClient client)
     {
         _client = client;
     }

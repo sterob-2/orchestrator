@@ -4,9 +4,9 @@ namespace Orchestrator.App.Core.Adapters;
 
 internal sealed class RepoGitAdapter : IRepoGit
 {
-    private readonly global::Orchestrator.App.RepoGit _repo;
+    private readonly ILegacyRepoGit _repo;
 
-    public RepoGitAdapter(global::Orchestrator.App.RepoGit repo)
+    public RepoGitAdapter(ILegacyRepoGit repo)
     {
         _repo = repo;
     }

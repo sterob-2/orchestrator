@@ -1,4 +1,5 @@
 using Octokit;
+using Orchestrator.App.Core.Adapters;
 using System.Net.Http;
 
 namespace Orchestrator.App;
@@ -6,7 +7,7 @@ namespace Orchestrator.App;
 /// <summary>
 /// GitHub client using Octokit.NET for REST API and GraphQL operations
 /// </summary>
-internal sealed class OctokitGitHubClient
+internal sealed class OctokitGitHubClient : ILegacyGitHubClient
 {
     private readonly Octokit.GitHubClient _octokit;
     private readonly OrchestratorConfig _cfg;

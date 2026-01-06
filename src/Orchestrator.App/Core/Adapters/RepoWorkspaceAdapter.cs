@@ -4,9 +4,9 @@ namespace Orchestrator.App.Core.Adapters;
 
 internal sealed class RepoWorkspaceAdapter : IRepoWorkspace
 {
-    private readonly global::Orchestrator.App.RepoWorkspace _workspace;
+    private readonly ILegacyRepoWorkspace _workspace;
 
-    public RepoWorkspaceAdapter(global::Orchestrator.App.RepoWorkspace workspace)
+    public RepoWorkspaceAdapter(ILegacyRepoWorkspace workspace)
     {
         _workspace = workspace;
     }

@@ -105,7 +105,12 @@ public class CoreModelsTests
 
         Assert.Equal("Ship feature", spec.Goal);
         Assert.Equal("No redesign", spec.NonGoals);
+        Assert.Equal("API", spec.Components[0]);
         Assert.Equal(touchList, spec.TouchList);
+        Assert.Equal("IService", spec.Interfaces[0]);
+        Assert.Equal("Given ...", spec.Scenarios[0]);
+        Assert.Equal("Step 1", spec.Sequence[0]);
+        Assert.Equal("Unit", spec.TestMatrix[0]);
         Assert.Equal(sections, spec.Sections);
     }
 

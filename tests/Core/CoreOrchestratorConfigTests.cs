@@ -249,6 +249,24 @@ public class CoreOrchestratorConfigTests
         Assert.Equal("/tmp/overridden", actual.WorkspaceHostPath);
     }
 
+    [Fact]
+    public void FromEnvironment_IgnoresWhitespaceValues()
+    {
+        using var scope = new EnvScope(new Dictionary<string, string?>
+        {
+            ["OPENAI_BASE_URL"] = "   ",
+            ["GIT_AUTHOR_NAME"] = "  ",
+            ["WORKSPACE_PATH"] = "   "
+        });
+
+        var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
+
+        Assert.Equal("https://api.openai.com/v1", actual.OpenAiBaseUrl);
+        Assert.Equal("Orchestrator Agent", actual.GitAuthorName);
+        Assert.Equal("/workspace", actual.WorkspacePath);
+        Assert.Equal("/workspace", actual.WorkspaceHostPath);
+    }
+
     private sealed class EnvScope : IDisposable
     {
         private readonly Dictionary<string, string?> _original = new();
