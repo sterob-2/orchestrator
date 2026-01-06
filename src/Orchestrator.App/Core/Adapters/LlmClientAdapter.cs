@@ -5,9 +5,9 @@ namespace Orchestrator.App.Core.Adapters;
 
 internal sealed class LlmClientAdapter : ILlmClient
 {
-    private readonly global::Orchestrator.App.LlmClient _client;
+    private readonly ILegacyLlmClient _client;
 
-    public LlmClientAdapter(global::Orchestrator.App.LlmClient client)
+    public LlmClientAdapter(ILegacyLlmClient client)
     {
         _client = client;
     }
