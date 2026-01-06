@@ -1,5 +1,4 @@
 using ModelContextProtocol.Client;
-using Orchestrator.App.Infrastructure.Mcp;
 
 namespace Orchestrator.App.Core.Interfaces;
 
@@ -11,5 +10,5 @@ internal interface ILlmClient
         string systemPrompt,
         string userPrompt,
         IEnumerable<McpClientTool> mcpTools,
-        McpClientManager mcpManager);
+        global::Orchestrator.App.McpClientManager mcpManager);
 }
