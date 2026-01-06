@@ -118,38 +118,34 @@ public class CoreOrchestratorConfigTests
             GitHubToken: "token",
             RepoOwner: "owner",
             RepoName: "repo",
-            Workflow: new CoreConfig.WorkflowConfig(
-                DefaultBaseBranch: "develop",
-                PollIntervalSeconds: 45,
-                FastPollIntervalSeconds: 12,
-                UseWorkflowMode: true
-            ),
-            Labels: new CoreConfig.LabelConfig(
-                WorkItemLabel: "work",
-                InProgressLabel: "in-progress",
-                DoneLabel: "done",
-                BlockedLabel: "blocked",
-                PlannerLabel: "planner",
-                TechLeadLabel: "techlead",
-                DevLabel: "dev",
-                TestLabel: "test",
-                ReleaseLabel: "release",
-                UserReviewRequiredLabel: "user-review",
-                ReviewNeededLabel: "review-needed",
-                ReviewedLabel: "reviewed",
-                SpecQuestionsLabel: "spec-questions",
-                SpecClarifiedLabel: "spec-clarified",
-                CodeReviewNeededLabel: "code-review-needed",
-                CodeReviewApprovedLabel: "code-review-approved",
-                CodeReviewChangesRequestedLabel: "code-review-changes-requested",
-                ResetLabel: "reset"
-            ),
+            DefaultBaseBranch: "develop",
+            PollIntervalSeconds: 45,
+            FastPollIntervalSeconds: 12,
+            WorkItemLabel: "work",
+            InProgressLabel: "in-progress",
+            DoneLabel: "done",
+            BlockedLabel: "blocked",
+            PlannerLabel: "planner",
+            TechLeadLabel: "techlead",
+            DevLabel: "dev",
+            TestLabel: "test",
+            ReleaseLabel: "release",
+            UserReviewRequiredLabel: "user-review",
+            ReviewNeededLabel: "review-needed",
+            ReviewedLabel: "reviewed",
+            SpecQuestionsLabel: "spec-questions",
+            SpecClarifiedLabel: "spec-clarified",
+            CodeReviewNeededLabel: "code-review-needed",
+            CodeReviewApprovedLabel: "code-review-approved",
+            CodeReviewChangesRequestedLabel: "code-review-changes-requested",
+            ResetLabel: "reset",
             ProjectStatusInProgress: "In Progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "proj-owner",
             ProjectOwnerType: "org",
             ProjectNumber: 42,
-            ProjectStatusDone: "Done"
+            ProjectStatusDone: "Done",
+            UseWorkflowMode: true
         );
 
         var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
@@ -176,38 +172,34 @@ public class CoreOrchestratorConfigTests
             GitHubToken: "",
             RepoOwner: "",
             RepoName: "",
-            Workflow: new CoreConfig.WorkflowConfig(
-                DefaultBaseBranch: "main",
-                PollIntervalSeconds: 120,
-                FastPollIntervalSeconds: 30,
-                UseWorkflowMode: false
-            ),
-            Labels: new CoreConfig.LabelConfig(
-                WorkItemLabel: "ready-for-agents",
-                InProgressLabel: "in-progress",
-                DoneLabel: "done",
-                BlockedLabel: "blocked",
-                PlannerLabel: "agent:planner",
-                TechLeadLabel: "agent:techlead",
-                DevLabel: "agent:dev",
-                TestLabel: "agent:test",
-                ReleaseLabel: "agent:release",
-                UserReviewRequiredLabel: "user-review-required",
-                ReviewNeededLabel: "agent:review-needed",
-                ReviewedLabel: "agent:reviewed",
-                SpecQuestionsLabel: "spec-questions",
-                SpecClarifiedLabel: "spec-clarified",
-                CodeReviewNeededLabel: "code-review-needed",
-                CodeReviewApprovedLabel: "code-review-approved",
-                CodeReviewChangesRequestedLabel: "code-review-changes-requested",
-                ResetLabel: "agent:reset"
-            ),
+            DefaultBaseBranch: "main",
+            PollIntervalSeconds: 120,
+            FastPollIntervalSeconds: 30,
+            WorkItemLabel: "ready-for-agents",
+            InProgressLabel: "in-progress",
+            DoneLabel: "done",
+            BlockedLabel: "blocked",
+            PlannerLabel: "agent:planner",
+            TechLeadLabel: "agent:techlead",
+            DevLabel: "agent:dev",
+            TestLabel: "agent:test",
+            ReleaseLabel: "agent:release",
+            UserReviewRequiredLabel: "user-review-required",
+            ReviewNeededLabel: "agent:review-needed",
+            ReviewedLabel: "agent:reviewed",
+            SpecQuestionsLabel: "spec-questions",
+            SpecClarifiedLabel: "spec-clarified",
+            CodeReviewNeededLabel: "code-review-needed",
+            CodeReviewApprovedLabel: "code-review-approved",
+            CodeReviewChangesRequestedLabel: "code-review-changes-requested",
+            ResetLabel: "agent:reset",
             ProjectStatusInProgress: "In progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "",
             ProjectOwnerType: "user",
             ProjectNumber: null,
-            ProjectStatusDone: "Done"
+            ProjectStatusDone: "Done",
+            UseWorkflowMode: false
         );
 
         var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
@@ -228,9 +220,9 @@ public class CoreOrchestratorConfigTests
 
         var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
 
-        Assert.Equal(120, actual.Workflow.PollIntervalSeconds);
-        Assert.Equal(30, actual.Workflow.FastPollIntervalSeconds);
-        Assert.False(actual.Workflow.UseWorkflowMode);
+        Assert.Equal(120, actual.PollIntervalSeconds);
+        Assert.Equal(30, actual.FastPollIntervalSeconds);
+        Assert.False(actual.UseWorkflowMode);
         Assert.Null(actual.ProjectNumber);
     }
 

@@ -16,7 +16,7 @@ internal interface IGitHubClient
     [ExcludeFromCodeCoverage]
     Task ClosePullRequestAsync(int prNumber);
     [ExcludeFromCodeCoverage]
-    Task<IReadOnlyList<global::Orchestrator.App.IssueComment>> GetIssueCommentsAsync(int issueNumber);
+    Task<IReadOnlyList<IssueComment>> GetIssueCommentsAsync(int issueNumber);
     [ExcludeFromCodeCoverage]
     Task CommentOnWorkItemAsync(int issueNumber, string comment);
     [ExcludeFromCodeCoverage]
@@ -34,7 +34,7 @@ internal interface IGitHubClient
     [ExcludeFromCodeCoverage]
     Task<bool> HasCommitsAsync(string baseBranch, string headBranch);
     [ExcludeFromCodeCoverage]
-    Task<global::Orchestrator.App.RepoFile?> TryGetFileContentAsync(string branch, string path);
+    Task<RepoFile?> TryGetFileContentAsync(string branch, string path);
     [ExcludeFromCodeCoverage]
     Task CreateOrUpdateFileAsync(string branch, string path, string content, string message);
     [ExcludeFromCodeCoverage]
