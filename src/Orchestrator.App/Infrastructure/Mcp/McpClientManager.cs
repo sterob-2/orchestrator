@@ -6,7 +6,7 @@ using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
-namespace Orchestrator.App;
+namespace Orchestrator.App.Infrastructure.Mcp;
 
 /// <summary>
 /// Manages MCP (Model Context Protocol) client connections and provides AI tools

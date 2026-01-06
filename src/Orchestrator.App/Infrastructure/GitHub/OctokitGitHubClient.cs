@@ -1,7 +1,7 @@
 using Octokit;
 using System.Net.Http;
 
-namespace Orchestrator.App;
+namespace Orchestrator.App.Infrastructure.GitHub;
 
 /// <summary>
 /// GitHub client using Octokit.NET for REST API and GraphQL operations
