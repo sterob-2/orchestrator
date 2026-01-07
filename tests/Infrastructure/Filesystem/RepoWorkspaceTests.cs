@@ -41,6 +41,14 @@ public class RepoWorkspaceTests
     }
 
     [Fact]
+    public void ResolvePath_RejectsPathTraversal()
+    {
+        var workspace = new RepoWorkspace("/root");
+
+        Assert.Throws<InvalidOperationException>(() => workspace.ResolvePath("../secrets.txt"));
+    }
+
+    [Fact]
     public void Exists_WithExistingFile_ReturnsTrue()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());

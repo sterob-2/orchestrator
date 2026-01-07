@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 
 namespace Orchestrator.App.Utilities;
@@ -7,11 +8,20 @@ namespace Orchestrator.App.Utilities;
 /// </summary>
 internal static class FileOperationHelper
 {
+    private static void EnsureSafeRelativePath(string path)
+    {
+        if (!WorkItemParsers.IsSafeRelativePath(path))
+        {
+            throw new ArgumentException($"Invalid path: {path}", nameof(path));
+        }
+    }
+
     /// <summary>
     /// Checks if a file exists using MCP if available, otherwise Workspace.
     /// </summary>
     public static async Task<bool> ExistsAsync(WorkContext ctx, string path)
     {
+        EnsureSafeRelativePath(path);
         if (ctx.McpFiles != null)
         {
             return await ctx.McpFiles.ExistsAsync(path);
@@ -24,6 +34,7 @@ internal static class FileOperationHelper
     /// </summary>
     public static async Task<string> ReadAllTextAsync(WorkContext ctx, string path)
     {
+        EnsureSafeRelativePath(path);
         if (ctx.McpFiles != null)
         {
             return await ctx.McpFiles.ReadAllTextAsync(path);
@@ -36,6 +47,7 @@ internal static class FileOperationHelper
     /// </summary>
     public static async Task WriteAllTextAsync(WorkContext ctx, string path, string content)
     {
+        EnsureSafeRelativePath(path);
         if (ctx.McpFiles != null)
         {
             await ctx.McpFiles.WriteAllTextAsync(path, content);

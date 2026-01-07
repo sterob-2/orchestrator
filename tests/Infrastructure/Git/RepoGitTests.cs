@@ -95,15 +95,41 @@ public class RepoGitTests
         var config = MockWorkContext.CreateConfig();
         var repoGit = new RepoGit(config, gitRoot);
 
+        string? originalRemoteUrl;
+        using (var repo = new Repository(gitRoot))
+        {
+            var origin = repo.Network.Remotes["origin"];
+            originalRemoteUrl = origin?.Url;
+        }
+
         repoGit.EnsureConfigured();
 
         // Verify configuration was set
-        using var repo = new Repository(gitRoot);
-        var userName = repo.Config.Get<string>("user.name");
-        var userEmail = repo.Config.Get<string>("user.email");
+        try
+        {
+            using var repo = new Repository(gitRoot);
+            var userName = repo.Config.Get<string>("user.name");
+            var userEmail = repo.Config.Get<string>("user.email");
 
-        Assert.NotNull(userName);
-        Assert.NotNull(userEmail);
+            Assert.NotNull(userName);
+            Assert.NotNull(userEmail);
+        }
+        finally
+        {
+            using var repo = new Repository(gitRoot);
+            var origin = repo.Network.Remotes["origin"];
+            if (origin != null)
+            {
+                if (string.IsNullOrWhiteSpace(originalRemoteUrl))
+                {
+                    repo.Network.Remotes.Remove("origin");
+                }
+                else
+                {
+                    repo.Network.Remotes.Update("origin", r => r.Url = originalRemoteUrl);
+                }
+            }
+        }
     }
 
     private static string? FindGitRoot()

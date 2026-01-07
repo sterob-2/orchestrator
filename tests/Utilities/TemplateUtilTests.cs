@@ -2,13 +2,12 @@ using System;
 using System.Collections.Generic;
 using Orchestrator.App;
 using Orchestrator.App.Utilities;
-using Orchestrator.App.Core.Configuration;
 using Orchestrator.App.Tests.TestHelpers;
 using Xunit;
 
 namespace Orchestrator.App.Tests.Utilities;
 
-public class AgentTemplateUtilTests
+public class TemplateUtilTests
 {
     [Fact]
     public void BuildTokens_CreatesCorrectDictionary()
@@ -16,7 +15,7 @@ public class AgentTemplateUtilTests
         using var temp = new TempWorkspace();
         var ctx = CreateContext(temp.Workspace);
 
-        var tokens = AgentTemplateUtil.BuildTokens(ctx);
+        var tokens = TemplateUtil.BuildTokens(ctx);
 
         Assert.Equal("42", tokens["{{ISSUE_NUMBER}}"]);
         Assert.Equal("Fix bug", tokens["{{ISSUE_TITLE}}"]);
@@ -32,8 +31,8 @@ public class AgentTemplateUtilTests
         var templatePath = "templates/review.md";
         temp.Workspace.WriteAllText(templatePath, "Issue {{ISSUE_NUMBER}}: {{ISSUE_TITLE}}");
 
-        var tokens = AgentTemplateUtil.BuildTokens(ctx);
-        var result = AgentTemplateUtil.RenderTemplate(temp.Workspace, templatePath, tokens, "fallback");
+        var tokens = TemplateUtil.BuildTokens(ctx);
+        var result = TemplateUtil.RenderTemplate(temp.Workspace, templatePath, tokens, "fallback");
 
         Assert.Equal("Issue 42: Fix bug", result);
     }
@@ -44,8 +43,8 @@ public class AgentTemplateUtilTests
         using var temp = new TempWorkspace();
         var ctx = CreateContext(temp.Workspace);
 
-        var tokens = AgentTemplateUtil.BuildTokens(ctx);
-        var result = AgentTemplateUtil.RenderTemplate(temp.Workspace, "missing.md", tokens, "Issue {{ISSUE_NUMBER}} fallback");
+        var tokens = TemplateUtil.BuildTokens(ctx);
+        var result = TemplateUtil.RenderTemplate(temp.Workspace, "missing.md", tokens, "Issue {{ISSUE_NUMBER}} fallback");
 
         Assert.Equal("Issue 42 fallback", result);
     }
@@ -58,8 +57,8 @@ public class AgentTemplateUtilTests
         var templatePath = "templates/review.md";
         temp.Workspace.WriteAllText(templatePath, "Issue {{issue_number}}: {{issue_title}}");
 
-        var tokens = AgentTemplateUtil.BuildTokens(ctx);
-        var result = AgentTemplateUtil.RenderTemplate(temp.Workspace, templatePath, tokens, "fallback");
+        var tokens = TemplateUtil.BuildTokens(ctx);
+        var result = TemplateUtil.RenderTemplate(temp.Workspace, templatePath, tokens, "fallback");
 
         Assert.Equal("Issue 42: Fix bug", result);
     }
@@ -69,7 +68,7 @@ public class AgentTemplateUtilTests
     {
         var content = "STATUS: PENDING\nUPDATED: 2020-01-01 00:00:00 UTC\n";
 
-        var updated = AgentTemplateUtil.UpdateStatus(content, "COMPLETE");
+        var updated = TemplateUtil.UpdateStatus(content, "COMPLETE");
 
         Assert.Contains("STATUS: COMPLETE", updated);
     }
@@ -79,7 +78,7 @@ public class AgentTemplateUtilTests
     {
         var content = "STATUS: PENDING\nUPDATED: 2020-01-01 00:00:00 UTC\n";
 
-        var updated = AgentTemplateUtil.UpdateStatus(content, "COMPLETE");
+        var updated = TemplateUtil.UpdateStatus(content, "COMPLETE");
 
         foreach (var line in updated.Split('\n'))
         {
@@ -96,7 +95,7 @@ public class AgentTemplateUtilTests
     {
         var content = "No status here.";
 
-        var updated = AgentTemplateUtil.UpdateStatus(content, "COMPLETE");
+        var updated = TemplateUtil.UpdateStatus(content, "COMPLETE");
 
         Assert.Equal(content, updated);
     }
@@ -106,8 +105,8 @@ public class AgentTemplateUtilTests
     {
         var content = "STATUS: PENDING";
 
-        Assert.True(AgentTemplateUtil.IsStatus(content, "pending"));
-        Assert.False(AgentTemplateUtil.IsStatus(content, "complete"));
+        Assert.True(TemplateUtil.IsStatus(content, "pending"));
+        Assert.False(TemplateUtil.IsStatus(content, "complete"));
     }
 
     [Fact]
@@ -115,7 +114,7 @@ public class AgentTemplateUtilTests
     {
         var content = "STATUS: COMPLETE";
 
-        Assert.True(AgentTemplateUtil.IsStatusComplete(content));
+        Assert.True(TemplateUtil.IsStatusComplete(content));
     }
 
     [Fact]
@@ -123,7 +122,7 @@ public class AgentTemplateUtilTests
     {
         var content = "## Questions\n- Existing\n";
 
-        var updated = AgentTemplateUtil.AppendQuestion(content, "New question?");
+        var updated = TemplateUtil.AppendQuestion(content, "New question?");
 
         Assert.Contains("- New question?", updated);
         Assert.Contains("- Existing", updated);
@@ -134,7 +133,7 @@ public class AgentTemplateUtilTests
     {
         var content = "Some content";
 
-        var updated = AgentTemplateUtil.AppendQuestion(content, "New question?");
+        var updated = TemplateUtil.AppendQuestion(content, "New question?");
 
         Assert.Contains("## Questions", updated);
         Assert.Contains("- New question?", updated);
@@ -145,7 +144,7 @@ public class AgentTemplateUtilTests
     {
         var content = "## Questions\n- Duplicate?\n";
 
-        var updated = AgentTemplateUtil.AppendQuestion(content, "Duplicate?");
+        var updated = TemplateUtil.AppendQuestion(content, "Duplicate?");
 
         Assert.Equal(content.Trim(), updated.Trim());
     }
@@ -158,7 +157,7 @@ public class AgentTemplateUtilTests
         var templatePath = "templates/spec.md";
         temp.Workspace.WriteAllText(templatePath, "# Spec: Issue {{ISSUE_NUMBER}} - {{ISSUE_TITLE}}");
 
-        var updated = AgentTemplateUtil.EnsureTemplateHeader("Body section", ctx, templatePath);
+        var updated = TemplateUtil.EnsureTemplateHeader("Body section", ctx, templatePath);
 
         Assert.StartsWith("# Spec: Issue 42 - Fix bug", updated, StringComparison.Ordinal);
         Assert.Contains("Body section", updated);
@@ -171,7 +170,7 @@ public class AgentTemplateUtilTests
         var ctx = CreateContext(temp.Workspace);
         var content = "# Spec: Issue 42 - Fix bug\n\nBody";
 
-        var updated = AgentTemplateUtil.EnsureTemplateHeader(content, ctx, "templates/spec.md");
+        var updated = TemplateUtil.EnsureTemplateHeader(content, ctx, "templates/spec.md");
 
         Assert.Equal(content, updated);
     }
@@ -181,7 +180,7 @@ public class AgentTemplateUtilTests
     {
         var content = "## Files\n- old\n## Next\n";
 
-        var updated = AgentTemplateUtil.ReplaceSection(content, "## Files", "- new");
+        var updated = TemplateUtil.ReplaceSection(content, "## Files", "- new");
 
         Assert.Contains("## Files\n- new", updated);
         Assert.Contains("## Next", updated);
@@ -192,7 +191,7 @@ public class AgentTemplateUtilTests
     {
         var content = "Existing content";
 
-        var updated = AgentTemplateUtil.ReplaceSection(content, "## Files", "- new");
+        var updated = TemplateUtil.ReplaceSection(content, "## Files", "- new");
 
         Assert.Contains("## Files\n- new", updated);
     }

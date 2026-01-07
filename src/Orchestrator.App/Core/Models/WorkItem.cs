@@ -1,6 +1,6 @@
 namespace Orchestrator.App.Core.Models;
 
-internal sealed record WorkItem(
+public sealed record WorkItem(
     int Number,
     string Title,
     string Body,
