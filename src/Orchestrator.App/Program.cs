@@ -2,14 +2,12 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using dotenv.net;
-using Orchestrator.App.Watcher;
-using Orchestrator.App.Workflows;
 
 namespace Orchestrator.App;
 
 /// <summary>
 /// Minimal entry point for Workstream 1.
-/// Loads configuration and starts the watcher + workflow runner.
+/// Loads configuration and starts the watcher.
 /// </summary>
 internal static class Program
 {
@@ -64,30 +62,31 @@ internal static class Program
             cts.Cancel();
         }
 
-        if (!cfg.Workflow.UseWorkflowMode)
-        {
-            Logger.WriteLine("Legacy Orchestrator mode is no longer supported. Please set USE_WORKFLOW_MODE=true.");
-            return 1;
-        }
-
-        if (!cfg.Workflow.UseWorkflowMode)
-        {
-            Logger.WriteLine("Legacy Orchestrator mode is no longer supported. Please set USE_WORKFLOW_MODE=true.");
-            return 1;
-        }
-
-        // Create and run watcher
-        var workflowFactory = new WorkflowFactory();
-        var workflowRunner = new WorkflowRunner(workflowFactory);
-        var watcher = new GitHubIssueWatcher(
+        var checkpoints = new Workflows.InMemoryWorkflowCheckpointStore();
+        var labelSync = new Workflows.LabelSyncHandler(services.GitHub, cfg.Labels);
+        var humanInLoop = new Workflows.HumanInLoopHandler(services.GitHub, cfg.Labels);
+        var runner = new Workflows.WorkflowRunner(labelSync, humanInLoop, checkpoints);
+        var watcher = new Watcher.GitHubIssueWatcher(
             cfg,
             services.GitHub,
-            services.Workspace,
-            services.RepoGit,
-            services.Llm,
-            mcpManager,
-            workflowRunner);
-        await watcher.RunAsync(cts.Token);
+            runner,
+            workItem => new WorkContext(
+                workItem,
+                services.GitHub,
+                cfg,
+                services.Workspace,
+                services.RepoGit,
+                services.Llm,
+                mcpManager),
+            checkpoints);
+        try
+        {
+            await watcher.RunAsync(cts.Token);
+        }
+        finally
+        {
+            await mcpManager.DisposeAsync();
+        }
 
         return 0;
     }

@@ -1,17 +1,30 @@
+using Microsoft.Agents.AI.Workflows;
+
 namespace Orchestrator.App.Workflows;
 
-internal sealed class WorkflowFactory
+internal static class WorkflowFactory
 {
-    public IReadOnlyList<IWorkflowStage> BuildDefaultStages(WorkContext context)
+    public static Workflow Build(WorkflowStage stage)
     {
-        return new IWorkflowStage[]
+        var executor = CreateExecutor(stage);
+        return new WorkflowBuilder(executor)
+            .WithOutputFrom(executor)
+            .Build();
+    }
+
+    private static Executor<WorkflowInput, WorkflowOutput> CreateExecutor(WorkflowStage stage)
+    {
+        return stage switch
         {
-            new PlannerStage(),
-            new TechLeadStage(),
-            new DevStage(),
-            new CodeReviewStage(),
-            new TestStage(),
-            new ReleaseStage()
+            WorkflowStage.Refinement => new RefinementExecutor(),
+            WorkflowStage.DoR => new DorExecutor(),
+            WorkflowStage.TechLead => new TechLeadExecutor(),
+            WorkflowStage.SpecGate => new SpecGateExecutor(),
+            WorkflowStage.Dev => new DevExecutor(),
+            WorkflowStage.CodeReview => new CodeReviewExecutor(),
+            WorkflowStage.DoD => new DodExecutor(),
+            WorkflowStage.Release => new ReleaseExecutor(),
+            _ => new RefinementExecutor()
         };
     }
 }

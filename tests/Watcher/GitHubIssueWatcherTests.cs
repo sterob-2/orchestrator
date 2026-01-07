@@ -1,56 +1,161 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using Moq;
 using Orchestrator.App.Tests.TestHelpers;
-using Orchestrator.App.Watcher;
-using Orchestrator.App.Workflows;
-using Xunit;
 
 namespace Orchestrator.App.Tests.Watcher;
 
 public class GitHubIssueWatcherTests
 {
     [Fact]
-    public async Task RunAsync_CancelsDuringDelay_StopsGracefully()
+    public async Task RunOnceAsync_TriggersRunnerForWorkItem()
     {
-        using var temp = new TempWorkspace();
-        var config = MockWorkContext.CreateConfig(temp.WorkspacePath);
-        config = config with { Workflow = config.Workflow with { PollIntervalSeconds = 5 } };
+        var config = MockWorkContext.CreateConfig();
+        var workItem = MockWorkContext.CreateWorkItem(labels: new List<string> { config.Labels.WorkItemLabel });
 
-        await using var mcpManager = new McpClientManager();
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetOpenWorkItemsAsync(It.IsAny<int>()))
+            .ReturnsAsync(new List<WorkItem> { workItem });
+
+        var runner = new TestRunner();
+        var checkpoints = new InMemoryWorkflowCheckpointStore();
         var watcher = new GitHubIssueWatcher(
             config,
-            new OctokitGitHubClient(config),
-            temp.Workspace,
-            new RepoGit(config, temp.WorkspacePath),
-            new LlmClient(config),
-            mcpManager,
-            new WorkflowRunner(new WorkflowFactory()));
+            github.Object,
+            runner,
+            item => new WorkContext(
+                item,
+                github.Object,
+                config,
+                new Mock<IRepoWorkspace>().Object,
+                new Mock<IRepoGit>().Object,
+                new Mock<ILlmClient>().Object),
+            checkpoints,
+            (_, _) => Task.CompletedTask);
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        await watcher.RunOnceAsync(CancellationToken.None);
 
-        await watcher.RunAsync(cts.Token);
+        Assert.True(runner.Called);
+        Assert.Equal(workItem, runner.WorkItem);
+        Assert.Equal(WorkflowStage.Refinement, runner.Stage);
     }
 
     [Fact]
-    public async Task RunAsync_InvalidInterval_HandlesErrorAndStops()
+    public async Task RunOnceAsync_TriggersRunnerForDorLabel()
     {
-        using var temp = new TempWorkspace();
-        var config = MockWorkContext.CreateConfig(temp.WorkspacePath);
-        config = config with { Workflow = config.Workflow with { PollIntervalSeconds = -5 } };
+        var config = MockWorkContext.CreateConfig();
+        var workItem = MockWorkContext.CreateWorkItem(labels: new List<string> { config.Labels.DorLabel });
 
-        await using var mcpManager = new McpClientManager();
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetOpenWorkItemsAsync(It.IsAny<int>()))
+            .ReturnsAsync(new List<WorkItem> { workItem });
+
+        var runner = new TestRunner();
+        var checkpoints = new InMemoryWorkflowCheckpointStore();
         var watcher = new GitHubIssueWatcher(
             config,
-            new OctokitGitHubClient(config),
-            temp.Workspace,
-            new RepoGit(config, temp.WorkspacePath),
-            new LlmClient(config),
-            mcpManager,
-            new WorkflowRunner(new WorkflowFactory()));
+            github.Object,
+            runner,
+            item => new WorkContext(
+                item,
+                github.Object,
+                config,
+                new Mock<IRepoWorkspace>().Object,
+                new Mock<IRepoGit>().Object,
+                new Mock<ILlmClient>().Object),
+            checkpoints,
+            (_, _) => Task.CompletedTask);
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+        await watcher.RunOnceAsync(CancellationToken.None);
 
-        await watcher.RunAsync(cts.Token);
+        Assert.True(runner.Called);
+        Assert.Equal(WorkflowStage.DoR, runner.Stage);
+    }
+
+    [Fact]
+    public async Task RunOnceAsync_TriggersRunnerForSpecGateLabel()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = MockWorkContext.CreateWorkItem(labels: new List<string> { config.Labels.SpecGateLabel });
+
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetOpenWorkItemsAsync(It.IsAny<int>()))
+            .ReturnsAsync(new List<WorkItem> { workItem });
+
+        var runner = new TestRunner();
+        var checkpoints = new InMemoryWorkflowCheckpointStore();
+        var watcher = new GitHubIssueWatcher(
+            config,
+            github.Object,
+            runner,
+            item => new WorkContext(
+                item,
+                github.Object,
+                config,
+                new Mock<IRepoWorkspace>().Object,
+                new Mock<IRepoGit>().Object,
+                new Mock<ILlmClient>().Object),
+            checkpoints,
+            (_, _) => Task.CompletedTask);
+
+        await watcher.RunOnceAsync(CancellationToken.None);
+
+        Assert.True(runner.Called);
+        Assert.Equal(WorkflowStage.SpecGate, runner.Stage);
+    }
+
+    [Fact]
+    public async Task RunOnceAsync_ResetsWorkItemWhenResetLabelPresent()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = MockWorkContext.CreateWorkItem(labels: new List<string>
+        {
+            config.Labels.ResetLabel,
+            config.Labels.DevLabel
+        });
+
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetOpenWorkItemsAsync(It.IsAny<int>()))
+            .ReturnsAsync(new List<WorkItem> { workItem });
+        github.Setup(g => g.RemoveLabelsAsync(It.IsAny<int>(), It.IsAny<string[]>()))
+            .Returns(Task.CompletedTask);
+        github.Setup(g => g.AddLabelsAsync(It.IsAny<int>(), It.IsAny<string[]>()))
+            .Returns(Task.CompletedTask);
+
+        var runner = new TestRunner();
+        var checkpoints = new Mock<IWorkflowCheckpointStore>();
+        var watcher = new GitHubIssueWatcher(
+            config,
+            github.Object,
+            runner,
+            item => new WorkContext(
+                item,
+                github.Object,
+                config,
+                new Mock<IRepoWorkspace>().Object,
+                new Mock<IRepoGit>().Object,
+                new Mock<ILlmClient>().Object),
+            checkpoints.Object,
+            (_, _) => Task.CompletedTask);
+
+        await watcher.RunOnceAsync(CancellationToken.None);
+
+        Assert.False(runner.Called);
+        checkpoints.Verify(store => store.Reset(workItem.Number), Times.Once);
+        github.Verify(g => g.RemoveLabelsAsync(workItem.Number, It.IsAny<string[]>()), Times.Once);
+        github.Verify(g => g.AddLabelsAsync(workItem.Number, config.Labels.WorkItemLabel), Times.Once);
+    }
+
+    private sealed class TestRunner : IWorkflowRunner
+    {
+        public bool Called { get; private set; }
+        public WorkItem? WorkItem { get; private set; }
+        public WorkflowStage Stage { get; private set; }
+
+        public Task<WorkflowOutput?> RunAsync(WorkContext context, WorkflowStage stage, CancellationToken cancellationToken)
+        {
+            Called = true;
+            WorkItem = context.WorkItem;
+            Stage = stage;
+            return Task.FromResult<WorkflowOutput?>(new WorkflowOutput(true, "ok", WorkflowStageGraph.NextStageFor(stage)));
+        }
     }
 }
