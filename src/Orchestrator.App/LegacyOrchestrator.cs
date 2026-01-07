@@ -13,18 +13,18 @@ namespace Orchestrator.App;
 internal class LegacyOrchestrator
 {
     private readonly OrchestratorConfig _cfg;
-    private readonly OctokitGitHubClient _github;
-    private readonly RepoWorkspace _workspace;
-    private readonly RepoGit _repoGit;
-    private readonly LlmClient _llm;
+    private readonly IGitHubClient _github;
+    private readonly IRepoWorkspace _workspace;
+    private readonly IRepoGit _repoGit;
+    private readonly ILlmClient _llm;
     private readonly McpClientManager _mcpManager;
 
     public LegacyOrchestrator(
         OrchestratorConfig cfg,
-        OctokitGitHubClient github,
-        RepoWorkspace workspace,
-        RepoGit repoGit,
-        LlmClient llm,
+        IGitHubClient github,
+        IRepoWorkspace workspace,
+        IRepoGit repoGit,
+        ILlmClient llm,
         McpClientManager mcpManager)
     {
         _cfg = cfg;
@@ -80,7 +80,7 @@ internal class LegacyOrchestrator
         await _mcpManager.DisposeAsync();
     }
 
-    private static async Task<WorkItem?> GetNextWorkItemAsync(OctokitGitHubClient github, OrchestratorConfig cfg)
+    private static async Task<WorkItem?> GetNextWorkItemAsync(IGitHubClient github, OrchestratorConfig cfg)
     {
         var items = await github.GetOpenWorkItemsAsync();
         foreach (var item in items)
@@ -113,12 +113,12 @@ internal class LegacyOrchestrator
     }
 
     private static async Task HandleWorkItemAsync(
-        OctokitGitHubClient github,
+        IGitHubClient github,
         OrchestratorConfig cfg,
         WorkItem item,
-        RepoWorkspace workspace,
-        RepoGit repoGit,
-        LlmClient llm,
+        IRepoWorkspace workspace,
+        IRepoGit repoGit,
+        ILlmClient llm,
         McpClientManager mcpManager)
     {
         await ClearStaleSpecQuestionsAsync(github, cfg, item, workspace);
@@ -201,12 +201,12 @@ internal class LegacyOrchestrator
     }
 
     private static async Task HandlePlannerWorkflowAsync(
-        OctokitGitHubClient github,
+        IGitHubClient github,
         OrchestratorConfig cfg,
         WorkItem item,
-        RepoWorkspace workspace,
-        RepoGit repoGit,
-        LlmClient llm,
+        IRepoWorkspace workspace,
+        IRepoGit repoGit,
+        ILlmClient llm,
         McpClientManager mcpManager)
     {
         try
@@ -274,15 +274,15 @@ internal class LegacyOrchestrator
     }
 
     private static async Task HandleStageAsync(
-        OctokitGitHubClient github,
+        IGitHubClient github,
         OrchestratorConfig cfg,
         WorkItem item,
         string stageLabel,
         string nextStageLabel,
         IRoleAgent agent,
-        RepoWorkspace workspace,
-        RepoGit repoGit,
-        LlmClient llm,
+        IRepoWorkspace workspace,
+        IRepoGit repoGit,
+        ILlmClient llm,
         McpClientManager mcpManager)
     {
         var requiresReview = HasLabel(item, cfg.Labels.UserReviewRequiredLabel) ||
@@ -354,13 +354,13 @@ internal class LegacyOrchestrator
     }
 
     private static async Task HandleDevStageAsync(
-        OctokitGitHubClient github,
+        IGitHubClient github,
         OrchestratorConfig cfg,
         WorkItem item,
         IRoleAgent agent,
-        RepoWorkspace workspace,
-        RepoGit repoGit,
-        LlmClient llm,
+        IRepoWorkspace workspace,
+        IRepoGit repoGit,
+        ILlmClient llm,
         McpClientManager mcpManager)
     {
         if (HasLabel(item, cfg.Labels.CodeReviewNeededLabel) && !HasLabel(item, cfg.Labels.CodeReviewApprovedLabel))
@@ -458,13 +458,13 @@ internal class LegacyOrchestrator
     }
 
     private static async Task HandleReleaseStageAsync(
-        OctokitGitHubClient github,
+        IGitHubClient github,
         OrchestratorConfig cfg,
         WorkItem item,
         IRoleAgent agent,
-        RepoWorkspace workspace,
-        RepoGit repoGit,
-        LlmClient llm,
+        IRepoWorkspace workspace,
+        IRepoGit repoGit,
+        ILlmClient llm,
         McpClientManager mcpManager)
     {
         var requiresReview = HasLabel(item, cfg.Labels.UserReviewRequiredLabel);
@@ -572,7 +572,7 @@ internal class LegacyOrchestrator
     private static bool HasLabel(WorkItem item, string label) =>
         item.Labels.Any(l => string.Equals(l, label, StringComparison.OrdinalIgnoreCase));
 
-    private static async Task ResetWorkItemAsync(OctokitGitHubClient github, OrchestratorConfig cfg, WorkItem item, RepoGit repoGit)
+    private static async Task ResetWorkItemAsync(IGitHubClient github, OrchestratorConfig cfg, WorkItem item, IRepoGit repoGit)
     {
         var branch = WorkItemBranch.BuildBranchName(item);
         var prNumber = await github.GetPullRequestNumberAsync(branch);
@@ -626,10 +626,10 @@ internal class LegacyOrchestrator
     }
 
     private static async Task ClearStaleSpecQuestionsAsync(
-        OctokitGitHubClient github,
+        IGitHubClient github,
         OrchestratorConfig cfg,
         WorkItem item,
-        RepoWorkspace workspace)
+        IRepoWorkspace workspace)
     {
         if (!HasLabel(item, cfg.Labels.SpecQuestionsLabel))
         {
@@ -662,7 +662,7 @@ internal class LegacyOrchestrator
         return false;
     }
 
-    private static async Task TryUpdateProjectStatusAsync(OctokitGitHubClient github, OrchestratorConfig cfg, WorkItem item, string status)
+    private static async Task TryUpdateProjectStatusAsync(IGitHubClient github, OrchestratorConfig cfg, WorkItem item, string status)
     {
         var projectRef = ResolveProjectReference(cfg, item);
         if (projectRef is null)
@@ -702,7 +702,7 @@ internal class LegacyOrchestrator
         return WorkItemParsers.TryParseProjectReference(item.Body);
     }
 
-    private static async Task LogLabelsAsync(OctokitGitHubClient github, int issueNumber, string context, string agentName)
+    private static async Task LogLabelsAsync(IGitHubClient github, int issueNumber, string context, string agentName)
     {
         try
         {

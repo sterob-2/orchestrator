@@ -5,6 +5,7 @@ global using System.Threading.Tasks;
 
 // Core
 global using Orchestrator.App.Core.Configuration;
+global using Orchestrator.App.Core.Interfaces;
 global using Orchestrator.App.Core.Models;
 
 // Infrastructure

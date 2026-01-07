@@ -30,14 +30,11 @@ internal static class Program
         LogStartupInfo(cfg);
 
         // Create infrastructure services
-        var github = new OctokitGitHubClient(cfg);
-        var workspace = new RepoWorkspace(cfg.WorkspacePath);
-        var repoGit = new RepoGit(cfg, cfg.WorkspacePath);
-        var llm = new LlmClient(cfg);
+        var services = Infrastructure.ServiceFactory.Create(cfg);
 
         // Initialize git
-        repoGit.EnsureConfigured();
-        if (!repoGit.IsGitRepo())
+        services.RepoGit.EnsureConfigured();
+        if (!services.RepoGit.IsGitRepo())
         {
             Logger.WriteLine("Git operations disabled until workspace is a git repo.");
         }
@@ -47,7 +44,7 @@ internal static class Program
         }
 
         // Initialize MCP client manager
-        var mcpManager = new McpClientManager();
+        var mcpManager = services.McpManager;
         try
         {
             await mcpManager.InitializeAsync(cfg);
@@ -63,7 +60,13 @@ internal static class Program
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
         // Create and run orchestrator
-        var orchestrator = new LegacyOrchestrator(cfg, github, workspace, repoGit, llm, mcpManager);
+        var orchestrator = new LegacyOrchestrator(
+            cfg,
+            services.GitHub,
+            services.Workspace,
+            services.RepoGit,
+            services.Llm,
+            mcpManager);
         await orchestrator.RunAsync(cts.Token);
 
         return 0;
