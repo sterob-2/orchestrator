@@ -2,7 +2,7 @@ using Orchestrator.App.Core.Interfaces;
 
 namespace Orchestrator.App.Core.Models;
 
-public sealed record WorkContext(
+internal sealed record WorkContext(
     WorkItem WorkItem,
     IGitHubClient GitHub,
     OrchestratorConfig Config,
@@ -17,17 +17,17 @@ public sealed record WorkContext(
     public McpFileOperations? McpFiles => Mcp != null ? new McpFileOperations(Mcp) : null;
 };
 
-public sealed record RepoFile(string Path, string Content, string Sha);
+internal sealed record RepoFile(string Path, string Content, string Sha);
 
-public sealed record IssueComment(string Author, string Body);
+internal sealed record IssueComment(string Author, string Body);
 
-public sealed record PipelineResult(bool Success, string Summary, string PullRequestTitle, string PullRequestBody)
+internal sealed record PipelineResult(bool Success, string Summary, string PullRequestTitle, string PullRequestBody)
 {
     public static PipelineResult Fail(string summary) => new(false, summary, "", "");
     public static PipelineResult Ok(string summary, string prTitle, string prBody) => new(true, summary, prTitle, prBody);
 }
 
-public static class WorkItemBranch
+internal static class WorkItemBranch
 {
     public static string BuildBranchName(WorkItem item)
     {

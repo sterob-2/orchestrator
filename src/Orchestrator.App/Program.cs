@@ -62,6 +62,7 @@ internal static class Program
         if (args.Contains("--init-only", StringComparer.OrdinalIgnoreCase))
         {
             cts.Cancel();
+            return 0;
         }
 
         if (!cfg.Workflow.UseWorkflowMode)

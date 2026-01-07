@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Orchestrator.App.Utilities;
 
-public static class TemplateUtil
+internal static class TemplateUtil
 {
     public const string ReviewTemplateFallback =
         "# TechLead Review: Issue {{ISSUE_NUMBER}} - {{ISSUE_TITLE}}\n\n" +

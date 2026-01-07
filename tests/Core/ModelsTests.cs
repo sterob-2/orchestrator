@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Moq;
 using Orchestrator.App;
+using CoreWorkflowInput = Orchestrator.App.Core.Models.WorkflowInput;
 using Xunit;
 
 namespace Orchestrator.App.Tests.Core;
@@ -129,7 +130,7 @@ public class ModelsTests
             ProjectOwner: "owner",
             ProjectOwnerType: "user",
             ProjectNumber: 7);
-        var input = new WorkflowInput(item, project, "planner", 1);
+        var input = new CoreWorkflowInput(item, project, "planner", 1);
         var output = new WorkflowOutput(true, "notes", "Next");
 
         Assert.Same(item, input.WorkItem);
