@@ -4,16 +4,6 @@ using Orchestrator.App.Agents;
 namespace Orchestrator.App;
 
 /// <summary>
-/// Input message for workflow executors - represents a GitHub work item
-/// </summary>
-internal sealed record WorkflowInput(
-    int IssueNumber,
-    string Title,
-    string Body,
-    List<string> Labels
-);
-
-/// <summary>
 /// Output message from executors
 /// </summary>
 internal sealed record WorkflowOutput(
@@ -39,7 +29,7 @@ internal sealed class PlannerExecutor : Executor<WorkflowInput, WorkflowOutput>
         IWorkflowContext context,
         CancellationToken cancellationToken = default)
     {
-        var planPath = $"plans/issue-{input.IssueNumber}.md";
+        var planPath = $"plans/issue-{input.WorkItem.Number}.md";
 
         // Check if plan already exists and is complete (idempotent)
         if (_context.Workspace.Exists(planPath))
@@ -72,7 +62,7 @@ internal sealed class PlannerExecutor : Executor<WorkflowInput, WorkflowOutput>
         // Commit and push
         var committed = _context.Repo.CommitAndPush(
             branch,
-            $"docs: add plan for issue {input.IssueNumber}",
+            $"docs: add plan for issue {input.WorkItem.Number}",
             new[] { planPath }
         );
 
@@ -80,8 +70,8 @@ internal sealed class PlannerExecutor : Executor<WorkflowInput, WorkflowOutput>
         if (committed)
         {
             // Create draft PR
-            var prTitle = $"Agent Plan: {input.Title}";
-            var prBody = $"Work item #{input.IssueNumber}\n\nPlan: {planPath}";
+            var prTitle = $"Agent Plan: {input.WorkItem.Title}";
+            var prBody = $"Work item #{input.WorkItem.Number}\n\nPlan: {planPath}";
             await _context.GitHub.OpenPullRequestAsync(
                 branch,
                 _context.Config.Workflow.DefaultBaseBranch,

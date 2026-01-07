@@ -148,13 +148,23 @@ public class ModelsTests
     public void WorkflowInputOutput_Creation()
     {
         var labels = new List<string> { "ready" };
-        var input = new WorkflowInput(3, "Title", "Body", labels);
+        var item = new WorkItem(3, "Title", "Body", "https://example.com", labels);
+        var project = new ProjectContext(
+            RepoOwner: "owner",
+            RepoName: "repo",
+            DefaultBaseBranch: "main",
+            WorkspacePath: "/workspace",
+            WorkspaceHostPath: "/workspace",
+            ProjectOwner: "owner",
+            ProjectOwnerType: "user",
+            ProjectNumber: 7);
+        var input = new WorkflowInput(item, project, "planner", 1);
         var output = new WorkflowOutput(true, "notes", "Next");
 
-        Assert.Equal(3, input.IssueNumber);
-        Assert.Equal("Title", input.Title);
-        Assert.Equal("Body", input.Body);
-        Assert.Equal(labels, input.Labels);
+        Assert.Same(item, input.WorkItem);
+        Assert.Same(project, input.ProjectContext);
+        Assert.Equal("planner", input.Mode);
+        Assert.Equal(1, input.Attempt);
 
         Assert.True(output.Success);
         Assert.Equal("notes", output.Notes);

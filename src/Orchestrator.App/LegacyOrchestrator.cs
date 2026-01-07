@@ -226,11 +226,22 @@ internal class LegacyOrchestrator
             var workflow = SDLCWorkflow.BuildPlannerOnlyWorkflow(ctx);
 
             // Create workflow input from work item
+            var projectContext = new ProjectContext(
+                RepoOwner: cfg.RepoOwner,
+                RepoName: cfg.RepoName,
+                DefaultBaseBranch: cfg.Workflow.DefaultBaseBranch,
+                WorkspacePath: cfg.WorkspacePath,
+                WorkspaceHostPath: cfg.WorkspaceHostPath,
+                ProjectOwner: cfg.ProjectOwner,
+                ProjectOwnerType: cfg.ProjectOwnerType,
+                ProjectNumber: cfg.ProjectNumber
+            );
+
             var input = new WorkflowInput(
-                IssueNumber: item.Number,
-                Title: item.Title,
-                Body: item.Body ?? string.Empty,
-                Labels: item.Labels.ToList()
+                WorkItem: item,
+                ProjectContext: projectContext,
+                Mode: "planner",
+                Attempt: 1
             );
 
             // Execute workflow
