@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Moq;
 using Orchestrator.App;
 using Orchestrator.App.Agents;
+using Orchestrator.App.Core.Configuration;
 using Xunit;
 
 namespace Orchestrator.App.Tests.Core;
@@ -19,6 +20,68 @@ public class ModelsTests
         Assert.Equal("Body", item.Body);
         Assert.Equal("https://example.com", item.Url);
         Assert.Equal(labels, item.Labels);
+    }
+
+    [Fact]
+    public void RepoFile_RecordCreation()
+    {
+        var file = new RepoFile("src/file.txt", "content", "sha123");
+
+        Assert.Equal("src/file.txt", file.Path);
+        Assert.Equal("content", file.Content);
+        Assert.Equal("sha123", file.Sha);
+    }
+
+    [Fact]
+    public void IssueComment_RecordCreation()
+    {
+        var comment = new IssueComment("alice", "Looks good");
+
+        Assert.Equal("alice", comment.Author);
+        Assert.Equal("Looks good", comment.Body);
+    }
+
+    [Fact]
+    public void ProjectModels_RecordCreation()
+    {
+        var item = new ProjectItem("Title", 7, "https://example.com/issue/7", "Ready");
+        var snapshot = new ProjectSnapshot(
+            Owner: "octo",
+            Number: 1,
+            OwnerType: ProjectOwnerType.Organization,
+            Title: "Roadmap",
+            Items: new List<ProjectItem> { item });
+
+        var itemRef = new ProjectItemRef("item-1", 7);
+        var metadata = new ProjectMetadata(
+            ProjectId: "proj-1",
+            StatusFieldId: "status-1",
+            StatusOptions: new Dictionary<string, string> { ["Ready"] = "opt-1" },
+            Items: new List<ProjectItemRef> { itemRef });
+
+        var reference = new ProjectReference("octo", 1, ProjectOwnerType.Organization);
+
+        Assert.Equal("Title", item.Title);
+        Assert.Equal(7, item.IssueNumber);
+        Assert.Equal("https://example.com/issue/7", item.Url);
+        Assert.Equal("Ready", item.Status);
+
+        Assert.Equal("octo", snapshot.Owner);
+        Assert.Equal(1, snapshot.Number);
+        Assert.Equal(ProjectOwnerType.Organization, snapshot.OwnerType);
+        Assert.Equal("Roadmap", snapshot.Title);
+        Assert.Single(snapshot.Items);
+
+        Assert.Equal("item-1", itemRef.ItemId);
+        Assert.Equal(7, itemRef.IssueNumber);
+        Assert.Equal("proj-1", metadata.ProjectId);
+        Assert.Equal("status-1", metadata.StatusFieldId);
+        Assert.Single(metadata.StatusOptions);
+        Assert.Single(metadata.Items);
+
+        Assert.Equal("octo", reference.Owner);
+        Assert.Equal(1, reference.Number);
+        Assert.Equal(ProjectOwnerType.Organization, reference.OwnerType);
     }
 
     [Fact]
@@ -85,13 +148,23 @@ public class ModelsTests
     public void WorkflowInputOutput_Creation()
     {
         var labels = new List<string> { "ready" };
-        var input = new WorkflowInput(3, "Title", "Body", labels);
+        var item = new WorkItem(3, "Title", "Body", "https://example.com", labels);
+        var project = new ProjectContext(
+            RepoOwner: "owner",
+            RepoName: "repo",
+            DefaultBaseBranch: "main",
+            WorkspacePath: "/workspace",
+            WorkspaceHostPath: "/workspace",
+            ProjectOwner: "owner",
+            ProjectOwnerType: "user",
+            ProjectNumber: 7);
+        var input = new WorkflowInput(item, project, "planner", 1);
         var output = new WorkflowOutput(true, "notes", "Next");
 
-        Assert.Equal(3, input.IssueNumber);
-        Assert.Equal("Title", input.Title);
-        Assert.Equal("Body", input.Body);
-        Assert.Equal(labels, input.Labels);
+        Assert.Same(item, input.WorkItem);
+        Assert.Same(project, input.ProjectContext);
+        Assert.Equal("planner", input.Mode);
+        Assert.Equal(1, input.Attempt);
 
         Assert.True(output.Success);
         Assert.Equal("notes", output.Notes);

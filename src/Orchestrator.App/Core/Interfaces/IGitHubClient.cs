@@ -38,10 +38,10 @@ internal interface IGitHubClient
     [ExcludeFromCodeCoverage]
     Task CreateOrUpdateFileAsync(string branch, string path, string content, string message);
     [ExcludeFromCodeCoverage]
-    Task<global::Orchestrator.App.ProjectSnapshot> GetProjectSnapshotAsync(
+    Task<ProjectSnapshot> GetProjectSnapshotAsync(
         string owner,
         int projectNumber,
-        global::Orchestrator.App.ProjectOwnerType ownerType);
+        ProjectOwnerType ownerType);
     [ExcludeFromCodeCoverage]
     Task UpdateProjectItemStatusAsync(string owner, int projectNumber, int issueNumber, string statusName);
 }

@@ -7,8 +7,8 @@ namespace Orchestrator.App;
 
 /// <summary>
 /// Minimal entry point for Workstream 1.
-/// Loads configuration and starts the orchestrator.
-/// Will be replaced by Workstream 3's Watcher + WorkflowRunner.
+/// Loads configuration and starts the watcher.
+/// Uses the legacy orchestrator while the Watcher + WorkflowRunner evolve.
 /// </summary>
 internal static class Program
 {
@@ -30,14 +30,11 @@ internal static class Program
         LogStartupInfo(cfg);
 
         // Create infrastructure services
-        var github = new OctokitGitHubClient(cfg);
-        var workspace = new RepoWorkspace(cfg.WorkspacePath);
-        var repoGit = new RepoGit(cfg, cfg.WorkspacePath);
-        var llm = new LlmClient(cfg);
+        var services = Infrastructure.ServiceFactory.Create(cfg);
 
         // Initialize git
-        repoGit.EnsureConfigured();
-        if (!repoGit.IsGitRepo())
+        services.RepoGit.EnsureConfigured();
+        if (!services.RepoGit.IsGitRepo())
         {
             Logger.WriteLine("Git operations disabled until workspace is a git repo.");
         }
@@ -47,7 +44,7 @@ internal static class Program
         }
 
         // Initialize MCP client manager
-        var mcpManager = new McpClientManager();
+        var mcpManager = services.McpManager;
         try
         {
             await mcpManager.InitializeAsync(cfg);
@@ -61,10 +58,21 @@ internal static class Program
         // Setup cancellation
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+        if (args.Contains("--init-only", StringComparer.OrdinalIgnoreCase))
+        {
+            cts.Cancel();
+        }
 
-        // Create and run orchestrator
-        var orchestrator = new LegacyOrchestrator(cfg, github, workspace, repoGit, llm, mcpManager);
-        await orchestrator.RunAsync(cts.Token);
+        // Create and run watcher
+        var orchestrator = new LegacyOrchestrator(
+            cfg,
+            services.GitHub,
+            services.Workspace,
+            services.RepoGit,
+            services.Llm,
+            mcpManager);
+        var watcher = new Watcher.GitHubIssueWatcher(orchestrator);
+        await watcher.RunAsync(cts.Token);
 
         return 0;
     }
@@ -98,8 +106,8 @@ internal static class Program
     private static void LogStartupInfo(OrchestratorConfig cfg)
     {
         Logger.WriteLine("Orchestrator starting");
-        Logger.WriteLine($"Repo: {cfg.RepoOwner}/{cfg.RepoName} base {cfg.DefaultBaseBranch}");
+        Logger.WriteLine($"Repo: {cfg.RepoOwner}/{cfg.RepoName} base {cfg.Workflow.DefaultBaseBranch}");
         Logger.WriteLine($"OpenAI base url: {cfg.OpenAiBaseUrl}");
-        Logger.WriteLine($"Work item label: {cfg.WorkItemLabel}");
+        Logger.WriteLine($"Work item label: {cfg.Labels.WorkItemLabel}");
     }
 }

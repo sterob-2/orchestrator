@@ -1,3 +1,5 @@
+using Orchestrator.App.Core.Configuration;
+
 namespace Orchestrator.App;
 
 internal sealed class UnityCli

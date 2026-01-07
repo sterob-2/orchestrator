@@ -17,7 +17,7 @@ internal sealed class TechLeadAgent : IRoleAgent
         var branch = WorkItemBranch.BuildBranchName(ctx.WorkItem);
         var specPath = $"specs/issue-{ctx.WorkItem.Number}.md";
         if (ctx.Workspace.Exists(specPath) &&
-            !ctx.WorkItem.Labels.Contains(ctx.Config.SpecQuestionsLabel, StringComparer.OrdinalIgnoreCase))
+            !ctx.WorkItem.Labels.Contains(ctx.Config.Labels.SpecQuestionsLabel, StringComparer.OrdinalIgnoreCase))
         {
             var existing = ctx.Workspace.ReadAllText(specPath);
             if (AgentTemplateUtil.IsStatusComplete(existing))
@@ -28,31 +28,31 @@ internal sealed class TechLeadAgent : IRoleAgent
 
         var specContent = await BuildSpecAsync(ctx);
 
-        ctx.Repo.EnsureBranch(branch, ctx.Config.DefaultBaseBranch);
+        ctx.Repo.EnsureBranch(branch, ctx.Config.Workflow.DefaultBaseBranch);
         ctx.Workspace.WriteAllText(specPath, specContent);
         ctx.Repo.CommitAndPush(branch, $"docs: add spec for issue {ctx.WorkItem.Number}", new[] { specPath });
 
         var notes = $"TechLead updated `{specPath}`.";
-        var add = new List<string> { ctx.Config.SpecClarifiedLabel };
+        var add = new List<string> { ctx.Config.Labels.SpecClarifiedLabel };
         var remove = new List<string>();
-        var next = ctx.Config.DevLabel;
+        var next = ctx.Config.Labels.DevLabel;
 
-        remove.Add(ctx.Config.CodeReviewApprovedLabel);
-        remove.Add(ctx.Config.CodeReviewNeededLabel);
-        remove.Add(ctx.Config.CodeReviewChangesRequestedLabel);
+        remove.Add(ctx.Config.Labels.CodeReviewApprovedLabel);
+        remove.Add(ctx.Config.Labels.CodeReviewNeededLabel);
+        remove.Add(ctx.Config.Labels.CodeReviewChangesRequestedLabel);
 
-        if (ctx.WorkItem.Labels.Contains(ctx.Config.SpecQuestionsLabel, StringComparer.OrdinalIgnoreCase))
+        if (ctx.WorkItem.Labels.Contains(ctx.Config.Labels.SpecQuestionsLabel, StringComparer.OrdinalIgnoreCase))
         {
             var answered = UpdateQuestionsWithAnswers(ctx, specContent);
             if (answered)
             {
-                remove.Add(ctx.Config.SpecQuestionsLabel);
+                remove.Add(ctx.Config.Labels.SpecQuestionsLabel);
                 notes += " Addressed spec questions.";
             }
             else
             {
                 notes += " Spec questions remain open.";
-                next = ctx.Config.TechLeadLabel;
+                next = ctx.Config.Labels.TechLeadLabel;
             }
         }
 

@@ -5,6 +5,7 @@ global using System.Threading.Tasks;
 
 // Core
 global using Orchestrator.App.Core.Configuration;
+global using Orchestrator.App.Core.Interfaces;
 global using Orchestrator.App.Core.Models;
 
 // Infrastructure
@@ -16,3 +17,12 @@ global using Orchestrator.App.Infrastructure.Mcp;
 
 // Utilities
 global using Orchestrator.App.Utilities;
+
+// Workflows
+global using Orchestrator.App.Workflows;
+
+// Watcher
+global using Orchestrator.App.Watcher;
+
+// Parsing
+global using Orchestrator.App.Parsing;

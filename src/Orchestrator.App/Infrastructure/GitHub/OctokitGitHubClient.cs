@@ -1,12 +1,15 @@
 using Octokit;
+using Orchestrator.App.Core.Configuration;
+using Orchestrator.App.Core.Models;
 using System.Net.Http;
+using CoreIssueComment = Orchestrator.App.Core.Models.IssueComment;
 
 namespace Orchestrator.App.Infrastructure.GitHub;
 
 /// <summary>
 /// GitHub client using Octokit.NET for REST API and GraphQL operations
 /// </summary>
-internal sealed class OctokitGitHubClient
+internal sealed class OctokitGitHubClient : Orchestrator.App.Core.Interfaces.IGitHubClient
 {
     private readonly Octokit.GitHubClient _octokit;
     private readonly OrchestratorConfig _cfg;
@@ -141,7 +144,7 @@ internal sealed class OctokitGitHubClient
     /// <summary>
     /// Get comments on an issue
     /// </summary>
-    public async Task<IReadOnlyList<Core.Models.IssueComment>> GetIssueCommentsAsync(int issueNumber)
+    public async Task<IReadOnlyList<CoreIssueComment>> GetIssueCommentsAsync(int issueNumber)
     {
         var comments = await _octokit.Issue.Comment.GetAllForIssue(
             RepoOwner,
@@ -149,7 +152,7 @@ internal sealed class OctokitGitHubClient
             issueNumber
         );
 
-        return comments.Select(c => new Core.Models.IssueComment(
+        return comments.Select(c => new CoreIssueComment(
             Author: c.User.Login,
             Body: c.Body
         )).ToList();
@@ -245,7 +248,7 @@ internal sealed class OctokitGitHubClient
     /// </summary>
     public async Task CreateBranchAsync(string branchName)
     {
-        var baseBranch = await _octokit.Git.Reference.Get(RepoOwner, RepoName, $"heads/{_cfg.DefaultBaseBranch}");
+        var baseBranch = await _octokit.Git.Reference.Get(RepoOwner, RepoName, $"heads/{_cfg.Workflow.DefaultBaseBranch}");
 
         try
         {

@@ -2,10 +2,11 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
+using Orchestrator.App.Core.Interfaces;
 
 namespace Orchestrator.App.Infrastructure.Filesystem;
 
-internal sealed class RepoWorkspace
+internal sealed class RepoWorkspace : IRepoWorkspace
 {
     public string Root { get; }
 

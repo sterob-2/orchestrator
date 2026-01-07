@@ -1,5 +1,4 @@
 using ModelContextProtocol.Client;
-using Orchestrator.App.Infrastructure.Mcp;
 
 namespace Orchestrator.App.Core.Interfaces;
 

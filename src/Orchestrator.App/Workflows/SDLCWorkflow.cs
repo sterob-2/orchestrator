@@ -1,6 +1,6 @@
 using Microsoft.Agents.AI.Workflows;
 
-namespace Orchestrator.App;
+namespace Orchestrator.App.Workflows;
 
 /// <summary>
 /// Builder for SDLC workflow using Microsoft Agent Framework
@@ -32,7 +32,7 @@ internal static class SDLCWorkflow
     {
         WorkflowOutput? finalOutput = null;
 
-        Console.WriteLine($"[Workflow] Starting workflow for issue #{input.IssueNumber}...");
+        Console.WriteLine($"[Workflow] Starting workflow for issue #{input.WorkItem.Number}...");
 
         // Execute workflow
         Run run = await InProcessExecution.RunAsync(workflow, input);

@@ -10,21 +10,21 @@ namespace Orchestrator.App;
 /// Legacy orchestration logic from prototype.
 /// This will be replaced by Workstream 3's Watcher + WorkflowRunner.
 /// </summary>
-internal class LegacyOrchestrator
+internal class LegacyOrchestrator : IWorkItemRunner
 {
     private readonly OrchestratorConfig _cfg;
-    private readonly OctokitGitHubClient _github;
-    private readonly RepoWorkspace _workspace;
-    private readonly RepoGit _repoGit;
-    private readonly LlmClient _llm;
+    private readonly IGitHubClient _github;
+    private readonly IRepoWorkspace _workspace;
+    private readonly IRepoGit _repoGit;
+    private readonly ILlmClient _llm;
     private readonly McpClientManager _mcpManager;
 
     public LegacyOrchestrator(
         OrchestratorConfig cfg,
-        OctokitGitHubClient github,
-        RepoWorkspace workspace,
-        RepoGit repoGit,
-        LlmClient llm,
+        IGitHubClient github,
+        IRepoWorkspace workspace,
+        IRepoGit repoGit,
+        ILlmClient llm,
         McpClientManager mcpManager)
     {
         _cfg = cfg;
@@ -80,15 +80,15 @@ internal class LegacyOrchestrator
         await _mcpManager.DisposeAsync();
     }
 
-    private static async Task<WorkItem?> GetNextWorkItemAsync(OctokitGitHubClient github, OrchestratorConfig cfg)
+    private static async Task<WorkItem?> GetNextWorkItemAsync(IGitHubClient github, OrchestratorConfig cfg)
     {
         var items = await github.GetOpenWorkItemsAsync();
         foreach (var item in items)
         {
-            if (HasLabel(item, cfg.DoneLabel) || HasLabel(item, cfg.BlockedLabel))
+            if (HasLabel(item, cfg.Labels.DoneLabel) || HasLabel(item, cfg.Labels.BlockedLabel))
                 continue;
 
-            if (HasAnyLabel(item, cfg.WorkItemLabel, cfg.PlannerLabel, cfg.TechLeadLabel, cfg.DevLabel, cfg.TestLabel, cfg.ReleaseLabel))
+            if (HasAnyLabel(item, cfg.Labels.WorkItemLabel, cfg.Labels.PlannerLabel, cfg.Labels.TechLeadLabel, cfg.Labels.DevLabel, cfg.Labels.TestLabel, cfg.Labels.ReleaseLabel))
             {
                 return item;
             }
@@ -101,34 +101,34 @@ internal class LegacyOrchestrator
     {
         if (workItem == null)
         {
-            return cfg.PollIntervalSeconds;
+            return cfg.Workflow.PollIntervalSeconds;
         }
 
-        if (HasAnyLabel(workItem, cfg.PlannerLabel, cfg.TechLeadLabel, cfg.DevLabel, cfg.TestLabel, cfg.ReleaseLabel))
+        if (HasAnyLabel(workItem, cfg.Labels.PlannerLabel, cfg.Labels.TechLeadLabel, cfg.Labels.DevLabel, cfg.Labels.TestLabel, cfg.Labels.ReleaseLabel))
         {
-            return cfg.FastPollIntervalSeconds;
+            return cfg.Workflow.FastPollIntervalSeconds;
         }
 
-        return cfg.PollIntervalSeconds;
+        return cfg.Workflow.PollIntervalSeconds;
     }
 
     private static async Task HandleWorkItemAsync(
-        OctokitGitHubClient github,
+        IGitHubClient github,
         OrchestratorConfig cfg,
         WorkItem item,
-        RepoWorkspace workspace,
-        RepoGit repoGit,
-        LlmClient llm,
+        IRepoWorkspace workspace,
+        IRepoGit repoGit,
+        ILlmClient llm,
         McpClientManager mcpManager)
     {
         await ClearStaleSpecQuestionsAsync(github, cfg, item, workspace);
-        if (HasLabel(item, cfg.ResetLabel))
+        if (HasLabel(item, cfg.Labels.ResetLabel))
         {
             await ResetWorkItemAsync(github, cfg, item, repoGit);
             return;
         }
 
-        if (HasLabel(item, cfg.ReviewNeededLabel) && !HasLabel(item, cfg.ReviewedLabel))
+        if (HasLabel(item, cfg.Labels.ReviewNeededLabel) && !HasLabel(item, cfg.Labels.ReviewedLabel))
         {
             await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusInReview);
             Logger.WriteLine($"Work item #{item.Number} awaiting review.");
@@ -136,26 +136,26 @@ internal class LegacyOrchestrator
             return;
         }
 
-        if (HasLabel(item, cfg.WorkItemLabel))
+        if (HasLabel(item, cfg.Labels.WorkItemLabel))
         {
-            await github.AddLabelsAsync(item.Number, cfg.PlannerLabel);
-            await github.RemoveLabelAsync(item.Number, cfg.WorkItemLabel);
-            await github.AddLabelsAsync(item.Number, cfg.InProgressLabel);
+            await github.AddLabelsAsync(item.Number, cfg.Labels.PlannerLabel);
+            await github.RemoveLabelAsync(item.Number, cfg.Labels.WorkItemLabel);
+            await github.AddLabelsAsync(item.Number, cfg.Labels.InProgressLabel);
             await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusInProgress);
             await github.CommentOnWorkItemAsync(item.Number, "Assigned to PlannerAgent.");
             await LogLabelsAsync(github, item.Number, "moved to planner", "planner");
             return;
         }
 
-        if (HasAnyLabel(item, cfg.PlannerLabel, cfg.TechLeadLabel, cfg.DevLabel, cfg.TestLabel, cfg.ReleaseLabel))
+        if (HasAnyLabel(item, cfg.Labels.PlannerLabel, cfg.Labels.TechLeadLabel, cfg.Labels.DevLabel, cfg.Labels.TestLabel, cfg.Labels.ReleaseLabel))
         {
             await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusInProgress);
         }
 
-        if (HasLabel(item, cfg.PlannerLabel))
+        if (HasLabel(item, cfg.Labels.PlannerLabel))
         {
             // Check if we should use workflow mode (Agent Framework)
-            if (cfg.UseWorkflowMode)
+            if (cfg.Workflow.UseWorkflowMode)
             {
                 Logger.WriteLine($"[Workflow] PlannerExecutor handling work item #{item.Number}.");
                 await HandlePlannerWorkflowAsync(github, cfg, item, workspace, repoGit, llm, mcpManager);
@@ -164,19 +164,19 @@ internal class LegacyOrchestrator
 
             // Legacy mode: use old PlannerAgent
             Logger.WriteLine($"PlannerAgent handling work item #{item.Number}.");
-            await HandleStageAsync(github, cfg, item, cfg.PlannerLabel, cfg.TechLeadLabel, new PlannerAgent(), workspace, repoGit, llm, mcpManager);
+            await HandleStageAsync(github, cfg, item, cfg.Labels.PlannerLabel, cfg.Labels.TechLeadLabel, new PlannerAgent(), workspace, repoGit, llm, mcpManager);
             return;
         }
 
-        if (HasLabel(item, cfg.TechLeadLabel))
+        if (HasLabel(item, cfg.Labels.TechLeadLabel))
         {
             Logger.WriteLine($"TechLeadAgent handling work item #{item.Number}.");
             Logger.WriteLine($"Work item #{item.Number} state: stage={GetStageName(item, cfg)} labels={FormatLabels(item)}");
-            await HandleStageAsync(github, cfg, item, cfg.TechLeadLabel, cfg.DevLabel, new TechLeadAgent(), workspace, repoGit, llm, mcpManager);
+            await HandleStageAsync(github, cfg, item, cfg.Labels.TechLeadLabel, cfg.Labels.DevLabel, new TechLeadAgent(), workspace, repoGit, llm, mcpManager);
             return;
         }
 
-        if (HasLabel(item, cfg.DevLabel))
+        if (HasLabel(item, cfg.Labels.DevLabel))
         {
             Logger.WriteLine($"DevAgent handling work item #{item.Number}.");
             Logger.WriteLine($"Work item #{item.Number} state: stage={GetStageName(item, cfg)} labels={FormatLabels(item)}");
@@ -184,15 +184,15 @@ internal class LegacyOrchestrator
             return;
         }
 
-        if (HasLabel(item, cfg.TestLabel))
+        if (HasLabel(item, cfg.Labels.TestLabel))
         {
             Logger.WriteLine($"TestAgent handling work item #{item.Number}.");
             Logger.WriteLine($"Work item #{item.Number} state: stage={GetStageName(item, cfg)} labels={FormatLabels(item)}");
-            await HandleStageAsync(github, cfg, item, cfg.TestLabel, cfg.ReleaseLabel, new TestAgent(), workspace, repoGit, llm, mcpManager);
+            await HandleStageAsync(github, cfg, item, cfg.Labels.TestLabel, cfg.Labels.ReleaseLabel, new TestAgent(), workspace, repoGit, llm, mcpManager);
             return;
         }
 
-        if (HasLabel(item, cfg.ReleaseLabel))
+        if (HasLabel(item, cfg.Labels.ReleaseLabel))
         {
             Logger.WriteLine($"ReleaseAgent handling work item #{item.Number}.");
             Logger.WriteLine($"Work item #{item.Number} state: stage={GetStageName(item, cfg)} labels={FormatLabels(item)}");
@@ -201,12 +201,12 @@ internal class LegacyOrchestrator
     }
 
     private static async Task HandlePlannerWorkflowAsync(
-        OctokitGitHubClient github,
+        IGitHubClient github,
         OrchestratorConfig cfg,
         WorkItem item,
-        RepoWorkspace workspace,
-        RepoGit repoGit,
-        LlmClient llm,
+        IRepoWorkspace workspace,
+        IRepoGit repoGit,
+        ILlmClient llm,
         McpClientManager mcpManager)
     {
         try
@@ -226,11 +226,22 @@ internal class LegacyOrchestrator
             var workflow = SDLCWorkflow.BuildPlannerOnlyWorkflow(ctx);
 
             // Create workflow input from work item
+            var projectContext = new ProjectContext(
+                RepoOwner: cfg.RepoOwner,
+                RepoName: cfg.RepoName,
+                DefaultBaseBranch: cfg.Workflow.DefaultBaseBranch,
+                WorkspacePath: cfg.WorkspacePath,
+                WorkspaceHostPath: cfg.WorkspaceHostPath,
+                ProjectOwner: cfg.ProjectOwner,
+                ProjectOwnerType: cfg.ProjectOwnerType,
+                ProjectNumber: cfg.ProjectNumber
+            );
+
             var input = new WorkflowInput(
-                IssueNumber: item.Number,
-                Title: item.Title,
-                Body: item.Body ?? string.Empty,
-                Labels: item.Labels.ToList()
+                WorkItem: item,
+                ProjectContext: projectContext,
+                Mode: "planner",
+                Attempt: 1
             );
 
             // Execute workflow
@@ -242,8 +253,8 @@ internal class LegacyOrchestrator
                 await github.CommentOnWorkItemAsync(item.Number, output.Notes);
 
                 // Update labels: remove planner, add techlead
-                await github.RemoveLabelAsync(item.Number, cfg.PlannerLabel);
-                await github.AddLabelsAsync(item.Number, cfg.TechLeadLabel);
+                await github.RemoveLabelAsync(item.Number, cfg.Labels.PlannerLabel);
+                await github.AddLabelsAsync(item.Number, cfg.Labels.TechLeadLabel);
 
                 Logger.WriteLine($"[Workflow] Completed successfully for issue #{item.Number}");
             }
@@ -263,20 +274,20 @@ internal class LegacyOrchestrator
     }
 
     private static async Task HandleStageAsync(
-        OctokitGitHubClient github,
+        IGitHubClient github,
         OrchestratorConfig cfg,
         WorkItem item,
         string stageLabel,
         string nextStageLabel,
         IRoleAgent agent,
-        RepoWorkspace workspace,
-        RepoGit repoGit,
-        LlmClient llm,
+        IRepoWorkspace workspace,
+        IRepoGit repoGit,
+        ILlmClient llm,
         McpClientManager mcpManager)
     {
-        var requiresReview = HasLabel(item, cfg.UserReviewRequiredLabel) ||
-            string.Equals(stageLabel, cfg.TestLabel, StringComparison.OrdinalIgnoreCase);
-        if (requiresReview && HasLabel(item, cfg.ReviewNeededLabel) && !HasLabel(item, cfg.ReviewedLabel))
+        var requiresReview = HasLabel(item, cfg.Labels.UserReviewRequiredLabel) ||
+            string.Equals(stageLabel, cfg.Labels.TestLabel, StringComparison.OrdinalIgnoreCase);
+        if (requiresReview && HasLabel(item, cfg.Labels.ReviewNeededLabel) && !HasLabel(item, cfg.Labels.ReviewedLabel))
         {
             await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusInReview);
             Logger.WriteLine($"Work item #{item.Number} awaiting review.");
@@ -284,9 +295,9 @@ internal class LegacyOrchestrator
             return;
         }
 
-        if (requiresReview && HasLabel(item, cfg.ReviewedLabel))
+        if (requiresReview && HasLabel(item, cfg.Labels.ReviewedLabel))
         {
-            await github.RemoveLabelsAsync(item.Number, stageLabel, cfg.ReviewedLabel, cfg.ReviewNeededLabel);
+            await github.RemoveLabelsAsync(item.Number, stageLabel, cfg.Labels.ReviewedLabel, cfg.Labels.ReviewNeededLabel);
             await github.AddLabelsAsync(item.Number, nextStageLabel);
             await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusInProgress);
             await github.CommentOnWorkItemAsync(item.Number, $"Handoff: {stageLabel} -> {nextStageLabel}");
@@ -300,7 +311,7 @@ internal class LegacyOrchestrator
         if (!result.Success)
         {
             await github.CommentOnWorkItemAsync(item.Number, result.Notes);
-            await github.AddLabelsAsync(item.Number, cfg.BlockedLabel);
+            await github.AddLabelsAsync(item.Number, cfg.Labels.BlockedLabel);
             await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusInProgress);
             await LogLabelsAsync(github, item.Number, "blocked", "system");
             return;
@@ -309,7 +320,7 @@ internal class LegacyOrchestrator
         await github.CommentOnWorkItemAsync(item.Number, result.Notes);
         if (requiresReview)
         {
-            await github.AddLabelsAsync(item.Number, cfg.ReviewNeededLabel);
+            await github.AddLabelsAsync(item.Number, cfg.Labels.ReviewNeededLabel);
             await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusInReview);
             await LogLabelsAsync(github, item.Number, "review needed", "system");
             return;
@@ -343,25 +354,25 @@ internal class LegacyOrchestrator
     }
 
     private static async Task HandleDevStageAsync(
-        OctokitGitHubClient github,
+        IGitHubClient github,
         OrchestratorConfig cfg,
         WorkItem item,
         IRoleAgent agent,
-        RepoWorkspace workspace,
-        RepoGit repoGit,
-        LlmClient llm,
+        IRepoWorkspace workspace,
+        IRepoGit repoGit,
+        ILlmClient llm,
         McpClientManager mcpManager)
     {
-        if (HasLabel(item, cfg.CodeReviewNeededLabel) && !HasLabel(item, cfg.CodeReviewApprovedLabel))
+        if (HasLabel(item, cfg.Labels.CodeReviewNeededLabel) && !HasLabel(item, cfg.Labels.CodeReviewApprovedLabel))
         {
             var branch = WorkItemBranch.BuildBranchName(item);
             try
             {
-                var hasCommits = await github.HasCommitsAsync(cfg.DefaultBaseBranch, branch);
+                var hasCommits = await github.HasCommitsAsync(cfg.Workflow.DefaultBaseBranch, branch);
                 if (!hasCommits)
                 {
                     Logger.WriteLine($"Work item #{item.Number} has no commits for review.");
-                    await github.RemoveLabelAsync(item.Number, cfg.CodeReviewNeededLabel);
+                    await github.RemoveLabelAsync(item.Number, cfg.Labels.CodeReviewNeededLabel);
                     await LogLabelsAsync(github, item.Number, "removed code review needed", "techlead");
                     return;
                 }
@@ -395,19 +406,19 @@ internal class LegacyOrchestrator
             }
         }
 
-        if (HasLabel(item, cfg.CodeReviewChangesRequestedLabel))
+        if (HasLabel(item, cfg.Labels.CodeReviewChangesRequestedLabel))
         {
             Logger.WriteLine($"Work item #{item.Number} applying requested changes.");
-            await github.RemoveLabelAsync(item.Number, cfg.CodeReviewChangesRequestedLabel);
+            await github.RemoveLabelAsync(item.Number, cfg.Labels.CodeReviewChangesRequestedLabel);
             await LogLabelsAsync(github, item.Number, "applying requested changes", "dev");
         }
 
-        if (HasLabel(item, cfg.CodeReviewApprovedLabel))
+        if (HasLabel(item, cfg.Labels.CodeReviewApprovedLabel))
         {
-            await github.RemoveLabelsAsync(item.Number, cfg.DevLabel, cfg.CodeReviewApprovedLabel, cfg.CodeReviewNeededLabel);
-            await github.AddLabelsAsync(item.Number, cfg.TestLabel);
-            await github.CommentOnWorkItemAsync(item.Number, $"Handoff: {cfg.DevLabel} -> {cfg.TestLabel}");
-            await LogLabelsAsync(github, item.Number, $"handoff {cfg.DevLabel} -> {cfg.TestLabel}", "dev");
+            await github.RemoveLabelsAsync(item.Number, cfg.Labels.DevLabel, cfg.Labels.CodeReviewApprovedLabel, cfg.Labels.CodeReviewNeededLabel);
+            await github.AddLabelsAsync(item.Number, cfg.Labels.TestLabel);
+            await github.CommentOnWorkItemAsync(item.Number, $"Handoff: {cfg.Labels.DevLabel} -> {cfg.Labels.TestLabel}");
+            await LogLabelsAsync(github, item.Number, $"handoff {cfg.Labels.DevLabel} -> {cfg.Labels.TestLabel}", "dev");
             return;
         }
 
@@ -417,7 +428,7 @@ internal class LegacyOrchestrator
         if (!result.Success)
         {
             await github.CommentOnWorkItemAsync(item.Number, result.Notes);
-            await github.AddLabelsAsync(item.Number, cfg.BlockedLabel);
+            await github.AddLabelsAsync(item.Number, cfg.Labels.BlockedLabel);
             await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusInProgress);
             await LogLabelsAsync(github, item.Number, "blocked", "dev");
             return;
@@ -439,25 +450,25 @@ internal class LegacyOrchestrator
 
         if (!string.IsNullOrWhiteSpace(result.NextStageLabel))
         {
-            await github.RemoveLabelAsync(item.Number, cfg.DevLabel);
+            await github.RemoveLabelAsync(item.Number, cfg.Labels.DevLabel);
             await github.AddLabelsAsync(item.Number, result.NextStageLabel);
-            await github.CommentOnWorkItemAsync(item.Number, $"Handoff: {cfg.DevLabel} -> {result.NextStageLabel}");
-            await LogLabelsAsync(github, item.Number, $"handoff {cfg.DevLabel} -> {result.NextStageLabel}", "dev");
+            await github.CommentOnWorkItemAsync(item.Number, $"Handoff: {cfg.Labels.DevLabel} -> {result.NextStageLabel}");
+            await LogLabelsAsync(github, item.Number, $"handoff {cfg.Labels.DevLabel} -> {result.NextStageLabel}", "dev");
         }
     }
 
     private static async Task HandleReleaseStageAsync(
-        OctokitGitHubClient github,
+        IGitHubClient github,
         OrchestratorConfig cfg,
         WorkItem item,
         IRoleAgent agent,
-        RepoWorkspace workspace,
-        RepoGit repoGit,
-        LlmClient llm,
+        IRepoWorkspace workspace,
+        IRepoGit repoGit,
+        ILlmClient llm,
         McpClientManager mcpManager)
     {
-        var requiresReview = HasLabel(item, cfg.UserReviewRequiredLabel);
-        if (requiresReview && HasLabel(item, cfg.ReviewNeededLabel) && !HasLabel(item, cfg.ReviewedLabel))
+        var requiresReview = HasLabel(item, cfg.Labels.UserReviewRequiredLabel);
+        if (requiresReview && HasLabel(item, cfg.Labels.ReviewNeededLabel) && !HasLabel(item, cfg.Labels.ReviewedLabel))
         {
             await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusInReview);
             Logger.WriteLine($"Work item #{item.Number} awaiting owner review.");
@@ -465,10 +476,10 @@ internal class LegacyOrchestrator
             return;
         }
 
-        if (requiresReview && HasLabel(item, cfg.ReviewedLabel))
+        if (requiresReview && HasLabel(item, cfg.Labels.ReviewedLabel))
         {
-            await github.RemoveLabelsAsync(item.Number, cfg.ReleaseLabel, cfg.ReviewedLabel, cfg.ReviewNeededLabel);
-            await github.AddLabelsAsync(item.Number, cfg.DoneLabel);
+            await github.RemoveLabelsAsync(item.Number, cfg.Labels.ReleaseLabel, cfg.Labels.ReviewedLabel, cfg.Labels.ReviewNeededLabel);
+            await github.AddLabelsAsync(item.Number, cfg.Labels.DoneLabel);
             await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusDone);
             await github.CommentOnWorkItemAsync(item.Number, "Release review complete. Marking done.");
             await LogLabelsAsync(github, item.Number, "release approved", "release");
@@ -481,7 +492,7 @@ internal class LegacyOrchestrator
         if (!result.Success)
         {
             await github.CommentOnWorkItemAsync(item.Number, result.Notes);
-            await github.AddLabelsAsync(item.Number, cfg.BlockedLabel);
+            await github.AddLabelsAsync(item.Number, cfg.Labels.BlockedLabel);
             await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusInProgress);
             await LogLabelsAsync(github, item.Number, "blocked", "release");
             return;
@@ -490,14 +501,14 @@ internal class LegacyOrchestrator
         await github.CommentOnWorkItemAsync(item.Number, result.Notes);
         if (requiresReview)
         {
-            await github.AddLabelsAsync(item.Number, cfg.ReviewNeededLabel);
+            await github.AddLabelsAsync(item.Number, cfg.Labels.ReviewNeededLabel);
             await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusInReview);
             await LogLabelsAsync(github, item.Number, "review needed", "release");
             return;
         }
 
-        await github.RemoveLabelAsync(item.Number, cfg.ReleaseLabel);
-        await github.AddLabelsAsync(item.Number, cfg.DoneLabel);
+        await github.RemoveLabelAsync(item.Number, cfg.Labels.ReleaseLabel);
+        await github.AddLabelsAsync(item.Number, cfg.Labels.DoneLabel);
         await TryUpdateProjectStatusAsync(github, cfg, item, cfg.ProjectStatusDone);
         await github.CommentOnWorkItemAsync(item.Number, "Release complete. Marking done.");
         await LogLabelsAsync(github, item.Number, "release done", "release");
@@ -505,42 +516,42 @@ internal class LegacyOrchestrator
 
     private static string GetStageName(WorkItem item, OrchestratorConfig cfg)
     {
-        if (HasLabel(item, cfg.ResetLabel))
+        if (HasLabel(item, cfg.Labels.ResetLabel))
         {
             return "reset";
         }
 
-        if (HasLabel(item, cfg.PlannerLabel))
+        if (HasLabel(item, cfg.Labels.PlannerLabel))
         {
             return "planner";
         }
 
-        if (HasLabel(item, cfg.TechLeadLabel))
+        if (HasLabel(item, cfg.Labels.TechLeadLabel))
         {
             return "techlead";
         }
 
-        if (HasLabel(item, cfg.DevLabel))
+        if (HasLabel(item, cfg.Labels.DevLabel))
         {
             return "dev";
         }
 
-        if (HasLabel(item, cfg.TestLabel))
+        if (HasLabel(item, cfg.Labels.TestLabel))
         {
             return "test";
         }
 
-        if (HasLabel(item, cfg.ReleaseLabel))
+        if (HasLabel(item, cfg.Labels.ReleaseLabel))
         {
             return "release";
         }
 
-        if (HasLabel(item, cfg.ReviewNeededLabel))
+        if (HasLabel(item, cfg.Labels.ReviewNeededLabel))
         {
             return "review";
         }
 
-        if (HasLabel(item, cfg.WorkItemLabel))
+        if (HasLabel(item, cfg.Labels.WorkItemLabel))
         {
             return "ready";
         }
@@ -561,7 +572,7 @@ internal class LegacyOrchestrator
     private static bool HasLabel(WorkItem item, string label) =>
         item.Labels.Any(l => string.Equals(l, label, StringComparison.OrdinalIgnoreCase));
 
-    private static async Task ResetWorkItemAsync(OctokitGitHubClient github, OrchestratorConfig cfg, WorkItem item, RepoGit repoGit)
+    private static async Task ResetWorkItemAsync(IGitHubClient github, OrchestratorConfig cfg, WorkItem item, IRepoGit repoGit)
     {
         var branch = WorkItemBranch.BuildBranchName(item);
         var prNumber = await github.GetPullRequestNumberAsync(branch);
@@ -588,39 +599,39 @@ internal class LegacyOrchestrator
 
         var remove = new[]
         {
-            cfg.PlannerLabel,
-            cfg.TechLeadLabel,
-            cfg.DevLabel,
-            cfg.TestLabel,
-            cfg.ReleaseLabel,
-            cfg.InProgressLabel,
-            cfg.ReviewNeededLabel,
-            cfg.ReviewedLabel,
-            cfg.SpecQuestionsLabel,
-            cfg.SpecClarifiedLabel,
-            cfg.CodeReviewNeededLabel,
-            cfg.CodeReviewApprovedLabel,
-            cfg.CodeReviewChangesRequestedLabel,
-            cfg.BlockedLabel,
-            cfg.ResetLabel
+            cfg.Labels.PlannerLabel,
+            cfg.Labels.TechLeadLabel,
+            cfg.Labels.DevLabel,
+            cfg.Labels.TestLabel,
+            cfg.Labels.ReleaseLabel,
+            cfg.Labels.InProgressLabel,
+            cfg.Labels.ReviewNeededLabel,
+            cfg.Labels.ReviewedLabel,
+            cfg.Labels.SpecQuestionsLabel,
+            cfg.Labels.SpecClarifiedLabel,
+            cfg.Labels.CodeReviewNeededLabel,
+            cfg.Labels.CodeReviewApprovedLabel,
+            cfg.Labels.CodeReviewChangesRequestedLabel,
+            cfg.Labels.BlockedLabel,
+            cfg.Labels.ResetLabel
         };
 
         await github.RemoveLabelsAsync(item.Number, remove);
-        await github.AddLabelsAsync(item.Number, cfg.WorkItemLabel);
+        await github.AddLabelsAsync(item.Number, cfg.Labels.WorkItemLabel);
         await github.CommentOnWorkItemAsync(
             item.Number,
-            $"Reset requested. Closed PR, deleted agent branch, and returned item to {cfg.WorkItemLabel}.");
+            $"Reset requested. Closed PR, deleted agent branch, and returned item to {cfg.Labels.WorkItemLabel}.");
         await LogLabelsAsync(github, item.Number, "reset", "system");
-        repoGit.HardResetToRemote(cfg.DefaultBaseBranch);
+        repoGit.HardResetToRemote(cfg.Workflow.DefaultBaseBranch);
     }
 
     private static async Task ClearStaleSpecQuestionsAsync(
-        OctokitGitHubClient github,
+        IGitHubClient github,
         OrchestratorConfig cfg,
         WorkItem item,
-        RepoWorkspace workspace)
+        IRepoWorkspace workspace)
     {
-        if (!HasLabel(item, cfg.SpecQuestionsLabel))
+        if (!HasLabel(item, cfg.Labels.SpecQuestionsLabel))
         {
             return;
         }
@@ -637,7 +648,7 @@ internal class LegacyOrchestrator
             return;
         }
 
-        await github.RemoveLabelAsync(item.Number, cfg.SpecQuestionsLabel);
+        await github.RemoveLabelAsync(item.Number, cfg.Labels.SpecQuestionsLabel);
         await LogLabelsAsync(github, item.Number, "spec questions cleared", "system");
     }
 
@@ -651,7 +662,7 @@ internal class LegacyOrchestrator
         return false;
     }
 
-    private static async Task TryUpdateProjectStatusAsync(OctokitGitHubClient github, OrchestratorConfig cfg, WorkItem item, string status)
+    private static async Task TryUpdateProjectStatusAsync(IGitHubClient github, OrchestratorConfig cfg, WorkItem item, string status)
     {
         var projectRef = ResolveProjectReference(cfg, item);
         if (projectRef is null)
@@ -691,7 +702,7 @@ internal class LegacyOrchestrator
         return WorkItemParsers.TryParseProjectReference(item.Body);
     }
 
-    private static async Task LogLabelsAsync(OctokitGitHubClient github, int issueNumber, string context, string agentName)
+    private static async Task LogLabelsAsync(IGitHubClient github, int issueNumber, string context, string agentName)
     {
         try
         {

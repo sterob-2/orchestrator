@@ -11,7 +11,7 @@ internal sealed class ReleaseAgent : IRoleAgent
         var releasePath = $"orchestrator/release/issue-{ctx.WorkItem.Number}.md";
         var releaseContent = BuildReleaseNotes(ctx);
 
-        ctx.Repo.EnsureBranch(branch, ctx.Config.DefaultBaseBranch);
+        ctx.Repo.EnsureBranch(branch, ctx.Config.Workflow.DefaultBaseBranch);
         ctx.Workspace.WriteAllText(releasePath, releaseContent);
         ctx.Repo.CommitAndPush(branch, $"docs: add release notes for issue {ctx.WorkItem.Number}", new[] { releasePath });
 

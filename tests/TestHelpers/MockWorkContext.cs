@@ -1,5 +1,7 @@
 using Moq;
 using Orchestrator.App;
+using Orchestrator.App.Core.Configuration;
+using Orchestrator.App.Core.Interfaces;
 
 namespace Orchestrator.App.Tests.TestHelpers;
 
@@ -7,11 +9,11 @@ internal static class MockWorkContext
 {
     public static WorkContext Create(
         WorkItem? workItem = null,
-        OctokitGitHubClient? github = null,
+        IGitHubClient? github = null,
         OrchestratorConfig? config = null,
-        RepoWorkspace? workspace = null,
-        RepoGit? repo = null,
-        LlmClient? llm = null)
+        IRepoWorkspace? workspace = null,
+        IRepoGit? repo = null,
+        ILlmClient? llm = null)
     {
         workItem ??= CreateWorkItem();
         github ??= CreateGitHubClient();
@@ -34,7 +36,7 @@ internal static class MockWorkContext
         return new WorkItem(number, title, body, url, labels);
     }
 
-    public static OctokitGitHubClient CreateGitHubClient()
+    public static IGitHubClient CreateGitHubClient()
     {
         var config = CreateConfig();
         return new OctokitGitHubClient(config);
@@ -57,34 +59,38 @@ internal static class MockWorkContext
             GitHubToken: "test-token",
             RepoOwner: "test-owner",
             RepoName: "test-repo",
-            DefaultBaseBranch: "main",
-            PollIntervalSeconds: 120,
-            FastPollIntervalSeconds: 30,
-            WorkItemLabel: "ready-for-agents",
-            InProgressLabel: "in-progress",
-            DoneLabel: "done",
-            BlockedLabel: "blocked",
-            PlannerLabel: "agent:planner",
-            TechLeadLabel: "agent:techlead",
-            DevLabel: "agent:dev",
-            TestLabel: "agent:test",
-            ReleaseLabel: "agent:release",
-            UserReviewRequiredLabel: "user-review-required",
-            ReviewNeededLabel: "agent:review-needed",
-            ReviewedLabel: "agent:reviewed",
-            SpecQuestionsLabel: "spec-questions",
-            SpecClarifiedLabel: "spec-clarified",
-            CodeReviewNeededLabel: "code-review-needed",
-            CodeReviewApprovedLabel: "code-review-approved",
-            CodeReviewChangesRequestedLabel: "code-review-changes-requested",
-            ResetLabel: "agent:reset",
+            Workflow: new WorkflowConfig(
+                DefaultBaseBranch: "main",
+                PollIntervalSeconds: 120,
+                FastPollIntervalSeconds: 30,
+                UseWorkflowMode: false
+            ),
+            Labels: new LabelConfig(
+                WorkItemLabel: "ready-for-agents",
+                InProgressLabel: "in-progress",
+                DoneLabel: "done",
+                BlockedLabel: "blocked",
+                PlannerLabel: "agent:planner",
+                TechLeadLabel: "agent:techlead",
+                DevLabel: "agent:dev",
+                TestLabel: "agent:test",
+                ReleaseLabel: "agent:release",
+                UserReviewRequiredLabel: "user-review-required",
+                ReviewNeededLabel: "agent:review-needed",
+                ReviewedLabel: "agent:reviewed",
+                SpecQuestionsLabel: "spec-questions",
+                SpecClarifiedLabel: "spec-clarified",
+                CodeReviewNeededLabel: "code-review-needed",
+                CodeReviewApprovedLabel: "code-review-approved",
+                CodeReviewChangesRequestedLabel: "code-review-changes-requested",
+                ResetLabel: "agent:reset"
+            ),
             ProjectStatusInProgress: "In Progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "test-owner",
             ProjectOwnerType: "user",
             ProjectNumber: 1,
-            ProjectStatusDone: "Done",
-            UseWorkflowMode: false
+            ProjectStatusDone: "Done"
         );
     }
 
@@ -95,12 +101,12 @@ internal static class MockWorkContext
         return new RepoWorkspace(path);
     }
 
-    public static RepoGit CreateRepo(OrchestratorConfig config)
+    public static IRepoGit CreateRepo(OrchestratorConfig config)
     {
         return new RepoGit(config, config.WorkspacePath);
     }
 
-    public static LlmClient CreateLlmClient(OrchestratorConfig config)
+    public static ILlmClient CreateLlmClient(OrchestratorConfig config)
     {
         return new LlmClient(config);
     }
