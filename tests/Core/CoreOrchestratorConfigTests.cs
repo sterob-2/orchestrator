@@ -27,12 +27,19 @@ public class CoreOrchestratorConfigTests
         "DEFAULT_BASE_BRANCH",
         "POLL_INTERVAL_SECONDS",
         "FAST_POLL_INTERVAL_SECONDS",
+        "MAX_REFINEMENT_ITERATIONS",
+        "MAX_TECHLEAD_ITERATIONS",
+        "MAX_DEV_ITERATIONS",
+        "MAX_CODE_REVIEW_ITERATIONS",
+        "MAX_DOD_ITERATIONS",
         "WORK_ITEM_LABEL",
         "IN_PROGRESS_LABEL",
         "DONE_LABEL",
         "BLOCKED_LABEL",
         "PLANNER_LABEL",
+        "DOR_LABEL",
         "TECHLEAD_LABEL",
+        "SPEC_GATE_LABEL",
         "DEV_LABEL",
         "TEST_LABEL",
         "RELEASE_LABEL",
@@ -50,8 +57,7 @@ public class CoreOrchestratorConfigTests
         "PROJECT_OWNER",
         "PROJECT_OWNER_TYPE",
         "PROJECT_NUMBER",
-        "PROJECT_STATUS_DONE",
-        "USE_WORKFLOW_MODE"
+        "PROJECT_STATUS_DONE"
     };
 
     [Fact]
@@ -75,12 +81,19 @@ public class CoreOrchestratorConfigTests
             ["DEFAULT_BASE_BRANCH"] = "develop",
             ["POLL_INTERVAL_SECONDS"] = "45",
             ["FAST_POLL_INTERVAL_SECONDS"] = "12",
+            ["MAX_REFINEMENT_ITERATIONS"] = "2",
+            ["MAX_TECHLEAD_ITERATIONS"] = "4",
+            ["MAX_DEV_ITERATIONS"] = "5",
+            ["MAX_CODE_REVIEW_ITERATIONS"] = "6",
+            ["MAX_DOD_ITERATIONS"] = "7",
             ["WORK_ITEM_LABEL"] = "work",
             ["IN_PROGRESS_LABEL"] = "in-progress",
             ["DONE_LABEL"] = "done",
             ["BLOCKED_LABEL"] = "blocked",
             ["PLANNER_LABEL"] = "planner",
+            ["DOR_LABEL"] = "dor",
             ["TECHLEAD_LABEL"] = "techlead",
+            ["SPEC_GATE_LABEL"] = "spec-gate",
             ["DEV_LABEL"] = "dev",
             ["TEST_LABEL"] = "test",
             ["RELEASE_LABEL"] = "release",
@@ -98,8 +111,7 @@ public class CoreOrchestratorConfigTests
             ["PROJECT_OWNER"] = "proj-owner",
             ["PROJECT_OWNER_TYPE"] = "org",
             ["PROJECT_NUMBER"] = "42",
-            ["PROJECT_STATUS_DONE"] = "Done",
-            ["USE_WORKFLOW_MODE"] = "true"
+            ["PROJECT_STATUS_DONE"] = "Done"
         };
 
         using var scope = new EnvScope(values);
@@ -122,7 +134,11 @@ public class CoreOrchestratorConfigTests
                 DefaultBaseBranch: "develop",
                 PollIntervalSeconds: 45,
                 FastPollIntervalSeconds: 12,
-                UseWorkflowMode: true
+                MaxRefinementIterations: 2,
+                MaxTechLeadIterations: 4,
+                MaxDevIterations: 5,
+                MaxCodeReviewIterations: 6,
+                MaxDodIterations: 7
             ),
             Labels: new CoreConfig.LabelConfig(
                 WorkItemLabel: "work",
@@ -130,7 +146,9 @@ public class CoreOrchestratorConfigTests
                 DoneLabel: "done",
                 BlockedLabel: "blocked",
                 PlannerLabel: "planner",
+                DorLabel: "dor",
                 TechLeadLabel: "techlead",
+                SpecGateLabel: "spec-gate",
                 DevLabel: "dev",
                 TestLabel: "test",
                 ReleaseLabel: "release",
@@ -180,7 +198,11 @@ public class CoreOrchestratorConfigTests
                 DefaultBaseBranch: "main",
                 PollIntervalSeconds: 120,
                 FastPollIntervalSeconds: 30,
-                UseWorkflowMode: false
+                MaxRefinementIterations: 3,
+                MaxTechLeadIterations: 3,
+                MaxDevIterations: 3,
+                MaxCodeReviewIterations: 3,
+                MaxDodIterations: 3
             ),
             Labels: new CoreConfig.LabelConfig(
                 WorkItemLabel: "ready-for-agents",
@@ -188,7 +210,9 @@ public class CoreOrchestratorConfigTests
                 DoneLabel: "done",
                 BlockedLabel: "blocked",
                 PlannerLabel: "agent:planner",
+                DorLabel: "agent:dor",
                 TechLeadLabel: "agent:techlead",
+                SpecGateLabel: "agent:spec-gate",
                 DevLabel: "agent:dev",
                 TestLabel: "agent:test",
                 ReleaseLabel: "agent:release",
@@ -222,15 +246,23 @@ public class CoreOrchestratorConfigTests
         {
             ["POLL_INTERVAL_SECONDS"] = "abc",
             ["FAST_POLL_INTERVAL_SECONDS"] = "nope",
-            ["PROJECT_NUMBER"] = "invalid",
-            ["USE_WORKFLOW_MODE"] = "not-a-bool"
+            ["MAX_REFINEMENT_ITERATIONS"] = "invalid",
+            ["MAX_TECHLEAD_ITERATIONS"] = "invalid",
+            ["MAX_DEV_ITERATIONS"] = "invalid",
+            ["MAX_CODE_REVIEW_ITERATIONS"] = "invalid",
+            ["MAX_DOD_ITERATIONS"] = "invalid",
+            ["PROJECT_NUMBER"] = "invalid"
         });
 
         var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
 
         Assert.Equal(120, actual.Workflow.PollIntervalSeconds);
         Assert.Equal(30, actual.Workflow.FastPollIntervalSeconds);
-        Assert.False(actual.Workflow.UseWorkflowMode);
+        Assert.Equal(3, actual.Workflow.MaxRefinementIterations);
+        Assert.Equal(3, actual.Workflow.MaxTechLeadIterations);
+        Assert.Equal(3, actual.Workflow.MaxDevIterations);
+        Assert.Equal(3, actual.Workflow.MaxCodeReviewIterations);
+        Assert.Equal(3, actual.Workflow.MaxDodIterations);
         Assert.Null(actual.ProjectNumber);
     }
 

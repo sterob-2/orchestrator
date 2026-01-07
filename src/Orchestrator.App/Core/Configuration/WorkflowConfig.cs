@@ -4,5 +4,9 @@ internal sealed record WorkflowConfig(
     string DefaultBaseBranch,
     int PollIntervalSeconds,
     int FastPollIntervalSeconds,
-    bool UseWorkflowMode
+    int MaxRefinementIterations,
+    int MaxTechLeadIterations,
+    int MaxDevIterations,
+    int MaxCodeReviewIterations,
+    int MaxDodIterations
 );

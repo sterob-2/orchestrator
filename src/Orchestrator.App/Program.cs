@@ -8,7 +8,6 @@ namespace Orchestrator.App;
 /// <summary>
 /// Minimal entry point for Workstream 1.
 /// Loads configuration and starts the watcher.
-/// Uses the legacy orchestrator while the Watcher + WorkflowRunner evolve.
 /// </summary>
 internal static class Program
 {
@@ -63,16 +62,31 @@ internal static class Program
             cts.Cancel();
         }
 
-        // Create and run watcher
-        var orchestrator = new LegacyOrchestrator(
+        var checkpoints = new Workflows.InMemoryWorkflowCheckpointStore();
+        var labelSync = new Workflows.LabelSyncHandler(services.GitHub, cfg.Labels);
+        var humanInLoop = new Workflows.HumanInLoopHandler(services.GitHub, cfg.Labels);
+        var runner = new Workflows.WorkflowRunner(labelSync, humanInLoop, checkpoints);
+        var watcher = new Watcher.GitHubIssueWatcher(
             cfg,
             services.GitHub,
-            services.Workspace,
-            services.RepoGit,
-            services.Llm,
-            mcpManager);
-        var watcher = new Watcher.GitHubIssueWatcher(orchestrator);
-        await watcher.RunAsync(cts.Token);
+            runner,
+            workItem => new WorkContext(
+                workItem,
+                services.GitHub,
+                cfg,
+                services.Workspace,
+                services.RepoGit,
+                services.Llm,
+                mcpManager),
+            checkpoints);
+        try
+        {
+            await watcher.RunAsync(cts.Token);
+        }
+        finally
+        {
+            await mcpManager.DisposeAsync();
+        }
 
         return 0;
     }

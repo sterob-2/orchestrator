@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Moq;
 using Orchestrator.App;
-using Orchestrator.App.Agents;
 using Orchestrator.App.Core.Configuration;
 using Xunit;
 
@@ -101,33 +100,6 @@ public class ModelsTests
     }
 
     [Fact]
-    public void AgentResult_FactoryMethods()
-    {
-        var ok = AgentResult.Ok("ok");
-        var fail = AgentResult.Fail("fail");
-
-        Assert.True(ok.Success);
-        Assert.Equal("ok", ok.Notes);
-        Assert.False(fail.Success);
-        Assert.Equal("fail", fail.Notes);
-    }
-
-    [Fact]
-    public void AgentResult_WithLabels()
-    {
-        var add = new List<string> { "add" };
-        var remove = new List<string> { "remove" };
-
-        var result = new AgentResult(true, "notes", "next", add, remove);
-
-        Assert.True(result.Success);
-        Assert.Equal("notes", result.Notes);
-        Assert.Equal("next", result.NextStageLabel);
-        Assert.Equal(add, result.AddLabels);
-        Assert.Equal(remove, result.RemoveLabels);
-    }
-
-    [Fact]
     public void PipelineResult_FactoryMethods()
     {
         var ok = PipelineResult.Ok("summary", "title", "body");
@@ -159,7 +131,7 @@ public class ModelsTests
             ProjectOwnerType: "user",
             ProjectNumber: 7);
         var input = new WorkflowInput(item, project, "planner", 1);
-        var output = new WorkflowOutput(true, "notes", "Next");
+        var output = new WorkflowOutput(true, "notes", WorkflowStage.Dev);
 
         Assert.Same(item, input.WorkItem);
         Assert.Same(project, input.ProjectContext);
@@ -168,7 +140,7 @@ public class ModelsTests
 
         Assert.True(output.Success);
         Assert.Equal("notes", output.Notes);
-        Assert.Equal("Next", output.NextStage);
+        Assert.Equal(WorkflowStage.Dev, output.NextStage);
     }
 
     [Fact]

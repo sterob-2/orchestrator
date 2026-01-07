@@ -41,7 +41,11 @@ public class McpTestFixture : IAsyncLifetime
                 DefaultBaseBranch: "main",
                 PollIntervalSeconds: 120,
                 FastPollIntervalSeconds: 30,
-                UseWorkflowMode: false
+                MaxRefinementIterations: 3,
+                MaxTechLeadIterations: 3,
+                MaxDevIterations: 3,
+                MaxCodeReviewIterations: 3,
+                MaxDodIterations: 3
             ),
             Labels: new LabelConfig(
                 WorkItemLabel: "ready-for-agents",
@@ -49,7 +53,9 @@ public class McpTestFixture : IAsyncLifetime
                 DoneLabel: "done",
                 BlockedLabel: "blocked",
                 PlannerLabel: "agent:planner",
+                DorLabel: "agent:dor",
                 TechLeadLabel: "agent:techlead",
+                SpecGateLabel: "agent:spec-gate",
                 DevLabel: "agent:dev",
                 TestLabel: "agent:test",
                 ReleaseLabel: "agent:release",

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Orchestrator.App;
-using Orchestrator.App.Agents;
+using Orchestrator.App.Utilities;
 using Orchestrator.App.Core.Configuration;
 using Orchestrator.App.Tests.TestHelpers;
 using Xunit;

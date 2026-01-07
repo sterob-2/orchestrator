@@ -6,8 +6,8 @@ This plan breaks the v3.1 concept into parallelizable workstreams. Each workstre
 - Create target folder structure under `src/Orchestrator.App/` (Core, Workflows, Infrastructure, Parsing, Utilities, Watcher) and update namespaces.
 - Move existing infrastructure files (GitHub, Git, Filesystem, LLM, MCP) into `Infrastructure/` without behavior changes.
 - Introduce project-level `GlobalUsings` and shared `AssemblyInfo` (InternalsVisibleTo) to reduce boilerplate.
-- Wire the app entrypoint to new structure with minimal `Program.cs` that loads config and starts watcher; retain existing behavior during migration.
-- Deliverable: compiles with existing functionality preserved; no executor logic yet.
+- Wire the app entrypoint to new structure with minimal `Program.cs` that loads config and starts watcher; no legacy fallback paths.
+- Deliverable: compiles with watcher entrypoint; no legacy runner or feature flags.
 
 ## Workstream 2: Core Domain Models and Configuration
 - Define Core/Models records: `WorkItem`, `WorkflowInput`, `GateResult`, `ParsedSpec`, `TouchListEntry`, `ProjectContext`, `ComplexityIndicators`.
@@ -17,10 +17,11 @@ This plan breaks the v3.1 concept into parallelizable workstreams. Each workstre
 - Deliverable: Core project compiles; infrastructure can be swapped via DI without changing callers.
 
 ## Workstream 3: Workflow Engine and Watcher
-- Implement `Watcher/GitHubIssueWatcher` to translate labels into workflow start/reset signals; reuse current polling logic where possible.
+- Implement `Watcher/GitHubIssueWatcher` to translate labels into workflow start/reset signals; move polling logic into the watcher (no legacy runner).
 - Build `Workflows/WorkflowFactory` and `WorkflowRunner` to assemble the graph from the concept (ContextBuilder → Refinement ↔ DoR → TechLead ↔ SpecGate → Dev → CodeReview ↔ Dev → DoD ↔ Dev → Release).
 - Add checkpointing and iteration limit enforcement with configurable thresholds.
 - Implement label synchronization handlers (`LabelSyncHandler`, `HumanInLoopHandler`) that project workflow state to board labels.
+- Remove legacy agents and all feature-flagged flow switching while introducing the workflow runner.
 - Deliverable: Running workflow skeleton with stub executors that return placeholder results and drive label updates.
 
 ## Workstream 4: Gates and Playbook Validation
@@ -62,10 +63,10 @@ This plan breaks the v3.1 concept into parallelizable workstreams. Each workstre
 - Deliverable: Green CI with coverage on new modules; documented test matrix mapping to DoD/Spec Gate rules.
 
 ## Workstream 10: Migration and Cleanup
-- Deprecate legacy agents (Planner/TechLead/Dev/etc.) after new executors reach feature parity; remove dead code.
+- Remove legacy agents (Planner/TechLead/Dev/etc.) and any related utilities once workflow executors are in place; no feature flags or fallback paths.
+- Remove legacy runner entrypoints and feature flags (including `UseWorkflowMode` and associated env vars).
 - Migrate configuration files, environment variables, and docs to new structure; update README and samples.
-- Plan incremental rollout: feature flag new workflow, fallback to legacy until gates and executors stabilize.
-- Deliverable: Legacy code removed or gated; documentation updated; migration guide for operators.
+- Deliverable: Legacy code removed; documentation updated; migration guide for operators.
 
 ## Parallelization Notes
 - Workstreams 1, 2, and 8 can start immediately and unblock others.
