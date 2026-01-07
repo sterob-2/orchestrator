@@ -236,6 +236,7 @@ public class McpClientManager : IAsyncDisposable
         _tools.Clear();
         _initialized = false;
 
+        GC.SuppressFinalize(this);
         Logger.WriteLine("[MCP] MCP clients disposed.");
     }
 }

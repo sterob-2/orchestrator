@@ -8,16 +8,18 @@ namespace Orchestrator.App.Parsing;
 /// <summary>
 /// Parses the touch list table from the technical specification.
 /// </summary>
-public class TouchListParser
+public static class TouchListParser
 {
-    public List<TouchListEntry> Parse(string content)
+    private static readonly string[] NewLineSeparators = ["\r\n", "\r", "\n"];
+
+    public static List<TouchListEntry> Parse(string content)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
             return new List<TouchListEntry>();
         }
 
-        var lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+        var lines = content.Split(NewLineSeparators, StringSplitOptions.RemoveEmptyEntries)
             .Select(l => l.Trim())
             .ToList();
 

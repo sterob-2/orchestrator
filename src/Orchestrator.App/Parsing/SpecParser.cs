@@ -6,14 +6,9 @@ using Orchestrator.App.Core.Models;
 
 namespace Orchestrator.App.Parsing;
 
-public class SpecParser
+public partial class SpecParser
 {
-    private readonly TouchListParser _touchListParser;
-
-    public SpecParser()
-    {
-        _touchListParser = new TouchListParser();
-    }
+    private static readonly string[] NewLineSeparators = ["\r\n", "\r", "\n"];
 
     public ParsedSpec Parse(string content)
     {
@@ -23,7 +18,7 @@ public class SpecParser
         var nonGoals = GetSection(sections, "Nicht-Ziele", "Non-Goals");
         var components = ParseList(GetSection(sections, "Komponenten", "Components"));
         var touchListContent = GetSection(sections, "Touch List");
-        var touchList = _touchListParser.Parse(touchListContent);
+        var touchList = TouchListParser.Parse(touchListContent);
         var interfaces = ParseCodeBlocks(GetSection(sections, "Interfaces"));
         var scenarios = ParseScenarios(GetSection(sections, "Szenarien", "Scenarios"));
         var sequence = ParseList(GetSection(sections, "Sequenz", "Sequence"));
@@ -42,13 +37,12 @@ public class SpecParser
         );
     }
 
-    private Dictionary<string, string> ParseSections(string content)
+    private static Dictionary<string, string> ParseSections(string content)
     {
         var sections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (string.IsNullOrWhiteSpace(content)) return sections;
 
-        var regex = new Regex(@"^##\s+(.+)$", RegexOptions.Multiline);
-        var matches = regex.Matches(content);
+        var matches = SectionHeaderRegex().Matches(content);
 
         if (matches.Count == 0) return sections;
 
@@ -66,7 +60,7 @@ public class SpecParser
         return sections;
     }
 
-    private string GetSection(Dictionary<string, string> sections, params string[] keys)
+    private static string GetSection(Dictionary<string, string> sections, params string[] keys)
     {
         foreach (var key in keys)
         {
@@ -78,31 +72,32 @@ public class SpecParser
         return string.Empty;
     }
 
-    private List<string> ParseList(string content)
+    private static List<string> ParseList(string content)
     {
         if (string.IsNullOrWhiteSpace(content)) return new List<string>();
 
-        return content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+        var listItemRegex = ListItemPrefixRegex();
+
+        return content.Split(NewLineSeparators, StringSplitOptions.RemoveEmptyEntries)
             .Select(l => l.Trim())
             .Where(l => !string.IsNullOrWhiteSpace(l))
             .Select(l =>
             {
-                if (l.StartsWith("- ") || l.StartsWith("* ") || Regex.IsMatch(l, @"^\d+\."))
+                if (listItemRegex.IsMatch(l))
                 {
-                    return Regex.Replace(l, @"^([-*]|\d+\.)\s+", "");
+                    return listItemRegex.Replace(l, "");
                 }
                 return l;
             })
             .ToList();
     }
 
-    private List<string> ParseCodeBlocks(string content)
+    private static List<string> ParseCodeBlocks(string content)
     {
         var blocks = new List<string>();
         if (string.IsNullOrWhiteSpace(content)) return blocks;
 
-        var regex = new Regex(@"```.*?\r?\n(.*?)\r?\n```", RegexOptions.Singleline);
-        foreach (Match match in regex.Matches(content))
+        foreach (Match match in CodeBlockRegex().Matches(content))
         {
             blocks.Add(match.Groups[1].Value.Trim());
         }
@@ -115,13 +110,12 @@ public class SpecParser
         return blocks;
     }
 
-    private List<string> ParseScenarios(string content)
+    private static List<string> ParseScenarios(string content)
     {
         var scenarios = new List<string>();
         if (string.IsNullOrWhiteSpace(content)) return scenarios;
 
-        var regex = new Regex(@"(^|\n)Scenario:", RegexOptions.Multiline);
-        var matches = regex.Matches(content);
+        var matches = ScenarioRegex().Matches(content);
         
         if (matches.Count == 0) return scenarios;
 
@@ -143,11 +137,11 @@ public class SpecParser
         return scenarios;
     }
 
-    private List<string> ParseTableRows(string content)
+    private static List<string> ParseTableRows(string content)
     {
         if (string.IsNullOrWhiteSpace(content)) return new List<string>();
 
-        var lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+        var lines = content.Split(NewLineSeparators, StringSplitOptions.RemoveEmptyEntries)
             .Select(l => l.Trim())
             .ToList();
 
@@ -159,4 +153,16 @@ public class SpecParser
             .Where(l => l.StartsWith('|'))
             .ToList();
     }
+
+    [GeneratedRegex(@"^##\s+(.+)$", RegexOptions.Multiline, 2000)]
+    private static partial Regex SectionHeaderRegex();
+
+    [GeneratedRegex(@"```.*?\r?\n(.*?)\r?\n```", RegexOptions.Singleline, 2000)]
+    private static partial Regex CodeBlockRegex();
+
+    [GeneratedRegex(@"(^|\n)Scenario:", RegexOptions.Multiline, 2000)]
+    private static partial Regex ScenarioRegex();
+
+    [GeneratedRegex(@"^([-*]|\d+\.)\s+")]
+    private static partial Regex ListItemPrefixRegex();
 }

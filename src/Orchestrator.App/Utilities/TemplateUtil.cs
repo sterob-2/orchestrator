@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Orchestrator.App.Utilities;
 
@@ -65,15 +66,9 @@ internal static class TemplateUtil
 
     public static bool IsStatus(string content, string status)
     {
-        foreach (var line in content.Split('\n'))
-        {
-            if (line.StartsWith("STATUS:", StringComparison.OrdinalIgnoreCase))
-            {
-                return line.Contains(status, StringComparison.OrdinalIgnoreCase);
-            }
-        }
-
-        return false;
+        return content.Split('\n')
+            .Any(line => line.StartsWith("STATUS:", StringComparison.OrdinalIgnoreCase)
+                && line.Contains(status, StringComparison.OrdinalIgnoreCase));
     }
 
     public static bool IsStatusComplete(string content)

@@ -9,31 +9,28 @@ public class GherkinValidatorTests
     [Fact]
     public void IsValid_ValidScenario_ReturnsTrue()
     {
-        var validator = new GherkinValidator();
         var input = @"
 Scenario: Test
   Given context
   When action
   Then result
 ";
-        validator.IsValid(input).Should().BeTrue();
+        GherkinValidator.IsValid(input).Should().BeTrue();
     }
 
     [Fact]
     public void IsValid_MissingKeywords_ReturnsFalse()
     {
-        var validator = new GherkinValidator();
         var input = @"
 Scenario: Test
   Given context
 ";
-        validator.IsValid(input).Should().BeFalse();
+        GherkinValidator.IsValid(input).Should().BeFalse();
     }
 
     [Fact]
     public void IsValid_Empty_ReturnsFalse()
     {
-        var validator = new GherkinValidator();
-        validator.IsValid("").Should().BeFalse();
+        GherkinValidator.IsValid("").Should().BeFalse();
     }
 }

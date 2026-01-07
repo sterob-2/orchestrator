@@ -6,16 +6,18 @@ namespace Orchestrator.App.Parsing;
 /// <summary>
 /// Validates Gherkin syntax for scenarios.
 /// </summary>
-public class GherkinValidator
+public static class GherkinValidator
 {
-    public bool IsValid(string scenario)
+    private static readonly string[] NewLineSeparators = ["\r\n", "\r", "\n"];
+
+    public static bool IsValid(string scenario)
     {
         if (string.IsNullOrWhiteSpace(scenario))
         {
             return false;
         }
 
-        var lines = scenario.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+        var lines = scenario.Split(NewLineSeparators, StringSplitOptions.RemoveEmptyEntries)
                             .Select(l => l.Trim())
                             .ToList();
 

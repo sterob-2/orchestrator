@@ -12,5 +12,6 @@ public class UnityCliTests
         var cli = new UnityCli(config);
 
         cli.Placeholder();
+        Assert.NotNull(cli);
     }
 }
