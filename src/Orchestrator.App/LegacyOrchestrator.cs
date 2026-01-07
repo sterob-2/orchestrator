@@ -223,7 +223,7 @@ internal class LegacyOrchestrator : IWorkItemRunner
             );
 
             // Build workflow
-            var workflow = SDLCWorkflow.BuildPlannerOnlyWorkflow(ctx);
+            var workflow = SDLCWorkflow.BuildStageWorkflow(WorkflowStage.Refinement);
 
             // Create workflow input from work item
             var projectContext = new ProjectContext(

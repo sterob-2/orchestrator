@@ -159,7 +159,7 @@ public class ModelsTests
             ProjectOwnerType: "user",
             ProjectNumber: 7);
         var input = new WorkflowInput(item, project, "planner", 1);
-        var output = new WorkflowOutput(true, "notes", "Next");
+        var output = new WorkflowOutput(true, "notes", WorkflowStage.Dev);
 
         Assert.Same(item, input.WorkItem);
         Assert.Same(project, input.ProjectContext);
@@ -168,7 +168,7 @@ public class ModelsTests
 
         Assert.True(output.Success);
         Assert.Equal("notes", output.Notes);
-        Assert.Equal("Next", output.NextStage);
+        Assert.Equal(WorkflowStage.Dev, output.NextStage);
     }
 
     [Fact]

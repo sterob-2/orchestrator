@@ -7,17 +7,9 @@ namespace Orchestrator.App.Tests.Workflows;
 public class SDLCWorkflowTests
 {
     [Fact]
-    public void BuildPlannerOnlyWorkflow_ReturnsWorkflow()
+    public void BuildStageWorkflow_ReturnsWorkflow()
     {
-        using var workspace = new TempWorkspace();
-        var workItem = MockWorkContext.CreateWorkItem(number: 1);
-        var config = MockWorkContext.CreateConfig(workspacePath: workspace.WorkspacePath);
-        var repo = new Mock<IRepoGit>(MockBehavior.Strict);
-        var github = new Mock<IGitHubClient>(MockBehavior.Strict);
-        var llm = new Mock<ILlmClient>(MockBehavior.Strict);
-        var ctx = new WorkContext(workItem, github.Object, config, workspace.Workspace, repo.Object, llm.Object);
-
-        var workflow = SDLCWorkflow.BuildPlannerOnlyWorkflow(ctx);
+        var workflow = SDLCWorkflow.BuildStageWorkflow(WorkflowStage.Refinement);
 
         Assert.NotNull(workflow);
     }

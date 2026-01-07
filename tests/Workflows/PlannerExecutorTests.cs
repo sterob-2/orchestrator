@@ -37,6 +37,6 @@ public class PlannerExecutorTests
 
         Assert.True(output.Success);
         Assert.Contains("Plan already complete", output.Notes);
-        Assert.Equal("TechLead", output.NextStage);
+        Assert.Equal(WorkflowStage.TechLead, output.NextStage);
     }
 }

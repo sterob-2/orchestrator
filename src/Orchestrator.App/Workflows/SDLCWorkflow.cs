@@ -8,19 +8,11 @@ namespace Orchestrator.App.Workflows;
 internal static class SDLCWorkflow
 {
     /// <summary>
-    /// Creates a minimal workflow with just the Planner stage for prototype testing
+    /// Creates a single-stage workflow for the requested stage.
     /// </summary>
-    public static Workflow BuildPlannerOnlyWorkflow(WorkContext context)
+    public static Workflow BuildStageWorkflow(WorkflowStage stage)
     {
-        // Create the planner executor
-        var plannerExecutor = new PlannerExecutor(context);
-
-        // Build workflow with single executor
-        var workflow = new WorkflowBuilder(plannerExecutor)
-            .WithOutputFrom(plannerExecutor)
-            .Build();
-
-        return workflow;
+        return WorkflowFactory.Build(stage);
     }
 
     /// <summary>
