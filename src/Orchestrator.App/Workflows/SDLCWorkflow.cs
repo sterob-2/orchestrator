@@ -24,7 +24,7 @@ internal static class SDLCWorkflow
     {
         WorkflowOutput? finalOutput = null;
 
-        Console.WriteLine($"[Workflow] Starting workflow for issue #{input.IssueNumber}...");
+        Console.WriteLine($"[Workflow] Starting workflow for issue #{input.WorkItem.Number}...");
 
         // Execute workflow
         Run run = await InProcessExecution.RunAsync(workflow, input);

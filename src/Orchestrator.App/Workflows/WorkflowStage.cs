@@ -1,10 +1,13 @@
 namespace Orchestrator.App.Workflows;
 
-internal interface IWorkflowStage
+internal enum WorkflowStage
 {
-    string Name { get; }
-
-    Task<WorkflowStageResult> RunAsync(WorkContext context, CancellationToken cancellationToken);
+    Refinement,
+    DoR,
+    TechLead,
+    SpecGate,
+    Dev,
+    CodeReview,
+    DoD,
+    Release
 }
-
-internal sealed record WorkflowStageResult(bool Success, string Notes);
