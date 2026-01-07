@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 
-namespace Orchestrator.App;
+namespace Orchestrator.App.Infrastructure.Filesystem;
 
 internal sealed class RepoWorkspace
 {

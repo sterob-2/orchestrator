@@ -1,7 +1,7 @@
 using LibGit2Sharp;
 using LibGit2Sharp.Handlers;
 
-namespace Orchestrator.App;
+namespace Orchestrator.App.Infrastructure.Git;
 
 internal sealed class RepoGit
 {
