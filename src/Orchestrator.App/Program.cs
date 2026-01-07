@@ -70,6 +70,12 @@ internal static class Program
             return 1;
         }
 
+        if (!cfg.Workflow.UseWorkflowMode)
+        {
+            Logger.WriteLine("Legacy Orchestrator mode is no longer supported. Please set USE_WORKFLOW_MODE=true.");
+            return 1;
+        }
+
         // Create and run watcher
         var workflowFactory = new WorkflowFactory();
         var workflowRunner = new WorkflowRunner(workflowFactory);

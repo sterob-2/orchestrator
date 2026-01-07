@@ -1,43 +1,18 @@
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentAssertions;
 using Microsoft.Agents.AI.Workflows;
-using Moq;
 using Orchestrator.App.Tests.TestHelpers;
+using Xunit;
 
 namespace Orchestrator.App.Tests.Workflows;
 
 public class SDLCWorkflowTests
 {
-    [Fact]
-    public void BuildStageWorkflow_ReturnsWorkflow()
+    private sealed class TestExecutor : Executor<WorkflowInput, WorkflowOutput>
     {
-        var workflow = SDLCWorkflow.BuildStageWorkflow(WorkflowStage.Refinement);
-
-        Assert.NotNull(workflow);
-    }
-
-    [Fact]
-    public async Task RunWorkflowAsync_ReturnsOutputFromExecutor()
-    {
-        var executor = new StubExecutor();
-        var workflow = new WorkflowBuilder(executor)
-            .WithOutputFrom(executor)
-            .Build();
-
-        var input = new WorkflowInput(
-            new WorkItem(1, "Test", "Body", "url", new List<string>()),
-            new ProjectContext("owner", "repo", "main", "/tmp", "/tmp", "owner", "user", 1),
-            Mode: null,
-            Attempt: 0);
-
-        var output = await SDLCWorkflow.RunWorkflowAsync(workflow, input);
-
-        Assert.NotNull(output);
-        Assert.True(output!.Success);
-        Assert.Equal("ok", output.Notes);
-    }
-
-    private sealed class StubExecutor : Executor<WorkflowInput, WorkflowOutput>
-    {
-        public StubExecutor() : base("Stub")
+        public TestExecutor() : base("Test")
         {
         }
 
@@ -46,7 +21,34 @@ public class SDLCWorkflowTests
             IWorkflowContext context,
             CancellationToken cancellationToken = default)
         {
-            return ValueTask.FromResult(new WorkflowOutput(true, "ok"));
+            return ValueTask.FromResult(new WorkflowOutput(true, $"Handled {input.IssueNumber}"));
         }
+    }
+
+    [Fact]
+    public void BuildPlannerOnlyWorkflow_ReturnsWorkflow()
+    {
+        var context = MockWorkContext.Create();
+
+        var workflow = SDLCWorkflow.BuildPlannerOnlyWorkflow(context);
+
+        workflow.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task RunWorkflowAsync_ReturnsFinalOutput()
+    {
+        var executor = new TestExecutor();
+        var workflow = new WorkflowBuilder(executor)
+            .WithOutputFrom(executor)
+            .Build();
+
+        var input = new WorkflowInput(1, "Test", "Body", new List<string> { "ready-for-agents" });
+
+        var result = await SDLCWorkflow.RunWorkflowAsync(workflow, input);
+
+        result.Should().NotBeNull();
+        result!.Success.Should().BeTrue();
+        result.Notes.Should().Contain("Handled 1");
     }
 }
