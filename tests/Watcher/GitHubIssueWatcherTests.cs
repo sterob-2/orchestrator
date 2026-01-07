@@ -39,6 +39,70 @@ public class GitHubIssueWatcherTests
     }
 
     [Fact]
+    public async Task RunOnceAsync_TriggersRunnerForDorLabel()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = MockWorkContext.CreateWorkItem(labels: new List<string> { config.Labels.DorLabel });
+
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetOpenWorkItemsAsync(It.IsAny<int>()))
+            .ReturnsAsync(new List<WorkItem> { workItem });
+
+        var runner = new TestRunner();
+        var checkpoints = new InMemoryWorkflowCheckpointStore();
+        var watcher = new GitHubIssueWatcher(
+            config,
+            github.Object,
+            runner,
+            item => new WorkContext(
+                item,
+                github.Object,
+                config,
+                new Mock<IRepoWorkspace>().Object,
+                new Mock<IRepoGit>().Object,
+                new Mock<ILlmClient>().Object),
+            checkpoints,
+            (_, _) => Task.CompletedTask);
+
+        await watcher.RunOnceAsync(CancellationToken.None);
+
+        Assert.True(runner.Called);
+        Assert.Equal(WorkflowStage.DoR, runner.Stage);
+    }
+
+    [Fact]
+    public async Task RunOnceAsync_TriggersRunnerForSpecGateLabel()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = MockWorkContext.CreateWorkItem(labels: new List<string> { config.Labels.SpecGateLabel });
+
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetOpenWorkItemsAsync(It.IsAny<int>()))
+            .ReturnsAsync(new List<WorkItem> { workItem });
+
+        var runner = new TestRunner();
+        var checkpoints = new InMemoryWorkflowCheckpointStore();
+        var watcher = new GitHubIssueWatcher(
+            config,
+            github.Object,
+            runner,
+            item => new WorkContext(
+                item,
+                github.Object,
+                config,
+                new Mock<IRepoWorkspace>().Object,
+                new Mock<IRepoGit>().Object,
+                new Mock<ILlmClient>().Object),
+            checkpoints,
+            (_, _) => Task.CompletedTask);
+
+        await watcher.RunOnceAsync(CancellationToken.None);
+
+        Assert.True(runner.Called);
+        Assert.Equal(WorkflowStage.SpecGate, runner.Stage);
+    }
+
+    [Fact]
     public async Task RunOnceAsync_ResetsWorkItemWhenResetLabelPresent()
     {
         var config = MockWorkContext.CreateConfig();

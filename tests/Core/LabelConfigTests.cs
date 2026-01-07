@@ -14,7 +14,9 @@ public class LabelConfigTests
             DoneLabel: "done",
             BlockedLabel: "blocked",
             PlannerLabel: "planner",
+            DorLabel: "dor",
             TechLeadLabel: "techlead",
+            SpecGateLabel: "spec-gate",
             DevLabel: "dev",
             TestLabel: "test",
             ReleaseLabel: "release",
@@ -34,7 +36,9 @@ public class LabelConfigTests
         Assert.Equal("done", config.DoneLabel);
         Assert.Equal("blocked", config.BlockedLabel);
         Assert.Equal("planner", config.PlannerLabel);
+        Assert.Equal("dor", config.DorLabel);
         Assert.Equal("techlead", config.TechLeadLabel);
+        Assert.Equal("spec-gate", config.SpecGateLabel);
         Assert.Equal("dev", config.DevLabel);
         Assert.Equal("test", config.TestLabel);
         Assert.Equal("release", config.ReleaseLabel);

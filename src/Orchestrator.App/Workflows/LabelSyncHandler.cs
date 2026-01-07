@@ -46,9 +46,9 @@ internal sealed class LabelSyncHandler
         return stage switch
         {
             WorkflowStage.Refinement => _labels.PlannerLabel,
-            WorkflowStage.DoR => _labels.PlannerLabel,
+            WorkflowStage.DoR => _labels.DorLabel,
             WorkflowStage.TechLead => _labels.TechLeadLabel,
-            WorkflowStage.SpecGate => _labels.TechLeadLabel,
+            WorkflowStage.SpecGate => _labels.SpecGateLabel,
             WorkflowStage.Dev => _labels.DevLabel,
             WorkflowStage.CodeReview => _labels.CodeReviewNeededLabel,
             WorkflowStage.DoD => _labels.TestLabel,
@@ -62,7 +62,9 @@ internal sealed class LabelSyncHandler
         return new[]
         {
             _labels.PlannerLabel,
+            _labels.DorLabel,
             _labels.TechLeadLabel,
+            _labels.SpecGateLabel,
             _labels.DevLabel,
             _labels.TestLabel,
             _labels.ReleaseLabel,

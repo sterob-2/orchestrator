@@ -22,7 +22,9 @@ internal sealed class HumanInLoopHandler
         {
             _labels.WorkItemLabel,
             _labels.PlannerLabel,
+            _labels.DorLabel,
             _labels.TechLeadLabel,
+            _labels.SpecGateLabel,
             _labels.DevLabel,
             _labels.TestLabel,
             _labels.ReleaseLabel,

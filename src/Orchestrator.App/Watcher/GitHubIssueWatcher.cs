@@ -35,7 +35,15 @@ internal sealed class GitHubIssueWatcher
             {
                 lastWorkItem = await RunOnceAsync(cancellationToken);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (System.Net.Http.HttpRequestException ex)
+            {
+                Logger.WriteLine(ex.ToString());
+            }
+            catch (TimeoutException ex)
             {
                 Logger.WriteLine(ex.ToString());
             }
@@ -100,7 +108,9 @@ internal sealed class GitHubIssueWatcher
                 item,
                 _config.Labels.WorkItemLabel,
                 _config.Labels.PlannerLabel,
+                _config.Labels.DorLabel,
                 _config.Labels.TechLeadLabel,
+                _config.Labels.SpecGateLabel,
                 _config.Labels.DevLabel,
                 _config.Labels.TestLabel,
                 _config.Labels.ReleaseLabel,
@@ -122,7 +132,9 @@ internal sealed class GitHubIssueWatcher
         var labelsToRemove = new[]
         {
             _config.Labels.PlannerLabel,
+            _config.Labels.DorLabel,
             _config.Labels.TechLeadLabel,
+            _config.Labels.SpecGateLabel,
             _config.Labels.DevLabel,
             _config.Labels.TestLabel,
             _config.Labels.ReleaseLabel,
@@ -150,7 +162,9 @@ internal sealed class GitHubIssueWatcher
         if (HasAnyLabel(
             workItem,
             cfg.Labels.PlannerLabel,
+            cfg.Labels.DorLabel,
             cfg.Labels.TechLeadLabel,
+            cfg.Labels.SpecGateLabel,
             cfg.Labels.DevLabel,
             cfg.Labels.TestLabel,
             cfg.Labels.ReleaseLabel,
@@ -170,15 +184,7 @@ internal sealed class GitHubIssueWatcher
 
     private static bool HasAnyLabel(WorkItem item, params string[] labels)
     {
-        foreach (var label in labels)
-        {
-            if (HasLabel(item, label))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return labels.Any(label => HasLabel(item, label));
     }
 
     private WorkflowStage? GetStageFromLabels(WorkItem item)
@@ -188,9 +194,19 @@ internal sealed class GitHubIssueWatcher
             return WorkflowStage.Refinement;
         }
 
+        if (HasLabel(item, _config.Labels.DorLabel))
+        {
+            return WorkflowStage.DoR;
+        }
+
         if (HasLabel(item, _config.Labels.TechLeadLabel))
         {
             return WorkflowStage.TechLead;
+        }
+
+        if (HasLabel(item, _config.Labels.SpecGateLabel))
+        {
+            return WorkflowStage.SpecGate;
         }
 
         if (HasLabel(item, _config.Labels.DevLabel))
