@@ -98,8 +98,8 @@ internal static class Program
     private static void LogStartupInfo(OrchestratorConfig cfg)
     {
         Logger.WriteLine("Orchestrator starting");
-        Logger.WriteLine($"Repo: {cfg.RepoOwner}/{cfg.RepoName} base {cfg.DefaultBaseBranch}");
+        Logger.WriteLine($"Repo: {cfg.RepoOwner}/{cfg.RepoName} base {cfg.Workflow.DefaultBaseBranch}");
         Logger.WriteLine($"OpenAI base url: {cfg.OpenAiBaseUrl}");
-        Logger.WriteLine($"Work item label: {cfg.WorkItemLabel}");
+        Logger.WriteLine($"Work item label: {cfg.Labels.WorkItemLabel}");
     }
 }

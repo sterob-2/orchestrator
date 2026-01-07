@@ -7,6 +7,7 @@ using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 using OpenAI;
 using OpenAI.Chat;
+using Orchestrator.App.Core.Configuration;
 
 namespace Orchestrator.App.Infrastructure.Llm;
 

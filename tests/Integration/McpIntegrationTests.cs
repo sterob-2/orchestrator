@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Orchestrator.App;
+using Orchestrator.App.Core.Configuration;
 using Xunit;
 
 namespace Orchestrator.App.Tests.Integration;
@@ -36,34 +37,38 @@ public class McpTestFixture : IAsyncLifetime
             GitHubToken: Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? "",
             RepoOwner: "test-owner",
             RepoName: "test-repo",
-            DefaultBaseBranch: "main",
-            PollIntervalSeconds: 120,
-            FastPollIntervalSeconds: 30,
-            WorkItemLabel: "ready-for-agents",
-            InProgressLabel: "in-progress",
-            DoneLabel: "done",
-            BlockedLabel: "blocked",
-            PlannerLabel: "agent:planner",
-            TechLeadLabel: "agent:techlead",
-            DevLabel: "agent:dev",
-            TestLabel: "agent:test",
-            ReleaseLabel: "agent:release",
-            UserReviewRequiredLabel: "user-review-required",
-            ReviewNeededLabel: "agent:review-needed",
-            ReviewedLabel: "agent:reviewed",
-            SpecQuestionsLabel: "spec-questions",
-            SpecClarifiedLabel: "spec-clarified",
-            CodeReviewNeededLabel: "code-review-needed",
-            CodeReviewApprovedLabel: "code-review-approved",
-            CodeReviewChangesRequestedLabel: "code-review-changes-requested",
-            ResetLabel: "agent:reset",
+            Workflow: new WorkflowConfig(
+                DefaultBaseBranch: "main",
+                PollIntervalSeconds: 120,
+                FastPollIntervalSeconds: 30,
+                UseWorkflowMode: false
+            ),
+            Labels: new LabelConfig(
+                WorkItemLabel: "ready-for-agents",
+                InProgressLabel: "in-progress",
+                DoneLabel: "done",
+                BlockedLabel: "blocked",
+                PlannerLabel: "agent:planner",
+                TechLeadLabel: "agent:techlead",
+                DevLabel: "agent:dev",
+                TestLabel: "agent:test",
+                ReleaseLabel: "agent:release",
+                UserReviewRequiredLabel: "user-review-required",
+                ReviewNeededLabel: "agent:review-needed",
+                ReviewedLabel: "agent:reviewed",
+                SpecQuestionsLabel: "spec-questions",
+                SpecClarifiedLabel: "spec-clarified",
+                CodeReviewNeededLabel: "code-review-needed",
+                CodeReviewApprovedLabel: "code-review-approved",
+                CodeReviewChangesRequestedLabel: "code-review-changes-requested",
+                ResetLabel: "agent:reset"
+            ),
             ProjectStatusInProgress: "In Progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "test-owner",
             ProjectOwnerType: "user",
             ProjectNumber: 1,
-            ProjectStatusDone: "Done",
-            UseWorkflowMode: false
+            ProjectStatusDone: "Done"
         );
 
         _manager = new McpClientManager();

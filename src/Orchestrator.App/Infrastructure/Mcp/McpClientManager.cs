@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
+using Orchestrator.App.Core.Configuration;
 
 namespace Orchestrator.App.Infrastructure.Mcp;
 

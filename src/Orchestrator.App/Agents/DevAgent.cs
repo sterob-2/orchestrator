@@ -18,7 +18,7 @@ internal sealed class DevAgent : IRoleAgent
         }
 
         var shouldAddSpecClarifiedLabel = false;
-        if (!ctx.WorkItem.Labels.Contains(ctx.Config.SpecClarifiedLabel, StringComparer.OrdinalIgnoreCase))
+        if (!ctx.WorkItem.Labels.Contains(ctx.Config.Labels.SpecClarifiedLabel, StringComparer.OrdinalIgnoreCase))
         {
             if (IsQuestionsClarified(ctx))
             {
@@ -30,9 +30,9 @@ internal sealed class DevAgent : IRoleAgent
                 return new AgentResult(
                     Success: true,
                     Notes: notes,
-                    NextStageLabel: ctx.Config.TechLeadLabel,
-                    AddLabels: new[] { ctx.Config.SpecQuestionsLabel },
-                    RemoveLabels: new[] { ctx.Config.SpecClarifiedLabel }
+                    NextStageLabel: ctx.Config.Labels.TechLeadLabel,
+                    AddLabels: new[] { ctx.Config.Labels.SpecQuestionsLabel },
+                    RemoveLabels: new[] { ctx.Config.Labels.SpecClarifiedLabel }
                 );
             }
         }
@@ -46,8 +46,8 @@ internal sealed class DevAgent : IRoleAgent
             return new AgentResult(
                 Success: true,
                 Notes: "Spec file missing. Please provide a spec.",
-                NextStageLabel: ctx.Config.TechLeadLabel,
-                AddLabels: new[] { ctx.Config.SpecQuestionsLabel }
+                NextStageLabel: ctx.Config.Labels.TechLeadLabel,
+                AddLabels: new[] { ctx.Config.Labels.SpecQuestionsLabel }
             );
         }
         var reviewNotes = TryGetReviewNotes(ctx);
@@ -59,7 +59,7 @@ internal sealed class DevAgent : IRoleAgent
             return await CreateSpecQuestionAsync(
                 ctx,
                 "Spec lacks a Files section. Please list target files.",
-                ctx.Config.TechLeadLabel
+                ctx.Config.Labels.TechLeadLabel
             );
         }
 
@@ -67,7 +67,7 @@ internal sealed class DevAgent : IRoleAgent
         if (invalid.Count > 0)
         {
             var notes = $"Spec file list contains invalid paths: {string.Join(", ", invalid)}";
-            return await CreateSpecQuestionAsync(ctx, notes, ctx.Config.TechLeadLabel);
+            return await CreateSpecQuestionAsync(ctx, notes, ctx.Config.Labels.TechLeadLabel);
         }
 
         if (!files.Any(AgentHelpers.IsTestFile))
@@ -75,11 +75,11 @@ internal sealed class DevAgent : IRoleAgent
             return await CreateSpecQuestionAsync(
                 ctx,
                 "Spec does not include any test files. Please list unit tests to add or update.",
-                ctx.Config.TechLeadLabel
+                ctx.Config.Labels.TechLeadLabel
             );
         }
 
-        ctx.Repo.EnsureBranch(branch, ctx.Config.DefaultBaseBranch);
+        ctx.Repo.EnsureBranch(branch, ctx.Config.Workflow.DefaultBaseBranch);
         var updatedFiles = new List<string>();
         foreach (var file in files)
         {
@@ -96,7 +96,7 @@ internal sealed class DevAgent : IRoleAgent
                 return await CreateSpecQuestionAsync(
                     ctx,
                     $"Generated empty content for `{file}`. Please clarify requirements.",
-                    ctx.Config.TechLeadLabel
+                    ctx.Config.Labels.TechLeadLabel
                 );
             }
 
@@ -116,7 +116,7 @@ internal sealed class DevAgent : IRoleAgent
                 return await CreateSpecQuestionAsync(
                     ctx,
                     $"Self-check failed against spec/review: {retryNotes}",
-                    ctx.Config.TechLeadLabel
+                    ctx.Config.Labels.TechLeadLabel
                 );
             }
         }
@@ -136,7 +136,7 @@ internal sealed class DevAgent : IRoleAgent
                 return new AgentResult(
                     Success: true,
                     Notes: "No changes to commit. Spec/review may already be satisfied or requires clarification.",
-                    AddLabels: new[] { ctx.Config.SpecClarifiedLabel }
+                    AddLabels: new[] { ctx.Config.Labels.SpecClarifiedLabel }
                 );
             }
 
@@ -146,10 +146,10 @@ internal sealed class DevAgent : IRoleAgent
             );
         }
 
-        var addLabels = new List<string> { ctx.Config.CodeReviewNeededLabel };
+        var addLabels = new List<string> { ctx.Config.Labels.CodeReviewNeededLabel };
         if (shouldAddSpecClarifiedLabel)
         {
-            addLabels.Add(ctx.Config.SpecClarifiedLabel);
+            addLabels.Add(ctx.Config.Labels.SpecClarifiedLabel);
         }
 
         return new AgentResult(
@@ -353,7 +353,7 @@ internal sealed class DevAgent : IRoleAgent
                     Success: true,
                     Notes: "Spec question already asked. Waiting for TechLead clarification.",
                     NextStageLabel: nextStageLabel,
-                    AddLabels: new[] { ctx.Config.SpecQuestionsLabel }
+                    AddLabels: new[] { ctx.Config.Labels.SpecQuestionsLabel }
                 );
             }
         }
@@ -362,7 +362,7 @@ internal sealed class DevAgent : IRoleAgent
         var updated = AgentTemplateUtil.UpdateStatus(content, "NEEDS_CLARIFICATION");
         updated = AgentTemplateUtil.AppendQuestion(updated, question);
 
-        ctx.Repo.EnsureBranch(branch, ctx.Config.DefaultBaseBranch);
+        ctx.Repo.EnsureBranch(branch, ctx.Config.Workflow.DefaultBaseBranch);
 
         await FileOperationHelper.WriteAllTextAsync(ctx, questionsPath, updated);
 
@@ -372,7 +372,7 @@ internal sealed class DevAgent : IRoleAgent
             Success: true,
             Notes: question,
             NextStageLabel: nextStageLabel,
-            AddLabels: new[] { ctx.Config.SpecQuestionsLabel }
+            AddLabels: new[] { ctx.Config.Labels.SpecQuestionsLabel }
         );
     }
 

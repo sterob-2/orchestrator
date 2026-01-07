@@ -16,7 +16,7 @@ internal sealed class TestAgent : IRoleAgent
 
         if (updatedSpec)
         {
-            ctx.Repo.EnsureBranch(branch, ctx.Config.DefaultBaseBranch);
+            ctx.Repo.EnsureBranch(branch, ctx.Config.Workflow.DefaultBaseBranch);
             ctx.Repo.CommitAndPush(branch, $"test: update acceptance criteria for issue {ctx.WorkItem.Number}", new[] { specPath });
         }
 

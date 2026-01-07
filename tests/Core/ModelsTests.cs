@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Moq;
 using Orchestrator.App;
 using Orchestrator.App.Agents;
+using Orchestrator.App.Core.Configuration;
 using Xunit;
 
 namespace Orchestrator.App.Tests.Core;

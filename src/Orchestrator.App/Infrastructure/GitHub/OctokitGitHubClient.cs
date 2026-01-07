@@ -1,4 +1,5 @@
 using Octokit;
+using Orchestrator.App.Core.Configuration;
 using System.Net.Http;
 
 namespace Orchestrator.App.Infrastructure.GitHub;
@@ -245,7 +246,7 @@ internal sealed class OctokitGitHubClient
     /// </summary>
     public async Task CreateBranchAsync(string branchName)
     {
-        var baseBranch = await _octokit.Git.Reference.Get(RepoOwner, RepoName, $"heads/{_cfg.DefaultBaseBranch}");
+        var baseBranch = await _octokit.Git.Reference.Get(RepoOwner, RepoName, $"heads/{_cfg.Workflow.DefaultBaseBranch}");
 
         try
         {

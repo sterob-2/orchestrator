@@ -23,7 +23,7 @@ public class DevAgentTests
 
         Assert.True(result.Success);
         Assert.NotNull(result.Notes);
-        Assert.Contains(ctx.Config.SpecQuestionsLabel, result.AddLabels ?? Array.Empty<string>());
+        Assert.Contains(ctx.Config.Labels.SpecQuestionsLabel, result.AddLabels ?? Array.Empty<string>());
 
         System.IO.Directory.Delete(workspace.Root, true);
     }

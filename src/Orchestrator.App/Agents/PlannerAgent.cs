@@ -23,7 +23,7 @@ internal sealed class PlannerAgent : IRoleAgent
         }
 
         var branch = WorkItemBranch.BuildBranchName(ctx.WorkItem);
-        ctx.Repo.EnsureBranch(branch, ctx.Config.DefaultBaseBranch);
+        ctx.Repo.EnsureBranch(branch, ctx.Config.Workflow.DefaultBaseBranch);
 
         var templatePath = "docs/templates/plan.md";
         var tokens = AgentTemplateUtil.BuildTokens(ctx);
@@ -37,7 +37,7 @@ internal sealed class PlannerAgent : IRoleAgent
         {
             var prTitle = $"Agent Plan: {ctx.WorkItem.Title}";
             var prBody = $"Work item #{ctx.WorkItem.Number}\n\nPlan: {planPath}";
-            await ctx.GitHub.OpenPullRequestAsync(branch, ctx.Config.DefaultBaseBranch, prTitle, prBody);
+            await ctx.GitHub.OpenPullRequestAsync(branch, ctx.Config.Workflow.DefaultBaseBranch, prTitle, prBody);
         }
         else
         {

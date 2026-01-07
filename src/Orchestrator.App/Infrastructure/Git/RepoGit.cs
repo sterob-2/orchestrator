@@ -1,5 +1,6 @@
 using LibGit2Sharp;
 using LibGit2Sharp.Handlers;
+using Orchestrator.App.Core.Configuration;
 
 namespace Orchestrator.App.Infrastructure.Git;
 

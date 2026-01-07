@@ -41,7 +41,7 @@ internal sealed class TechLeadReviewAgent : IRoleAgent
             decision);
         reviewContent = UpdateReviewContent(reviewContent, reviewNotes, decision);
 
-        ctx.Repo.EnsureBranch(branch, ctx.Config.DefaultBaseBranch);
+        ctx.Repo.EnsureBranch(branch, ctx.Config.Workflow.DefaultBaseBranch);
         ctx.Workspace.WriteAllText(reviewPath, reviewContent);
         ctx.Repo.CommitAndPush(branch, $"docs: add review for issue {ctx.WorkItem.Number}", new[] { reviewPath });
 
@@ -50,16 +50,16 @@ internal sealed class TechLeadReviewAgent : IRoleAgent
             return new AgentResult(
                 Success: true,
                 Notes: reviewNotes,
-                AddLabels: new[] { ctx.Config.CodeReviewChangesRequestedLabel },
-                RemoveLabels: new[] { ctx.Config.CodeReviewNeededLabel }
+                AddLabels: new[] { ctx.Config.Labels.CodeReviewChangesRequestedLabel },
+                RemoveLabels: new[] { ctx.Config.Labels.CodeReviewNeededLabel }
             );
         }
 
         return new AgentResult(
             Success: true,
             Notes: reviewNotes,
-            AddLabels: new[] { ctx.Config.CodeReviewApprovedLabel },
-            RemoveLabels: new[] { ctx.Config.CodeReviewNeededLabel, ctx.Config.CodeReviewChangesRequestedLabel }
+            AddLabels: new[] { ctx.Config.Labels.CodeReviewApprovedLabel },
+            RemoveLabels: new[] { ctx.Config.Labels.CodeReviewNeededLabel, ctx.Config.Labels.CodeReviewChangesRequestedLabel }
         );
     }
 

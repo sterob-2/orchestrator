@@ -1,3 +1,5 @@
+using Orchestrator.App.Core.Configuration;
+
 namespace Orchestrator.App;
 
 internal sealed record WorkItem(int Number, string Title, string Body, string Url, IReadOnlyList<string> Labels);
