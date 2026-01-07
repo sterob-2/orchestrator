@@ -2,7 +2,7 @@ using System;
 
 namespace Orchestrator.App.Core.Configuration;
 
-internal sealed record OrchestratorConfig(
+public sealed record OrchestratorConfig(
     string OpenAiBaseUrl,
     string OpenAiApiKey,
     string OpenAiModel,

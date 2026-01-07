@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Moq;
 using Orchestrator.App;
-using Orchestrator.App.Core.Configuration;
 using Xunit;
 
 namespace Orchestrator.App.Tests.Core;
@@ -131,7 +130,7 @@ public class ModelsTests
             ProjectOwnerType: "user",
             ProjectNumber: 7);
         var input = new WorkflowInput(item, project, "planner", 1);
-        var output = new WorkflowOutput(true, "notes", WorkflowStage.Dev);
+        var output = new WorkflowOutput(true, "notes", "Next");
 
         Assert.Same(item, input.WorkItem);
         Assert.Same(project, input.ProjectContext);
@@ -140,7 +139,7 @@ public class ModelsTests
 
         Assert.True(output.Success);
         Assert.Equal("notes", output.Notes);
-        Assert.Equal(WorkflowStage.Dev, output.NextStage);
+        Assert.Equal("Next", output.NextStage);
     }
 
     [Fact]

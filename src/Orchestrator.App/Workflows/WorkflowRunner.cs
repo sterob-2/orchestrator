@@ -1,78 +1,36 @@
+using System.Text;
+
 namespace Orchestrator.App.Workflows;
 
-internal sealed class WorkflowRunner : IWorkflowRunner
+internal sealed record WorkflowRunResult(bool Success, string Notes);
+
+internal sealed class WorkflowRunner
 {
-    private readonly LabelSyncHandler _labelSync;
-    private readonly HumanInLoopHandler _humanInLoop;
-    private readonly IWorkflowCheckpointStore _checkpointStore;
+    private readonly WorkflowFactory _factory;
 
-    public WorkflowRunner(
-        LabelSyncHandler labelSync,
-        HumanInLoopHandler humanInLoop,
-        IWorkflowCheckpointStore checkpointStore)
+    public WorkflowRunner(WorkflowFactory factory)
     {
-        _labelSync = labelSync;
-        _humanInLoop = humanInLoop;
-        _checkpointStore = checkpointStore;
+        _factory = factory;
     }
 
-    public async Task<WorkflowOutput?> RunAsync(WorkContext context, WorkflowStage stage, CancellationToken cancellationToken)
+    public async Task<WorkflowRunResult> RunAsync(WorkContext context, CancellationToken cancellationToken)
     {
-        var attempt = _checkpointStore.IncrementStage(context.WorkItem.Number, stage);
-        var limit = MaxIterationsForStage(context.Config.Workflow, stage);
-        if (attempt > limit)
+        var stages = _factory.BuildDefaultStages(context);
+        var notes = new StringBuilder();
+
+        foreach (var stage in stages)
         {
-            var blocked = new WorkflowOutput(
-                Success: false,
-                Notes: $"Iteration limit reached for {stage} ({attempt}/{limit}).",
-                NextStage: null);
-            await _labelSync.ApplyAsync(context.WorkItem, blocked);
-            await _humanInLoop.ApplyAsync(context.WorkItem, blocked);
-            return blocked;
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var result = await stage.RunAsync(context, cancellationToken);
+            notes.AppendLine($"{stage.Name}: {result.Notes}");
+
+            if (!result.Success)
+            {
+                return new WorkflowRunResult(false, notes.ToString());
+            }
         }
 
-        var workflow = WorkflowFactory.Build(stage);
-        var input = new WorkflowInput(
-            context.WorkItem,
-            BuildProjectContext(context.Config),
-            Mode: null,
-            Attempt: attempt);
-
-        var output = await SDLCWorkflow.RunWorkflowAsync(workflow, input);
-        if (output != null)
-        {
-            await _labelSync.ApplyAsync(context.WorkItem, output);
-            await _humanInLoop.ApplyAsync(context.WorkItem, output);
-        }
-
-        return output;
-    }
-
-    private static int MaxIterationsForStage(WorkflowConfig config, WorkflowStage stage)
-    {
-        return stage switch
-        {
-            WorkflowStage.Refinement or WorkflowStage.DoR => config.MaxRefinementIterations,
-            WorkflowStage.TechLead or WorkflowStage.SpecGate => config.MaxTechLeadIterations,
-            WorkflowStage.Dev => config.MaxDevIterations,
-            WorkflowStage.CodeReview => config.MaxCodeReviewIterations,
-            WorkflowStage.DoD => config.MaxDodIterations,
-            WorkflowStage.Release => 1,
-            _ => 1
-        };
-    }
-
-    private static ProjectContext BuildProjectContext(OrchestratorConfig cfg)
-    {
-        return new ProjectContext(
-            cfg.RepoOwner,
-            cfg.RepoName,
-            cfg.Workflow.DefaultBaseBranch,
-            cfg.WorkspacePath,
-            cfg.WorkspaceHostPath,
-            cfg.ProjectOwner,
-            cfg.ProjectOwnerType,
-            cfg.ProjectNumber
-        );
+        return new WorkflowRunResult(true, notes.ToString());
     }
 }

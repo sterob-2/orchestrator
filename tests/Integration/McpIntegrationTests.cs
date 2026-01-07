@@ -23,6 +23,33 @@ public class McpTestFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
+        var labels = new LabelConfig(
+            WorkItemLabel: "ready-for-agents",
+            InProgressLabel: "in-progress",
+            DoneLabel: "done",
+            BlockedLabel: "blocked",
+            PlannerLabel: "agent:planner",
+            TechLeadLabel: "agent:techlead",
+            DevLabel: "agent:dev",
+            TestLabel: "agent:test",
+            ReleaseLabel: "agent:release",
+            UserReviewRequiredLabel: "user-review-required",
+            ReviewNeededLabel: "agent:review-needed",
+            ReviewedLabel: "agent:reviewed",
+            SpecQuestionsLabel: "spec-questions",
+            SpecClarifiedLabel: "spec-clarified",
+            CodeReviewNeededLabel: "code-review-needed",
+            CodeReviewApprovedLabel: "code-review-approved",
+            CodeReviewChangesRequestedLabel: "code-review-changes-requested",
+            ResetLabel: "agent:reset"
+        );
+
+        var workflow = new WorkflowConfig(
+            DefaultBaseBranch: "main",
+            PollIntervalSeconds: 120,
+            FastPollIntervalSeconds: 30,
+            UseWorkflowMode: false
+        );
         var config = new OrchestratorConfig(
             OpenAiBaseUrl: "https://api.openai.com/v1",
             OpenAiApiKey: Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? "test-key",
@@ -37,38 +64,8 @@ public class McpTestFixture : IAsyncLifetime
             GitHubToken: Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? "",
             RepoOwner: "test-owner",
             RepoName: "test-repo",
-            Workflow: new WorkflowConfig(
-                DefaultBaseBranch: "main",
-                PollIntervalSeconds: 120,
-                FastPollIntervalSeconds: 30,
-                MaxRefinementIterations: 3,
-                MaxTechLeadIterations: 3,
-                MaxDevIterations: 3,
-                MaxCodeReviewIterations: 3,
-                MaxDodIterations: 3
-            ),
-            Labels: new LabelConfig(
-                WorkItemLabel: "ready-for-agents",
-                InProgressLabel: "in-progress",
-                DoneLabel: "done",
-                BlockedLabel: "blocked",
-                PlannerLabel: "agent:planner",
-                DorLabel: "agent:dor",
-                TechLeadLabel: "agent:techlead",
-                SpecGateLabel: "agent:spec-gate",
-                DevLabel: "agent:dev",
-                TestLabel: "agent:test",
-                ReleaseLabel: "agent:release",
-                UserReviewRequiredLabel: "user-review-required",
-                ReviewNeededLabel: "agent:review-needed",
-                ReviewedLabel: "agent:reviewed",
-                SpecQuestionsLabel: "spec-questions",
-                SpecClarifiedLabel: "spec-clarified",
-                CodeReviewNeededLabel: "code-review-needed",
-                CodeReviewApprovedLabel: "code-review-approved",
-                CodeReviewChangesRequestedLabel: "code-review-changes-requested",
-                ResetLabel: "agent:reset"
-            ),
+            Workflow: workflow,
+            Labels: labels,
             ProjectStatusInProgress: "In Progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "test-owner",

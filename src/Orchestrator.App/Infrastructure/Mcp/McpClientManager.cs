@@ -13,7 +13,7 @@ namespace Orchestrator.App.Infrastructure.Mcp;
 /// Manages MCP (Model Context Protocol) client connections and provides AI tools
 /// for filesystem, git, and GitHub operations.
 /// </summary>
-internal class McpClientManager : IAsyncDisposable
+public class McpClientManager : IAsyncDisposable
 {
     private readonly List<McpClient> _clients = new();
     private readonly List<McpClientTool> _tools = new();

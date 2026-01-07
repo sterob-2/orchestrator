@@ -1,6 +1,6 @@
 namespace Orchestrator.App.Core.Interfaces;
 
-internal interface IRepoWorkspace
+public interface IRepoWorkspace
 {
     string Root { get; }
     string ResolvePath(string relativePath);
