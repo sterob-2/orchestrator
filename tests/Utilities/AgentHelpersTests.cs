@@ -1,4 +1,4 @@
-using Orchestrator.App.Agents;
+using Orchestrator.App.Utilities;
 using Orchestrator.App.Tests.TestHelpers;
 using Xunit;
 

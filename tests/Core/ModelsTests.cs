@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Moq;
 using Orchestrator.App;
-using Orchestrator.App.Agents;
 using Orchestrator.App.Core.Configuration;
 using Xunit;
 
@@ -98,33 +97,6 @@ public class ModelsTests
         Assert.Null(context.Workspace);
         Assert.Null(context.Repo);
         Assert.Null(context.Llm);
-    }
-
-    [Fact]
-    public void AgentResult_FactoryMethods()
-    {
-        var ok = AgentResult.Ok("ok");
-        var fail = AgentResult.Fail("fail");
-
-        Assert.True(ok.Success);
-        Assert.Equal("ok", ok.Notes);
-        Assert.False(fail.Success);
-        Assert.Equal("fail", fail.Notes);
-    }
-
-    [Fact]
-    public void AgentResult_WithLabels()
-    {
-        var add = new List<string> { "add" };
-        var remove = new List<string> { "remove" };
-
-        var result = new AgentResult(true, "notes", "next", add, remove);
-
-        Assert.True(result.Success);
-        Assert.Equal("notes", result.Notes);
-        Assert.Equal("next", result.NextStageLabel);
-        Assert.Equal(add, result.AddLabels);
-        Assert.Equal(remove, result.RemoveLabels);
     }
 
     [Fact]
