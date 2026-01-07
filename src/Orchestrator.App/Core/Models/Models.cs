@@ -1,12 +1,14 @@
+using Orchestrator.App.Core.Interfaces;
+
 namespace Orchestrator.App.Core.Models;
 
 internal sealed record WorkContext(
     WorkItem WorkItem,
-    OctokitGitHubClient GitHub,
+    IGitHubClient GitHub,
     OrchestratorConfig Config,
-    RepoWorkspace Workspace,
-    RepoGit Repo,
-    LlmClient Llm,
+    IRepoWorkspace Workspace,
+    IRepoGit Repo,
+    ILlmClient Llm,
     McpClientManager? Mcp = null)
 {
     /// <summary>

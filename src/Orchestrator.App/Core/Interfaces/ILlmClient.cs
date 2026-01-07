@@ -10,5 +10,5 @@ internal interface ILlmClient
         string systemPrompt,
         string userPrompt,
         IEnumerable<McpClientTool> mcpTools,
-        global::Orchestrator.App.McpClientManager mcpManager);
+        McpClientManager mcpManager);
 }
