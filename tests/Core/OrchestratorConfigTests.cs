@@ -102,23 +102,7 @@ public class OrchestratorConfigTests
 
         using var scope = new EnvScope(values);
 
-        var expected = new OrchestratorConfig(
-            OpenAiBaseUrl: "https://example.test/v1",
-            OpenAiApiKey: "key",
-            OpenAiModel: "model-a",
-            DevModel: "model-b",
-            TechLeadModel: "model-c",
-            WorkspacePath: "/tmp/workspace",
-            WorkspaceHostPath: "/tmp/workspace",
-            GitRemoteUrl: "https://example.com/repo.git",
-            GitAuthorName: "Agent",
-            GitAuthorEmail: "agent@example.com",
-            GitHubToken: "token",
-            RepoOwner: "owner",
-            RepoName: "repo",
-            DefaultBaseBranch: "develop",
-            PollIntervalSeconds: 45,
-            FastPollIntervalSeconds: 12,
+        var labels = new LabelConfig(
             WorkItemLabel: "work",
             InProgressLabel: "in-progress",
             DoneLabel: "done",
@@ -136,14 +120,38 @@ public class OrchestratorConfigTests
             CodeReviewNeededLabel: "code-review-needed",
             CodeReviewApprovedLabel: "code-review-approved",
             CodeReviewChangesRequestedLabel: "code-review-changes-requested",
-            ResetLabel: "reset",
+            ResetLabel: "reset"
+        );
+
+        var workflow = new WorkflowConfig(
+            DefaultBaseBranch: "develop",
+            PollIntervalSeconds: 45,
+            FastPollIntervalSeconds: 12,
+            UseWorkflowMode: true
+        );
+
+        var expected = new OrchestratorConfig(
+            OpenAiBaseUrl: "https://example.test/v1",
+            OpenAiApiKey: "key",
+            OpenAiModel: "model-a",
+            DevModel: "model-b",
+            TechLeadModel: "model-c",
+            WorkspacePath: "/tmp/workspace",
+            WorkspaceHostPath: "/tmp/workspace",
+            GitRemoteUrl: "https://example.com/repo.git",
+            GitAuthorName: "Agent",
+            GitAuthorEmail: "agent@example.com",
+            GitHubToken: "token",
+            RepoOwner: "owner",
+            RepoName: "repo",
+            Workflow: workflow,
+            Labels: labels,
             ProjectStatusInProgress: "In Progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "proj-owner",
             ProjectOwnerType: "org",
             ProjectNumber: 42,
-            ProjectStatusDone: "Done",
-            UseWorkflowMode: true
+            ProjectStatusDone: "Done"
         );
 
         var actual = OrchestratorConfig.FromEnvironment();
@@ -156,23 +164,7 @@ public class OrchestratorConfigTests
     {
         using var scope = new EnvScope(AllKeys.ToDictionary(key => key, _ => (string?)null));
 
-        var expected = new OrchestratorConfig(
-            OpenAiBaseUrl: "https://api.openai.com/v1",
-            OpenAiApiKey: "",
-            OpenAiModel: "gpt-5-mini",
-            DevModel: "gpt-5",
-            TechLeadModel: "gpt-5-mini",
-            WorkspacePath: "/workspace",
-            WorkspaceHostPath: "/workspace",
-            GitRemoteUrl: "",
-            GitAuthorName: "Orchestrator Agent",
-            GitAuthorEmail: "orchestrator@example.local",
-            GitHubToken: "",
-            RepoOwner: "",
-            RepoName: "",
-            DefaultBaseBranch: "main",
-            PollIntervalSeconds: 120,
-            FastPollIntervalSeconds: 30,
+        var labels = new LabelConfig(
             WorkItemLabel: "ready-for-agents",
             InProgressLabel: "in-progress",
             DoneLabel: "done",
@@ -190,14 +182,38 @@ public class OrchestratorConfigTests
             CodeReviewNeededLabel: "code-review-needed",
             CodeReviewApprovedLabel: "code-review-approved",
             CodeReviewChangesRequestedLabel: "code-review-changes-requested",
-            ResetLabel: "agent:reset",
+            ResetLabel: "agent:reset"
+        );
+
+        var workflow = new WorkflowConfig(
+            DefaultBaseBranch: "main",
+            PollIntervalSeconds: 120,
+            FastPollIntervalSeconds: 30,
+            UseWorkflowMode: false
+        );
+
+        var expected = new OrchestratorConfig(
+            OpenAiBaseUrl: "https://api.openai.com/v1",
+            OpenAiApiKey: "",
+            OpenAiModel: "gpt-5-mini",
+            DevModel: "gpt-5",
+            TechLeadModel: "gpt-5-mini",
+            WorkspacePath: "/workspace",
+            WorkspaceHostPath: "/workspace",
+            GitRemoteUrl: "",
+            GitAuthorName: "Orchestrator Agent",
+            GitAuthorEmail: "orchestrator@example.local",
+            GitHubToken: "",
+            RepoOwner: "",
+            RepoName: "",
+            Workflow: workflow,
+            Labels: labels,
             ProjectStatusInProgress: "In progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "",
             ProjectOwnerType: "user",
             ProjectNumber: null,
-            ProjectStatusDone: "Done",
-            UseWorkflowMode: false
+            ProjectStatusDone: "Done"
         );
 
         var actual = OrchestratorConfig.FromEnvironment();
@@ -232,8 +248,8 @@ public class OrchestratorConfigTests
 
         var actual = OrchestratorConfig.FromEnvironment();
 
-        Assert.Equal(120, actual.PollIntervalSeconds);
-        Assert.Equal(30, actual.FastPollIntervalSeconds);
+        Assert.Equal(120, actual.Workflow.PollIntervalSeconds);
+        Assert.Equal(30, actual.Workflow.FastPollIntervalSeconds);
         Assert.Null(actual.ProjectNumber);
     }
 
@@ -247,7 +263,7 @@ public class OrchestratorConfigTests
 
         var actual = OrchestratorConfig.FromEnvironment();
 
-        Assert.True(actual.UseWorkflowMode);
+        Assert.True(actual.Workflow.UseWorkflowMode);
     }
 
     [Fact]
@@ -261,8 +277,8 @@ public class OrchestratorConfigTests
 
         var actual = OrchestratorConfig.FromEnvironment();
 
-        Assert.Equal(10, actual.PollIntervalSeconds);
-        Assert.Equal(20, actual.FastPollIntervalSeconds);
+        Assert.Equal(10, actual.Workflow.PollIntervalSeconds);
+        Assert.Equal(20, actual.Workflow.FastPollIntervalSeconds);
     }
 
     [Fact]
@@ -275,7 +291,7 @@ public class OrchestratorConfigTests
 
         var actual = OrchestratorConfig.FromEnvironment();
 
-        Assert.Equal(120, actual.PollIntervalSeconds);
+        Assert.Equal(120, actual.Workflow.PollIntervalSeconds);
     }
 
     [Fact]
@@ -314,7 +330,7 @@ public class OrchestratorConfigTests
 
         var actual = OrchestratorConfig.FromEnvironment();
 
-        Assert.False(actual.UseWorkflowMode);
+        Assert.False(actual.Workflow.UseWorkflowMode);
     }
 
     private sealed class EnvScope : IDisposable

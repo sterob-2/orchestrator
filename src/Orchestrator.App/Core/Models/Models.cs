@@ -1,10 +1,12 @@
+using Orchestrator.App.Core.Interfaces;
+
 namespace Orchestrator.App.Core.Models;
 
-internal sealed record WorkContext(
+public sealed record WorkContext(
     WorkItem WorkItem,
     OctokitGitHubClient GitHub,
     OrchestratorConfig Config,
-    RepoWorkspace Workspace,
+    IRepoWorkspace Workspace, // Use Interface
     RepoGit Repo,
     LlmClient Llm,
     McpClientManager? Mcp = null)
@@ -15,17 +17,17 @@ internal sealed record WorkContext(
     public McpFileOperations? McpFiles => Mcp != null ? new McpFileOperations(Mcp) : null;
 };
 
-internal sealed record RepoFile(string Path, string Content, string Sha);
+public sealed record RepoFile(string Path, string Content, string Sha);
 
-internal sealed record IssueComment(string Author, string Body);
+public sealed record IssueComment(string Author, string Body);
 
-internal sealed record PipelineResult(bool Success, string Summary, string PullRequestTitle, string PullRequestBody)
+public sealed record PipelineResult(bool Success, string Summary, string PullRequestTitle, string PullRequestBody)
 {
     public static PipelineResult Fail(string summary) => new(false, summary, "", "");
     public static PipelineResult Ok(string summary, string prTitle, string prBody) => new(true, summary, prTitle, prBody);
 }
 
-internal static class WorkItemBranch
+public static class WorkItemBranch
 {
     public static string BuildBranchName(WorkItem item)
     {

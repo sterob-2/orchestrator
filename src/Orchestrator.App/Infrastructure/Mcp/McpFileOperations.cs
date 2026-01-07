@@ -8,7 +8,7 @@ namespace Orchestrator.App.Infrastructure.Mcp;
 /// Provides file operations using MCP filesystem tools.
 /// This is a hybrid approach that keeps agent orchestration while using MCP tools.
 /// </summary>
-internal sealed class McpFileOperations
+public sealed class McpFileOperations
 {
     private readonly McpClientManager _mcpManager;
 

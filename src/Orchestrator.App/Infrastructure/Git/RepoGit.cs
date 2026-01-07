@@ -3,7 +3,7 @@ using LibGit2Sharp.Handlers;
 
 namespace Orchestrator.App.Infrastructure.Git;
 
-internal sealed class RepoGit
+public sealed class RepoGit
 {
     private readonly OrchestratorConfig _cfg;
     private readonly string _root;

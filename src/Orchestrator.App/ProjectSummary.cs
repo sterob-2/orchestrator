@@ -4,23 +4,23 @@ using System.Linq;
 
 namespace Orchestrator.App;
 
-internal sealed record ProjectItem(string Title, int? IssueNumber, string? Url, string Status);
+public sealed record ProjectItem(string Title, int? IssueNumber, string? Url, string Status);
 
-internal enum ProjectOwnerType
+public enum ProjectOwnerType
 {
     User,
     Organization
 }
 
-internal sealed record ProjectSnapshot(string Owner, int Number, ProjectOwnerType OwnerType, string Title, IReadOnlyList<ProjectItem> Items);
+public sealed record ProjectSnapshot(string Owner, int Number, ProjectOwnerType OwnerType, string Title, IReadOnlyList<ProjectItem> Items);
 
-internal sealed record ProjectMetadata(string ProjectId, string StatusFieldId, IReadOnlyDictionary<string, string> StatusOptions, IReadOnlyList<ProjectItemRef> Items);
+public sealed record ProjectMetadata(string ProjectId, string StatusFieldId, IReadOnlyDictionary<string, string> StatusOptions, IReadOnlyList<ProjectItemRef> Items);
 
-internal sealed record ProjectItemRef(string ItemId, int IssueNumber);
+public sealed record ProjectItemRef(string ItemId, int IssueNumber);
 
-internal sealed record ProjectReference(string Owner, int Number, ProjectOwnerType OwnerType);
+public sealed record ProjectReference(string Owner, int Number, ProjectOwnerType OwnerType);
 
-internal static class ProjectSummaryFormatter
+public static class ProjectSummaryFormatter
 {
     public static string Format(ProjectSnapshot snapshot)
     {

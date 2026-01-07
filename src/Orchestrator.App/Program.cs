@@ -2,13 +2,14 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using dotenv.net;
+using Orchestrator.App.Watcher;
+using Orchestrator.App.Workflows;
 
 namespace Orchestrator.App;
 
 /// <summary>
 /// Minimal entry point for Workstream 1.
-/// Loads configuration and starts the orchestrator.
-/// Will be replaced by Workstream 3's Watcher + WorkflowRunner.
+/// Loads configuration and starts the watcher + workflow runner.
 /// </summary>
 internal static class Program
 {
@@ -62,9 +63,11 @@ internal static class Program
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
-        // Create and run orchestrator
-        var orchestrator = new LegacyOrchestrator(cfg, github, workspace, repoGit, llm, mcpManager);
-        await orchestrator.RunAsync(cts.Token);
+        // Create and run watcher
+        var workflowFactory = new WorkflowFactory();
+        var workflowRunner = new WorkflowRunner(workflowFactory);
+        var watcher = new GitHubIssueWatcher(cfg, github, workspace, repoGit, llm, mcpManager, workflowRunner);
+        await watcher.RunAsync(cts.Token);
 
         return 0;
     }
@@ -98,8 +101,8 @@ internal static class Program
     private static void LogStartupInfo(OrchestratorConfig cfg)
     {
         Logger.WriteLine("Orchestrator starting");
-        Logger.WriteLine($"Repo: {cfg.RepoOwner}/{cfg.RepoName} base {cfg.DefaultBaseBranch}");
+        Logger.WriteLine($"Repo: {cfg.RepoOwner}/{cfg.RepoName} base {cfg.Workflow.DefaultBaseBranch}");
         Logger.WriteLine($"OpenAI base url: {cfg.OpenAiBaseUrl}");
-        Logger.WriteLine($"Work item label: {cfg.WorkItemLabel}");
+        Logger.WriteLine($"Work item label: {cfg.Labels.WorkItemLabel}");
     }
 }

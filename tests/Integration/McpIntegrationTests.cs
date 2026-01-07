@@ -22,23 +22,7 @@ public class McpTestFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        var config = new OrchestratorConfig(
-            OpenAiBaseUrl: "https://api.openai.com/v1",
-            OpenAiApiKey: Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? "test-key",
-            OpenAiModel: "gpt-4o-mini",
-            DevModel: "gpt-4o",
-            TechLeadModel: "gpt-4o-mini",
-            WorkspacePath: TestWorkspace,
-            WorkspaceHostPath: TestWorkspace,
-            GitRemoteUrl: "https://github.com/test/repo.git",
-            GitAuthorName: "Test Agent",
-            GitAuthorEmail: "test@example.com",
-            GitHubToken: Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? "",
-            RepoOwner: "test-owner",
-            RepoName: "test-repo",
-            DefaultBaseBranch: "main",
-            PollIntervalSeconds: 120,
-            FastPollIntervalSeconds: 30,
+        var labels = new LabelConfig(
             WorkItemLabel: "ready-for-agents",
             InProgressLabel: "in-progress",
             DoneLabel: "done",
@@ -56,14 +40,38 @@ public class McpTestFixture : IAsyncLifetime
             CodeReviewNeededLabel: "code-review-needed",
             CodeReviewApprovedLabel: "code-review-approved",
             CodeReviewChangesRequestedLabel: "code-review-changes-requested",
-            ResetLabel: "agent:reset",
+            ResetLabel: "agent:reset"
+        );
+
+        var workflow = new WorkflowConfig(
+            DefaultBaseBranch: "main",
+            PollIntervalSeconds: 120,
+            FastPollIntervalSeconds: 30,
+            UseWorkflowMode: false
+        );
+
+        var config = new OrchestratorConfig(
+            OpenAiBaseUrl: "https://api.openai.com/v1",
+            OpenAiApiKey: Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? "test-key",
+            OpenAiModel: "gpt-4o-mini",
+            DevModel: "gpt-4o",
+            TechLeadModel: "gpt-4o-mini",
+            WorkspacePath: TestWorkspace,
+            WorkspaceHostPath: TestWorkspace,
+            GitRemoteUrl: "https://github.com/test/repo.git",
+            GitAuthorName: "Test Agent",
+            GitAuthorEmail: "test@example.com",
+            GitHubToken: Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? "",
+            RepoOwner: "test-owner",
+            RepoName: "test-repo",
+            Workflow: workflow,
+            Labels: labels,
             ProjectStatusInProgress: "In Progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "test-owner",
             ProjectOwnerType: "user",
             ProjectNumber: 1,
-            ProjectStatusDone: "Done",
-            UseWorkflowMode: false
+            ProjectStatusDone: "Done"
         );
 
         _manager = new McpClientManager();

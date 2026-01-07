@@ -1,6 +1,6 @@
 namespace Orchestrator.App.Core.Models;
 
-internal enum TouchOperation
+public enum TouchOperation
 {
     Add,
     Modify,
@@ -8,7 +8,7 @@ internal enum TouchOperation
     Forbidden
 }
 
-internal sealed record TouchListEntry(
+public sealed record TouchListEntry(
     TouchOperation Operation,
     string Path,
     string? Notes

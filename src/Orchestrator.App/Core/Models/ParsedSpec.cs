@@ -1,6 +1,6 @@
 namespace Orchestrator.App.Core.Models;
 
-internal sealed record ParsedSpec(
+public sealed record ParsedSpec(
     string Goal,
     string NonGoals,
     IReadOnlyList<string> Components,

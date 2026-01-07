@@ -1,5 +1,4 @@
 using Microsoft.Agents.AI.Workflows;
-using Orchestrator.App.Agents;
 
 namespace Orchestrator.App;
 
@@ -57,7 +56,7 @@ internal sealed class PlannerExecutor : Executor<WorkflowInput, WorkflowOutput>
 
         // Create branch
         var branch = WorkItemBranch.BuildBranchName(_context.WorkItem);
-        _context.Repo.EnsureBranch(branch, _context.Config.DefaultBaseBranch);
+        _context.Repo.EnsureBranch(branch, _context.Config.Workflow.DefaultBaseBranch);
 
         // Generate plan content from template
         var templatePath = "docs/templates/plan.md";
@@ -84,7 +83,7 @@ internal sealed class PlannerExecutor : Executor<WorkflowInput, WorkflowOutput>
             var prBody = $"Work item #{input.IssueNumber}\n\nPlan: {planPath}";
             await _context.GitHub.OpenPullRequestAsync(
                 branch,
-                _context.Config.DefaultBaseBranch,
+                _context.Config.Workflow.DefaultBaseBranch,
                 prTitle,
                 prBody
             );

@@ -6,7 +6,7 @@ namespace Orchestrator.App.Infrastructure.GitHub;
 /// <summary>
 /// GitHub client using Octokit.NET for REST API and GraphQL operations
 /// </summary>
-internal sealed class OctokitGitHubClient
+public sealed class OctokitGitHubClient
 {
     private readonly Octokit.GitHubClient _octokit;
     private readonly OrchestratorConfig _cfg;
@@ -245,7 +245,7 @@ internal sealed class OctokitGitHubClient
     /// </summary>
     public async Task CreateBranchAsync(string branchName)
     {
-        var baseBranch = await _octokit.Git.Reference.Get(RepoOwner, RepoName, $"heads/{_cfg.DefaultBaseBranch}");
+        var baseBranch = await _octokit.Git.Reference.Get(RepoOwner, RepoName, $"heads/{_cfg.Workflow.DefaultBaseBranch}");
 
         try
         {

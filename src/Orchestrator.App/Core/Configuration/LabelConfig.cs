@@ -1,6 +1,8 @@
+using System;
+
 namespace Orchestrator.App.Core.Configuration;
 
-internal sealed record LabelConfig(
+public sealed record LabelConfig(
     string WorkItemLabel,
     string InProgressLabel,
     string DoneLabel,

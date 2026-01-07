@@ -10,7 +10,7 @@ using OpenAI.Chat;
 
 namespace Orchestrator.App.Infrastructure.Llm;
 
-internal sealed class LlmClient
+public sealed class LlmClient
 {
     private readonly OpenAIClient _openAiClient;
 

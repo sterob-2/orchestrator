@@ -43,23 +43,7 @@ internal static class MockWorkContext
     public static OrchestratorConfig CreateConfig(
         string? workspacePath = null)
     {
-        return new OrchestratorConfig(
-            OpenAiBaseUrl: "https://api.openai.com/v1",
-            OpenAiApiKey: "test-key",
-            OpenAiModel: "gpt-4o-mini",
-            DevModel: "gpt-4o",
-            TechLeadModel: "gpt-4o-mini",
-            WorkspacePath: workspacePath ?? "/tmp/test-workspace",
-            WorkspaceHostPath: workspacePath ?? "/tmp/test-workspace",
-            GitRemoteUrl: "https://github.com/test/repo.git",
-            GitAuthorName: "Test Agent",
-            GitAuthorEmail: "test@example.com",
-            GitHubToken: "test-token",
-            RepoOwner: "test-owner",
-            RepoName: "test-repo",
-            DefaultBaseBranch: "main",
-            PollIntervalSeconds: 120,
-            FastPollIntervalSeconds: 30,
+        var labels = new LabelConfig(
             WorkItemLabel: "ready-for-agents",
             InProgressLabel: "in-progress",
             DoneLabel: "done",
@@ -77,14 +61,38 @@ internal static class MockWorkContext
             CodeReviewNeededLabel: "code-review-needed",
             CodeReviewApprovedLabel: "code-review-approved",
             CodeReviewChangesRequestedLabel: "code-review-changes-requested",
-            ResetLabel: "agent:reset",
+            ResetLabel: "agent:reset"
+        );
+
+        var workflow = new WorkflowConfig(
+            DefaultBaseBranch: "main",
+            PollIntervalSeconds: 120,
+            FastPollIntervalSeconds: 30,
+            UseWorkflowMode: false
+        );
+
+        return new OrchestratorConfig(
+            OpenAiBaseUrl: "https://api.openai.com/v1",
+            OpenAiApiKey: "test-key",
+            OpenAiModel: "gpt-4o-mini",
+            DevModel: "gpt-4o",
+            TechLeadModel: "gpt-4o-mini",
+            WorkspacePath: workspacePath ?? "/tmp/test-workspace",
+            WorkspaceHostPath: workspacePath ?? "/tmp/test-workspace",
+            GitRemoteUrl: "https://github.com/test/repo.git",
+            GitAuthorName: "Test Agent",
+            GitAuthorEmail: "test@example.com",
+            GitHubToken: "test-token",
+            RepoOwner: "test-owner",
+            RepoName: "test-repo",
+            Workflow: workflow,
+            Labels: labels,
             ProjectStatusInProgress: "In Progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "test-owner",
             ProjectOwnerType: "user",
             ProjectNumber: 1,
-            ProjectStatusDone: "Done",
-            UseWorkflowMode: false
+            ProjectStatusDone: "Done"
         );
     }
 
