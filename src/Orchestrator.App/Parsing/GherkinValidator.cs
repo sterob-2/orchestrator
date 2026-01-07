@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Orchestrator.App.Utilities;
 
 namespace Orchestrator.App.Parsing;
 
@@ -15,15 +16,19 @@ public class GherkinValidator
             return false;
         }
 
-        var lines = scenario.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
-                            .Select(l => l.Trim())
-                            .ToList();
+        var normalized = CodeHelpers.StripCodeFence(scenario);
+        var lines = normalized.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .ToList();
 
-        var hasScenario = lines.Any(l => l.StartsWith("Scenario:", StringComparison.OrdinalIgnoreCase));
+        var hasScenarioHeader = lines.Any(l =>
+            l.StartsWith("Scenario:", StringComparison.OrdinalIgnoreCase) ||
+            l.StartsWith("Scenario Outline:", StringComparison.OrdinalIgnoreCase) ||
+            l.StartsWith("Background:", StringComparison.OrdinalIgnoreCase));
         var hasGiven = lines.Any(l => l.StartsWith("Given ", StringComparison.OrdinalIgnoreCase));
         var hasWhen = lines.Any(l => l.StartsWith("When ", StringComparison.OrdinalIgnoreCase));
         var hasThen = lines.Any(l => l.StartsWith("Then ", StringComparison.OrdinalIgnoreCase));
 
-        return hasScenario && hasGiven && hasWhen && hasThen;
+        return hasScenarioHeader && hasGiven && hasWhen && hasThen;
     }
 }
