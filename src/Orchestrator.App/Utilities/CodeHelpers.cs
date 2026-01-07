@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Orchestrator.App.Core.Interfaces;
 
 namespace Orchestrator.App.Utilities;
 
 public static class CodeHelpers
 {
-    internal static List<string> ValidateSpecFiles(IEnumerable<string> files, RepoWorkspace workspace)
+    internal static List<string> ValidateSpecFiles(IEnumerable<string> files, IRepoWorkspace workspace)
     {
         var invalid = new List<string>();
         foreach (var file in files)

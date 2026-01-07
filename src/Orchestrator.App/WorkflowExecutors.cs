@@ -1,4 +1,5 @@
 using Microsoft.Agents.AI.Workflows;
+using Orchestrator.App.Utilities;
 
 namespace Orchestrator.App;
 
@@ -44,7 +45,7 @@ internal sealed class PlannerExecutor : Executor<WorkflowInput, WorkflowOutput>
         if (_context.Workspace.Exists(planPath))
         {
             var existing = _context.Workspace.ReadAllText(planPath);
-            if (AgentTemplateUtil.IsStatusComplete(existing))
+            if (TemplateUtil.IsStatusComplete(existing))
             {
                 return new WorkflowOutput(
                     Success: true,
@@ -60,9 +61,9 @@ internal sealed class PlannerExecutor : Executor<WorkflowInput, WorkflowOutput>
 
         // Generate plan content from template
         var templatePath = "docs/templates/plan.md";
-        var tokens = AgentTemplateUtil.BuildTokens(_context);
+        var tokens = TemplateUtil.BuildTokens(_context);
         var planContent = _context.Workspace.ReadOrTemplate(planPath, templatePath, tokens);
-        planContent = AgentTemplateUtil.UpdateStatus(planContent, "COMPLETE");
+        planContent = TemplateUtil.UpdateStatus(planContent, "COMPLETE");
         planContent = AppendAcceptanceCriteria(planContent, _context);
 
         // Write plan file
