@@ -62,9 +62,10 @@ internal static class Program
             cts.Cancel();
         }
 
+        var checkpoints = new Workflows.InMemoryWorkflowCheckpointStore();
         var labelSync = new Workflows.LabelSyncHandler(services.GitHub, cfg.Labels);
-        var humanInLoop = new Workflows.HumanInLoopHandler();
-        var runner = new Workflows.WorkflowRunner(labelSync, humanInLoop);
+        var humanInLoop = new Workflows.HumanInLoopHandler(services.GitHub, cfg.Labels);
+        var runner = new Workflows.WorkflowRunner(labelSync, humanInLoop, checkpoints);
         var watcher = new Watcher.GitHubIssueWatcher(
             cfg,
             services.GitHub,
@@ -76,7 +77,8 @@ internal static class Program
                 services.Workspace,
                 services.RepoGit,
                 services.Llm,
-                mcpManager));
+                mcpManager),
+            checkpoints);
         try
         {
             await watcher.RunAsync(cts.Token);

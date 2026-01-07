@@ -40,7 +40,12 @@ public class McpTestFixture : IAsyncLifetime
             Workflow: new WorkflowConfig(
                 DefaultBaseBranch: "main",
                 PollIntervalSeconds: 120,
-                FastPollIntervalSeconds: 30
+                FastPollIntervalSeconds: 30,
+                MaxRefinementIterations: 3,
+                MaxTechLeadIterations: 3,
+                MaxDevIterations: 3,
+                MaxCodeReviewIterations: 3,
+                MaxDodIterations: 3
             ),
             Labels: new LabelConfig(
                 WorkItemLabel: "ready-for-agents",

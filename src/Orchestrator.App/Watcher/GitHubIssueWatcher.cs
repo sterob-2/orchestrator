@@ -6,6 +6,7 @@ internal sealed class GitHubIssueWatcher
     private readonly IGitHubClient _github;
     private readonly IWorkflowRunner _runner;
     private readonly Func<WorkItem, WorkContext> _contextFactory;
+    private readonly IWorkflowCheckpointStore _checkpointStore;
     private readonly Func<TimeSpan, CancellationToken, Task> _delay;
 
     public GitHubIssueWatcher(
@@ -13,12 +14,14 @@ internal sealed class GitHubIssueWatcher
         IGitHubClient github,
         IWorkflowRunner runner,
         Func<WorkItem, WorkContext> contextFactory,
+        IWorkflowCheckpointStore checkpointStore,
         Func<TimeSpan, CancellationToken, Task>? delay = null)
     {
         _config = config;
         _github = github;
         _runner = runner;
         _contextFactory = contextFactory;
+        _checkpointStore = checkpointStore;
         _delay = delay ?? Task.Delay;
     }
 
@@ -114,6 +117,8 @@ internal sealed class GitHubIssueWatcher
 
     private async Task ResetWorkItemAsync(WorkItem item)
     {
+        _checkpointStore.Reset(item.Number);
+
         var labelsToRemove = new[]
         {
             _config.Labels.PlannerLabel,

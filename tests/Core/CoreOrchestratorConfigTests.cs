@@ -27,6 +27,11 @@ public class CoreOrchestratorConfigTests
         "DEFAULT_BASE_BRANCH",
         "POLL_INTERVAL_SECONDS",
         "FAST_POLL_INTERVAL_SECONDS",
+        "MAX_REFINEMENT_ITERATIONS",
+        "MAX_TECHLEAD_ITERATIONS",
+        "MAX_DEV_ITERATIONS",
+        "MAX_CODE_REVIEW_ITERATIONS",
+        "MAX_DOD_ITERATIONS",
         "WORK_ITEM_LABEL",
         "IN_PROGRESS_LABEL",
         "DONE_LABEL",
@@ -74,6 +79,11 @@ public class CoreOrchestratorConfigTests
             ["DEFAULT_BASE_BRANCH"] = "develop",
             ["POLL_INTERVAL_SECONDS"] = "45",
             ["FAST_POLL_INTERVAL_SECONDS"] = "12",
+            ["MAX_REFINEMENT_ITERATIONS"] = "2",
+            ["MAX_TECHLEAD_ITERATIONS"] = "4",
+            ["MAX_DEV_ITERATIONS"] = "5",
+            ["MAX_CODE_REVIEW_ITERATIONS"] = "6",
+            ["MAX_DOD_ITERATIONS"] = "7",
             ["WORK_ITEM_LABEL"] = "work",
             ["IN_PROGRESS_LABEL"] = "in-progress",
             ["DONE_LABEL"] = "done",
@@ -119,7 +129,12 @@ public class CoreOrchestratorConfigTests
             Workflow: new CoreConfig.WorkflowConfig(
                 DefaultBaseBranch: "develop",
                 PollIntervalSeconds: 45,
-                FastPollIntervalSeconds: 12
+                FastPollIntervalSeconds: 12,
+                MaxRefinementIterations: 2,
+                MaxTechLeadIterations: 4,
+                MaxDevIterations: 5,
+                MaxCodeReviewIterations: 6,
+                MaxDodIterations: 7
             ),
             Labels: new CoreConfig.LabelConfig(
                 WorkItemLabel: "work",
@@ -176,7 +191,12 @@ public class CoreOrchestratorConfigTests
             Workflow: new CoreConfig.WorkflowConfig(
                 DefaultBaseBranch: "main",
                 PollIntervalSeconds: 120,
-                FastPollIntervalSeconds: 30
+                FastPollIntervalSeconds: 30,
+                MaxRefinementIterations: 3,
+                MaxTechLeadIterations: 3,
+                MaxDevIterations: 3,
+                MaxCodeReviewIterations: 3,
+                MaxDodIterations: 3
             ),
             Labels: new CoreConfig.LabelConfig(
                 WorkItemLabel: "ready-for-agents",
@@ -218,6 +238,11 @@ public class CoreOrchestratorConfigTests
         {
             ["POLL_INTERVAL_SECONDS"] = "abc",
             ["FAST_POLL_INTERVAL_SECONDS"] = "nope",
+            ["MAX_REFINEMENT_ITERATIONS"] = "invalid",
+            ["MAX_TECHLEAD_ITERATIONS"] = "invalid",
+            ["MAX_DEV_ITERATIONS"] = "invalid",
+            ["MAX_CODE_REVIEW_ITERATIONS"] = "invalid",
+            ["MAX_DOD_ITERATIONS"] = "invalid",
             ["PROJECT_NUMBER"] = "invalid"
         });
 
@@ -225,6 +250,11 @@ public class CoreOrchestratorConfigTests
 
         Assert.Equal(120, actual.Workflow.PollIntervalSeconds);
         Assert.Equal(30, actual.Workflow.FastPollIntervalSeconds);
+        Assert.Equal(3, actual.Workflow.MaxRefinementIterations);
+        Assert.Equal(3, actual.Workflow.MaxTechLeadIterations);
+        Assert.Equal(3, actual.Workflow.MaxDevIterations);
+        Assert.Equal(3, actual.Workflow.MaxCodeReviewIterations);
+        Assert.Equal(3, actual.Workflow.MaxDodIterations);
         Assert.Null(actual.ProjectNumber);
     }
 

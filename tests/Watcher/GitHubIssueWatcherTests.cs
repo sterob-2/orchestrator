@@ -16,6 +16,7 @@ public class GitHubIssueWatcherTests
             .ReturnsAsync(new List<WorkItem> { workItem });
 
         var runner = new TestRunner();
+        var checkpoints = new InMemoryWorkflowCheckpointStore();
         var watcher = new GitHubIssueWatcher(
             config,
             github.Object,
@@ -27,6 +28,7 @@ public class GitHubIssueWatcherTests
                 new Mock<IRepoWorkspace>().Object,
                 new Mock<IRepoGit>().Object,
                 new Mock<ILlmClient>().Object),
+            checkpoints,
             (_, _) => Task.CompletedTask);
 
         await watcher.RunOnceAsync(CancellationToken.None);
@@ -55,6 +57,7 @@ public class GitHubIssueWatcherTests
             .Returns(Task.CompletedTask);
 
         var runner = new TestRunner();
+        var checkpoints = new Mock<IWorkflowCheckpointStore>();
         var watcher = new GitHubIssueWatcher(
             config,
             github.Object,
@@ -66,11 +69,13 @@ public class GitHubIssueWatcherTests
                 new Mock<IRepoWorkspace>().Object,
                 new Mock<IRepoGit>().Object,
                 new Mock<ILlmClient>().Object),
+            checkpoints.Object,
             (_, _) => Task.CompletedTask);
 
         await watcher.RunOnceAsync(CancellationToken.None);
 
         Assert.False(runner.Called);
+        checkpoints.Verify(store => store.Reset(workItem.Number), Times.Once);
         github.Verify(g => g.RemoveLabelsAsync(workItem.Number, It.IsAny<string[]>()), Times.Once);
         github.Verify(g => g.AddLabelsAsync(workItem.Number, config.Labels.WorkItemLabel), Times.Once);
     }
