@@ -1,4 +1,5 @@
 using System;
+using Orchestrator.App.Utilities;
 
 namespace Orchestrator.App.Parsing;
 
@@ -14,23 +15,30 @@ public class GherkinValidator
             return false;
         }
 
-        var lines = scenario.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-        bool hasScenario = false;
-        bool hasGiven = false;
-        bool hasWhen = false;
-        bool hasThen = false;
+        var normalized = CodeHelpers.StripCodeFence(scenario);
+        var lines = normalized.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        bool hasScenarioHeader = false;
+        bool hasPrimaryStep = false;
 
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
-            if (trimmed.StartsWith("Scenario:", StringComparison.OrdinalIgnoreCase)) hasScenario = true;
-            if (trimmed.StartsWith("Given ", StringComparison.OrdinalIgnoreCase)) hasGiven = true;
-            if (trimmed.StartsWith("When ", StringComparison.OrdinalIgnoreCase)) hasWhen = true;
-            if (trimmed.StartsWith("Then ", StringComparison.OrdinalIgnoreCase)) hasThen = true;
+            if (trimmed.StartsWith("Scenario:", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("Scenario Outline:", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("Background:", StringComparison.OrdinalIgnoreCase))
+            {
+                hasScenarioHeader = true;
+            }
+
+            if (trimmed.StartsWith("Given ", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("When ", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("Then ", StringComparison.OrdinalIgnoreCase))
+            {
+                hasPrimaryStep = true;
+            }
         }
 
-        // A valid scenario must have a title and at least one Given/When/Then step.
-        // While strict Gherkin usually requires When and Then, we'll enforce all three for quality.
-        return hasScenario && hasGiven && hasWhen && hasThen;
+        // A valid scenario must have a header and at least one Given/When/Then step.
+        return hasScenarioHeader && hasPrimaryStep;
     }
 }
