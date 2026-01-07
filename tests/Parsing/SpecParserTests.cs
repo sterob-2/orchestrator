@@ -66,4 +66,33 @@ Scenario: B
         result.Sequence.Should().HaveCount(2);
         result.TestMatrix.Should().HaveCount(1);
     }
+
+    [Fact]
+    public void Parse_CrLfCodeFence_ParsesInterfaces()
+    {
+        var parser = new SpecParser();
+        var input = "# Spec: Test\r\n\r\n## Interfaces\r\n```csharp\r\ninterface ITest {}\r\n```\r\n";
+
+        var result = parser.Parse(input);
+
+        result.Interfaces.Should().ContainSingle().Which.Should().Be("interface ITest {}");
+    }
+
+    [Fact]
+    public void Parse_LastHeaderWithoutTrailingNewline_ParsesSection()
+    {
+        var parser = new SpecParser();
+        var input = @"# Spec: Test
+
+## Goal
+Make it work.
+
+## Components
+- Core";
+
+        var result = parser.Parse(input);
+
+        result.Goal.Should().Be("Make it work.");
+        result.Components.Should().ContainSingle().Which.Should().Be("Core");
+    }
 }

@@ -49,8 +49,7 @@ public class SpecParser
 
         // Regex to find headers like "## Header"
         // We look for "## " at the start of a line
-        var regex = new Regex(@"^##\s+(.+)$
-", RegexOptions.Multiline);
+        var regex = new Regex(@"^##\s+(.+)$", RegexOptions.Multiline);
         var matches = regex.Matches(content);
 
         if (matches.Count == 0) return sections;
@@ -112,8 +111,7 @@ public class SpecParser
         var blocks = new List<string>();
         if (string.IsNullOrWhiteSpace(content)) return blocks;
 
-        var regex = new Regex(@"```.*?\n(.*?)
-```", RegexOptions.Singleline);
+        var regex = new Regex(@"```.*?\r?\n(.*?)\r?\n```", RegexOptions.Singleline);
         foreach (Match match in regex.Matches(content))
         {
             blocks.Add(match.Groups[1].Value.Trim());
