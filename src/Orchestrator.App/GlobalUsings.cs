@@ -17,3 +17,6 @@ global using Orchestrator.App.Infrastructure.Mcp;
 
 // Utilities
 global using Orchestrator.App.Utilities;
+
+// Workflows
+global using Orchestrator.App.Workflows;

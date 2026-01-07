@@ -1,6 +1,6 @@
 using Microsoft.Agents.AI.Workflows;
 
-namespace Orchestrator.App;
+namespace Orchestrator.App.Workflows;
 
 /// <summary>
 /// Builder for SDLC workflow using Microsoft Agent Framework

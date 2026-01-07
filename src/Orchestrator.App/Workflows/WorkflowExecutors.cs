@@ -1,7 +1,7 @@
 using Microsoft.Agents.AI.Workflows;
 using Orchestrator.App.Agents;
 
-namespace Orchestrator.App;
+namespace Orchestrator.App.Workflows;
 
 /// <summary>
 /// Output message from executors
