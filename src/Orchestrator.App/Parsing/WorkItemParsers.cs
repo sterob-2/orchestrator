@@ -42,9 +42,8 @@ internal static class WorkItemParsers
 
         var lines = body.Split('\n');
         var inSection = false;
-        foreach (var raw in lines)
+        foreach (var line in lines.Select(raw => raw.Trim()))
         {
-            var line = raw.Trim();
             if (line.StartsWith("Acceptance criteria", StringComparison.OrdinalIgnoreCase) ||
                 line.StartsWith("Acceptance Criteria", StringComparison.OrdinalIgnoreCase))
             {
