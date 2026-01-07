@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Orchestrator.App.Agents;
+namespace Orchestrator.App.Utilities;
 
 internal static class AgentHelpers
 {

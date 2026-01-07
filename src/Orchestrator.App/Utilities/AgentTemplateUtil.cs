@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Orchestrator.App.Agents;
+namespace Orchestrator.App.Utilities;
 
 internal static class AgentTemplateUtil
 {
