@@ -58,6 +58,10 @@ internal static class Program
         // Setup cancellation
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+        if (args.Contains("--init-only", StringComparer.OrdinalIgnoreCase))
+        {
+            cts.Cancel();
+        }
 
         // Create and run watcher
         var orchestrator = new LegacyOrchestrator(

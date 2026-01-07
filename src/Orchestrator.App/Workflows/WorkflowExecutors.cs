@@ -29,97 +29,12 @@ internal sealed class PlannerExecutor : Executor<WorkflowInput, WorkflowOutput>
         IWorkflowContext context,
         CancellationToken cancellationToken = default)
     {
-        var planPath = $"plans/issue-{input.WorkItem.Number}.md";
-
-        // Check if plan already exists and is complete (idempotent)
-        if (_context.Workspace.Exists(planPath))
-        {
-            var existing = _context.Workspace.ReadAllText(planPath);
-            if (AgentTemplateUtil.IsStatusComplete(existing))
-            {
-                return new WorkflowOutput(
-                    Success: true,
-                    Notes: $"Plan already complete at `{planPath}`. Skipping.",
-                    NextStage: "TechLead"
-                );
-            }
-        }
-
-        // Create branch
-        var branch = WorkItemBranch.BuildBranchName(_context.WorkItem);
-        _context.Repo.EnsureBranch(branch, _context.Config.Workflow.DefaultBaseBranch);
-
-        // Generate plan content from template
-        var templatePath = "docs/templates/plan.md";
-        var tokens = AgentTemplateUtil.BuildTokens(_context);
-        var planContent = _context.Workspace.ReadOrTemplate(planPath, templatePath, tokens);
-        planContent = AgentTemplateUtil.UpdateStatus(planContent, "COMPLETE");
-        planContent = AppendAcceptanceCriteria(planContent, _context);
-
-        // Write plan file
-        _context.Workspace.WriteAllText(planPath, planContent);
-
-        // Commit and push
-        var committed = _context.Repo.CommitAndPush(
-            branch,
-            $"docs: add plan for issue {input.WorkItem.Number}",
-            new[] { planPath }
-        );
-
-        string notes;
-        if (committed)
-        {
-            // Create draft PR
-            var prTitle = $"Agent Plan: {input.WorkItem.Title}";
-            var prBody = $"Work item #{input.WorkItem.Number}\n\nPlan: {planPath}";
-            await _context.GitHub.OpenPullRequestAsync(
-                branch,
-                _context.Config.Workflow.DefaultBaseBranch,
-                prTitle,
-                prBody
-            );
-            notes = $"Planner created branch `{branch}`, opened a draft PR, and wrote `{planPath}`.";
-        }
-        else
-        {
-            var existingPr = await _context.GitHub.GetPullRequestNumberAsync(branch);
-            if (existingPr is null)
-            {
-                notes = $"Plan already present at `{planPath}`. No new commits; skipping PR creation.";
-            }
-            else
-            {
-                notes = $"Plan updated at `{planPath}`.";
-            }
-        }
-
-        // Return result
+        var execContext = _context with { WorkItem = input.WorkItem };
+        var notes = await PlannerPlanService.RunAsync(execContext);
         return new WorkflowOutput(
             Success: true,
             Notes: notes,
             NextStage: "TechLead"
         );
-    }
-
-    private static string AppendAcceptanceCriteria(string content, WorkContext ctx)
-    {
-        var criteria = WorkItemParsers.TryParseAcceptanceCriteria(ctx.WorkItem.Body);
-        if (criteria.Count == 0)
-        {
-            return content;
-        }
-
-        var lines = new List<string>();
-        foreach (var item in criteria)
-        {
-            lines.Add($"- [ ] {item}");
-        }
-
-        if (string.IsNullOrWhiteSpace(content))
-        {
-            return string.Join('\n', lines);
-        }
-
-        return content + "\n" + string.Join('\n', lines);
     }
 }

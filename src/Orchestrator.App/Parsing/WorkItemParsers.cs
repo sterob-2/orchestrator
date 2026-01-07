@@ -98,9 +98,8 @@ internal static class WorkItemParsers
 
         var lines = content.Split('\n');
         var inFiles = false;
-        foreach (var raw in lines)
+        foreach (var line in lines.Select(raw => raw.Trim()))
         {
-            var line = raw.Trim();
             if (line.StartsWith("## Files", StringComparison.OrdinalIgnoreCase))
             {
                 inFiles = true;
