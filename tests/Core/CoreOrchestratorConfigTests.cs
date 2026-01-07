@@ -50,8 +50,7 @@ public class CoreOrchestratorConfigTests
         "PROJECT_OWNER",
         "PROJECT_OWNER_TYPE",
         "PROJECT_NUMBER",
-        "PROJECT_STATUS_DONE",
-        "USE_WORKFLOW_MODE"
+        "PROJECT_STATUS_DONE"
     };
 
     [Fact]
@@ -98,8 +97,7 @@ public class CoreOrchestratorConfigTests
             ["PROJECT_OWNER"] = "proj-owner",
             ["PROJECT_OWNER_TYPE"] = "org",
             ["PROJECT_NUMBER"] = "42",
-            ["PROJECT_STATUS_DONE"] = "Done",
-            ["USE_WORKFLOW_MODE"] = "true"
+            ["PROJECT_STATUS_DONE"] = "Done"
         };
 
         using var scope = new EnvScope(values);
@@ -121,8 +119,7 @@ public class CoreOrchestratorConfigTests
             Workflow: new CoreConfig.WorkflowConfig(
                 DefaultBaseBranch: "develop",
                 PollIntervalSeconds: 45,
-                FastPollIntervalSeconds: 12,
-                UseWorkflowMode: true
+                FastPollIntervalSeconds: 12
             ),
             Labels: new CoreConfig.LabelConfig(
                 WorkItemLabel: "work",
@@ -179,8 +176,7 @@ public class CoreOrchestratorConfigTests
             Workflow: new CoreConfig.WorkflowConfig(
                 DefaultBaseBranch: "main",
                 PollIntervalSeconds: 120,
-                FastPollIntervalSeconds: 30,
-                UseWorkflowMode: false
+                FastPollIntervalSeconds: 30
             ),
             Labels: new CoreConfig.LabelConfig(
                 WorkItemLabel: "ready-for-agents",
@@ -222,15 +218,13 @@ public class CoreOrchestratorConfigTests
         {
             ["POLL_INTERVAL_SECONDS"] = "abc",
             ["FAST_POLL_INTERVAL_SECONDS"] = "nope",
-            ["PROJECT_NUMBER"] = "invalid",
-            ["USE_WORKFLOW_MODE"] = "not-a-bool"
+            ["PROJECT_NUMBER"] = "invalid"
         });
 
         var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
 
         Assert.Equal(120, actual.Workflow.PollIntervalSeconds);
         Assert.Equal(30, actual.Workflow.FastPollIntervalSeconds);
-        Assert.False(actual.Workflow.UseWorkflowMode);
         Assert.Null(actual.ProjectNumber);
     }
 

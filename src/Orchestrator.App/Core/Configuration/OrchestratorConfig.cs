@@ -51,12 +51,6 @@ internal sealed record OrchestratorConfig(
             return int.TryParse(raw, out var parsed) ? parsed : null;
         }
 
-        bool GetBool(string key, bool fallback)
-        {
-            var raw = Get(key, "");
-            return bool.TryParse(raw, out var parsed) ? parsed : fallback;
-        }
-
         var workspacePath = Get("WORKSPACE_PATH", "/workspace");
         var labels = new LabelConfig(
             WorkItemLabel: Get("WORK_ITEM_LABEL", "ready-for-agents"),
@@ -82,8 +76,7 @@ internal sealed record OrchestratorConfig(
         var workflow = new WorkflowConfig(
             DefaultBaseBranch: Get("DEFAULT_BASE_BRANCH", "main"),
             PollIntervalSeconds: GetInt("POLL_INTERVAL_SECONDS", 120),
-            FastPollIntervalSeconds: GetInt("FAST_POLL_INTERVAL_SECONDS", 30),
-            UseWorkflowMode: GetBool("USE_WORKFLOW_MODE", false)
+            FastPollIntervalSeconds: GetInt("FAST_POLL_INTERVAL_SECONDS", 30)
         );
 
         return new OrchestratorConfig(

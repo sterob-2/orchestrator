@@ -95,8 +95,6 @@ WORK_ITEM_LABEL=orchestrator:work-item
 POLL_INTERVAL_SECONDS=300
 FAST_POLL_INTERVAL_SECONDS=30
 
-# Optional: Use Agent Framework workflow mode
-USE_WORKFLOW_MODE=true
 ```
 
 ### Build and Run
