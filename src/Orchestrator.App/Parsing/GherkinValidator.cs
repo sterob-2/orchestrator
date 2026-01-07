@@ -1,6 +1,4 @@
 using System;
-using System.Linq;
-using Orchestrator.App.Utilities;
 
 namespace Orchestrator.App.Parsing;
 
@@ -16,19 +14,23 @@ public class GherkinValidator
             return false;
         }
 
-        var normalized = CodeHelpers.StripCodeFence(scenario);
-        var lines = normalized.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(l => l.Trim())
-            .ToList();
+        var lines = scenario.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        bool hasScenario = false;
+        bool hasGiven = false;
+        bool hasWhen = false;
+        bool hasThen = false;
 
-        var hasScenarioHeader = lines.Any(l =>
-            l.StartsWith("Scenario:", StringComparison.OrdinalIgnoreCase) ||
-            l.StartsWith("Scenario Outline:", StringComparison.OrdinalIgnoreCase) ||
-            l.StartsWith("Background:", StringComparison.OrdinalIgnoreCase));
-        var hasGiven = lines.Any(l => l.StartsWith("Given ", StringComparison.OrdinalIgnoreCase));
-        var hasWhen = lines.Any(l => l.StartsWith("When ", StringComparison.OrdinalIgnoreCase));
-        var hasThen = lines.Any(l => l.StartsWith("Then ", StringComparison.OrdinalIgnoreCase));
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith("Scenario:", StringComparison.OrdinalIgnoreCase)) hasScenario = true;
+            if (trimmed.StartsWith("Given ", StringComparison.OrdinalIgnoreCase)) hasGiven = true;
+            if (trimmed.StartsWith("When ", StringComparison.OrdinalIgnoreCase)) hasWhen = true;
+            if (trimmed.StartsWith("Then ", StringComparison.OrdinalIgnoreCase)) hasThen = true;
+        }
 
-        return hasScenarioHeader && hasGiven && hasWhen && hasThen;
+        // A valid scenario must have a title and at least one Given/When/Then step.
+        // While strict Gherkin usually requires When and Then, we'll enforce all three for quality.
+        return hasScenario && hasGiven && hasWhen && hasThen;
     }
 }

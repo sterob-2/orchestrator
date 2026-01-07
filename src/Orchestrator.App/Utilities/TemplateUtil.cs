@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Orchestrator.App.Core.Interfaces;
 
 namespace Orchestrator.App.Utilities;
 
@@ -29,7 +28,7 @@ public static class TemplateUtil
     }
 
     public static string RenderTemplate(
-        IRepoWorkspace workspace,
+        RepoWorkspace workspace,
         string templatePath,
         Dictionary<string, string> tokens,
         string fallbackTemplate)
