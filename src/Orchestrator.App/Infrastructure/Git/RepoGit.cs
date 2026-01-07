@@ -1,10 +1,11 @@
 using LibGit2Sharp;
 using LibGit2Sharp.Handlers;
 using Orchestrator.App.Core.Configuration;
+using Orchestrator.App.Core.Interfaces;
 
 namespace Orchestrator.App.Infrastructure.Git;
 
-internal sealed class RepoGit
+internal sealed class RepoGit : IRepoGit
 {
     private readonly OrchestratorConfig _cfg;
     private readonly string _root;

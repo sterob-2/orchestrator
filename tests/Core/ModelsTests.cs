@@ -23,6 +23,68 @@ public class ModelsTests
     }
 
     [Fact]
+    public void RepoFile_RecordCreation()
+    {
+        var file = new RepoFile("src/file.txt", "content", "sha123");
+
+        Assert.Equal("src/file.txt", file.Path);
+        Assert.Equal("content", file.Content);
+        Assert.Equal("sha123", file.Sha);
+    }
+
+    [Fact]
+    public void IssueComment_RecordCreation()
+    {
+        var comment = new IssueComment("alice", "Looks good");
+
+        Assert.Equal("alice", comment.Author);
+        Assert.Equal("Looks good", comment.Body);
+    }
+
+    [Fact]
+    public void ProjectModels_RecordCreation()
+    {
+        var item = new ProjectItem("Title", 7, "https://example.com/issue/7", "Ready");
+        var snapshot = new ProjectSnapshot(
+            Owner: "octo",
+            Number: 1,
+            OwnerType: ProjectOwnerType.Organization,
+            Title: "Roadmap",
+            Items: new List<ProjectItem> { item });
+
+        var itemRef = new ProjectItemRef("item-1", 7);
+        var metadata = new ProjectMetadata(
+            ProjectId: "proj-1",
+            StatusFieldId: "status-1",
+            StatusOptions: new Dictionary<string, string> { ["Ready"] = "opt-1" },
+            Items: new List<ProjectItemRef> { itemRef });
+
+        var reference = new ProjectReference("octo", 1, ProjectOwnerType.Organization);
+
+        Assert.Equal("Title", item.Title);
+        Assert.Equal(7, item.IssueNumber);
+        Assert.Equal("https://example.com/issue/7", item.Url);
+        Assert.Equal("Ready", item.Status);
+
+        Assert.Equal("octo", snapshot.Owner);
+        Assert.Equal(1, snapshot.Number);
+        Assert.Equal(ProjectOwnerType.Organization, snapshot.OwnerType);
+        Assert.Equal("Roadmap", snapshot.Title);
+        Assert.Single(snapshot.Items);
+
+        Assert.Equal("item-1", itemRef.ItemId);
+        Assert.Equal(7, itemRef.IssueNumber);
+        Assert.Equal("proj-1", metadata.ProjectId);
+        Assert.Equal("status-1", metadata.StatusFieldId);
+        Assert.Single(metadata.StatusOptions);
+        Assert.Single(metadata.Items);
+
+        Assert.Equal("octo", reference.Owner);
+        Assert.Equal(1, reference.Number);
+        Assert.Equal(ProjectOwnerType.Organization, reference.OwnerType);
+    }
+
+    [Fact]
     public void WorkContext_RecordCreation()
     {
         var item = new WorkItem(2, "Title", "Body", "https://example.com", new List<string>());

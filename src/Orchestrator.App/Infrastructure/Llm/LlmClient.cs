@@ -8,10 +8,11 @@ using ModelContextProtocol.Client;
 using OpenAI;
 using OpenAI.Chat;
 using Orchestrator.App.Core.Configuration;
+using Orchestrator.App.Core.Interfaces;
 
 namespace Orchestrator.App.Infrastructure.Llm;
 
-internal sealed class LlmClient
+internal sealed class LlmClient : ILlmClient
 {
     private readonly OpenAIClient _openAiClient;
 

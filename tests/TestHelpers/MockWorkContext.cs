@@ -1,6 +1,7 @@
 using Moq;
 using Orchestrator.App;
 using Orchestrator.App.Core.Configuration;
+using Orchestrator.App.Core.Interfaces;
 
 namespace Orchestrator.App.Tests.TestHelpers;
 
@@ -8,11 +9,11 @@ internal static class MockWorkContext
 {
     public static WorkContext Create(
         WorkItem? workItem = null,
-        OctokitGitHubClient? github = null,
+        IGitHubClient? github = null,
         OrchestratorConfig? config = null,
-        RepoWorkspace? workspace = null,
-        RepoGit? repo = null,
-        LlmClient? llm = null)
+        IRepoWorkspace? workspace = null,
+        IRepoGit? repo = null,
+        ILlmClient? llm = null)
     {
         workItem ??= CreateWorkItem();
         github ??= CreateGitHubClient();
@@ -35,7 +36,7 @@ internal static class MockWorkContext
         return new WorkItem(number, title, body, url, labels);
     }
 
-    public static OctokitGitHubClient CreateGitHubClient()
+    public static IGitHubClient CreateGitHubClient()
     {
         var config = CreateConfig();
         return new OctokitGitHubClient(config);
@@ -100,12 +101,12 @@ internal static class MockWorkContext
         return new RepoWorkspace(path);
     }
 
-    public static RepoGit CreateRepo(OrchestratorConfig config)
+    public static IRepoGit CreateRepo(OrchestratorConfig config)
     {
         return new RepoGit(config, config.WorkspacePath);
     }
 
-    public static LlmClient CreateLlmClient(OrchestratorConfig config)
+    public static ILlmClient CreateLlmClient(OrchestratorConfig config)
     {
         return new LlmClient(config);
     }

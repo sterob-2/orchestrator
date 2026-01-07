@@ -1,16 +1,16 @@
 using Orchestrator.App.Core.Configuration;
+using Orchestrator.App.Core.Interfaces;
+using Orchestrator.App.Core.Models;
 
 namespace Orchestrator.App;
 
-internal sealed record WorkItem(int Number, string Title, string Body, string Url, IReadOnlyList<string> Labels);
-
 internal sealed record WorkContext(
     WorkItem WorkItem,
-    OctokitGitHubClient GitHub,
+    IGitHubClient GitHub,
     OrchestratorConfig Config,
-    RepoWorkspace Workspace,
-    RepoGit Repo,
-    LlmClient Llm,
+    IRepoWorkspace Workspace,
+    IRepoGit Repo,
+    ILlmClient Llm,
     McpClientManager? Mcp = null)
 {
     /// <summary>
@@ -18,10 +18,6 @@ internal sealed record WorkContext(
     /// </summary>
     public McpFileOperations? McpFiles => Mcp != null ? new McpFileOperations(Mcp) : null;
 };
-
-internal sealed record RepoFile(string Path, string Content, string Sha);
-
-internal sealed record IssueComment(string Author, string Body);
 
 internal sealed record PipelineResult(bool Success, string Summary, string PullRequestTitle, string PullRequestBody)
 {
