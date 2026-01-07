@@ -6,7 +6,7 @@ using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
-namespace Orchestrator.App;
+namespace Orchestrator.App.Infrastructure.Mcp;
 
 /// <summary>
 /// Manages MCP (Model Context Protocol) client connections and provides AI tools
@@ -122,158 +122,92 @@ internal class McpClientManager : IAsyncDisposable
 
     private async Task InitializeFilesystemServerAsync(string workspaceHostPath)
     {
-        try
-        {
-            Logger.WriteLine("[MCP] Connecting to Filesystem MCP server...");
-
-            // Use Docker to run the Filesystem MCP server
-            var transport = new StdioClientTransport(new StdioClientTransportOptions
-            {
-                Name = "FilesystemServer",
-                Command = "docker",
-                Arguments = [
-                    "run",
-                    "-i",
-                    "--rm",
-                    "-v",
-                    $"{workspaceHostPath}:/workspace",
-                    "-w",
-                    "/workspace",
-                    "node:lts-alpine",
-                    "sh",
-                    "-c",
-                    "npx -y @modelcontextprotocol/server-filesystem /workspace"
-                ]
-            });
-
-            var client = await McpClient.CreateAsync(transport);
-
-            _clients.Add(client);
-
-            var tools = await client.ListToolsAsync().ConfigureAwait(false);
-            foreach (var tool in tools)
-            {
-                _tools.Add(tool);
-                _toolToServer[tool.Name] = "filesystem";
-            }
-
-            Logger.WriteLine($"[MCP] Filesystem server connected. Tools: {tools.Count}");
-        }
-        catch (InvalidOperationException ex)
-        {
-            Logger.WriteLine($"[MCP] Warning: Filesystem server configuration error: {ex.Message}");
-        }
-        catch (System.IO.IOException ex)
-        {
-            Logger.WriteLine($"[MCP] Warning: Failed to start Filesystem server: {ex.Message}");
-            Logger.WriteLine($"[MCP] Ensure Docker is installed and workspace path is accessible.");
-        }
-        catch (TimeoutException ex)
-        {
-            Logger.WriteLine($"[MCP] Warning: Filesystem server connection timeout: {ex.Message}");
-        }
+        await InitializeServerAsync(
+            serverName: "Filesystem",
+            toolPrefix: "filesystem",
+            transportName: "FilesystemServer",
+            dockerArgs: [
+                "run", "-i", "--rm",
+                "-v", $"{workspaceHostPath}:/workspace",
+                "-w", "/workspace",
+                "node:lts-alpine", "sh", "-c",
+                "npx -y @modelcontextprotocol/server-filesystem /workspace"
+            ],
+            helpMessage: "Ensure Docker is installed and workspace path is accessible.");
     }
 
     private async Task InitializeGitServerAsync(string repositoryHostPath)
     {
-        try
-        {
-            Logger.WriteLine("[MCP] Connecting to Git MCP server...");
-
-            // Use Docker to run the Git MCP server
-            var transport = new StdioClientTransport(new StdioClientTransportOptions
-            {
-                Name = "GitServer",
-                Command = "docker",
-                Arguments = [
-                    "run",
-                    "-i",
-                    "--rm",
-                    "-v",
-                    $"{repositoryHostPath}:/workspace",
-                    "-w",
-                    "/workspace",
-                    "python:3.12-alpine",
-                    "sh",
-                    "-c",
-                    "apk add --no-cache git && pip install --no-cache-dir uv > /dev/null 2>&1 && uvx mcp-server-git --repository /workspace"
-                ]
-            });
-
-            var client = await McpClient.CreateAsync(transport);
-
-            _clients.Add(client);
-
-            var tools = await client.ListToolsAsync().ConfigureAwait(false);
-            foreach (var tool in tools)
-            {
-                _tools.Add(tool);
-                _toolToServer[tool.Name] = "git";
-            }
-
-            Logger.WriteLine($"[MCP] Git server connected. Tools: {tools.Count}");
-        }
-        catch (InvalidOperationException ex)
-        {
-            Logger.WriteLine($"[MCP] Warning: Git server configuration error: {ex.Message}");
-        }
-        catch (System.IO.IOException ex)
-        {
-            Logger.WriteLine($"[MCP] Warning: Failed to start Git server: {ex.Message}");
-            Logger.WriteLine($"[MCP] Ensure Docker is installed and repository path is accessible.");
-        }
-        catch (TimeoutException ex)
-        {
-            Logger.WriteLine($"[MCP] Warning: Git server connection timeout: {ex.Message}");
-        }
+        await InitializeServerAsync(
+            serverName: "Git",
+            toolPrefix: "git",
+            transportName: "GitServer",
+            dockerArgs: [
+                "run", "-i", "--rm",
+                "-v", $"{repositoryHostPath}:/workspace",
+                "-w", "/workspace",
+                "python:3.12-alpine", "sh", "-c",
+                "apk add --no-cache git && pip install --no-cache-dir uv > /dev/null 2>&1 && uvx mcp-server-git --repository /workspace"
+            ],
+            helpMessage: "Ensure Docker is installed and repository path is accessible.");
     }
 
     private async Task InitializeGitHubServerAsync(string githubToken)
     {
+        await InitializeServerAsync(
+            serverName: "GitHub",
+            toolPrefix: "github",
+            transportName: "GitHubServer",
+            dockerArgs: [
+                "run", "-i", "--rm",
+                "-e", $"GITHUB_PERSONAL_ACCESS_TOKEN={githubToken}",
+                "ghcr.io/github/github-mcp-server"
+            ],
+            helpMessage: "Ensure Docker is installed, running, and GitHub token is valid.");
+    }
+
+    private async Task InitializeServerAsync(
+        string serverName,
+        string toolPrefix,
+        string transportName,
+        string[] dockerArgs,
+        string helpMessage)
+    {
         try
         {
-            Logger.WriteLine("[MCP] Connecting to GitHub MCP server...");
+            Logger.WriteLine($"[MCP] Connecting to {serverName} MCP server...");
 
-            // Use Docker to run the official GitHub MCP server
             var transport = new StdioClientTransport(new StdioClientTransportOptions
             {
-                Name = "GitHubServer",
+                Name = transportName,
                 Command = "docker",
-                Arguments = [
-                    "run",
-                    "-i",
-                    "--rm",
-                    "-e",
-                    $"GITHUB_PERSONAL_ACCESS_TOKEN={githubToken}",
-                    "ghcr.io/github/github-mcp-server"
-                ]
+                Arguments = dockerArgs
             });
 
             var client = await McpClient.CreateAsync(transport);
-
             _clients.Add(client);
 
             var tools = await client.ListToolsAsync().ConfigureAwait(false);
             foreach (var tool in tools)
             {
                 _tools.Add(tool);
-                _toolToServer[tool.Name] = "github";
+                _toolToServer[tool.Name] = toolPrefix;
             }
 
-            Logger.WriteLine($"[MCP] GitHub server connected. Tools: {tools.Count}");
+            Logger.WriteLine($"[MCP] {serverName} server connected. Tools: {tools.Count}");
         }
         catch (InvalidOperationException ex)
         {
-            Logger.WriteLine($"[MCP] Warning: GitHub server configuration error: {ex.Message}");
+            Logger.WriteLine($"[MCP] Warning: {serverName} server configuration error: {ex.Message}");
         }
         catch (System.IO.IOException ex)
         {
-            Logger.WriteLine($"[MCP] Warning: Failed to start GitHub server: {ex.Message}");
-            Logger.WriteLine($"[MCP] Ensure Docker is installed, running, and GitHub token is valid.");
+            Logger.WriteLine($"[MCP] Warning: Failed to start {serverName} server: {ex.Message}");
+            Logger.WriteLine($"[MCP] {helpMessage}");
         }
         catch (TimeoutException ex)
         {
-            Logger.WriteLine($"[MCP] Warning: GitHub server connection timeout: {ex.Message}");
+            Logger.WriteLine($"[MCP] Warning: {serverName} server connection timeout: {ex.Message}");
         }
     }
 

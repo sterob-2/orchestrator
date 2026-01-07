@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Orchestrator.App;
+namespace Orchestrator.App.Infrastructure.Mcp;
 
 /// <summary>
 /// Provides file operations using MCP filesystem tools.
