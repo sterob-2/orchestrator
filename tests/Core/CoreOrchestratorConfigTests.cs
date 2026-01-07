@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Orchestrator.App;
+using CoreConfig = Orchestrator.App.Core.Configuration;
 using Xunit;
 
 namespace Orchestrator.App.Tests.Core;
 
 [Collection("Environment")]
-public class OrchestratorConfigTests
+public class CoreOrchestratorConfigTests
 {
     private static readonly string[] AllKeys =
     {
@@ -17,6 +17,7 @@ public class OrchestratorConfigTests
         "DEV_MODEL",
         "TECHLEAD_MODEL",
         "WORKSPACE_PATH",
+        "WORKSPACE_HOST_PATH",
         "GIT_REMOTE_URL",
         "GIT_AUTHOR_NAME",
         "GIT_AUTHOR_EMAIL",
@@ -64,6 +65,7 @@ public class OrchestratorConfigTests
             ["DEV_MODEL"] = "model-b",
             ["TECHLEAD_MODEL"] = "model-c",
             ["WORKSPACE_PATH"] = "/tmp/workspace",
+            ["WORKSPACE_HOST_PATH"] = "/host/workspace",
             ["GIT_REMOTE_URL"] = "https://example.com/repo.git",
             ["GIT_AUTHOR_NAME"] = "Agent",
             ["GIT_AUTHOR_EMAIL"] = "agent@example.com",
@@ -102,51 +104,55 @@ public class OrchestratorConfigTests
 
         using var scope = new EnvScope(values);
 
-        var expected = new OrchestratorConfig(
+        var expected = new CoreConfig.OrchestratorConfig(
             OpenAiBaseUrl: "https://example.test/v1",
             OpenAiApiKey: "key",
             OpenAiModel: "model-a",
             DevModel: "model-b",
             TechLeadModel: "model-c",
             WorkspacePath: "/tmp/workspace",
-            WorkspaceHostPath: "/tmp/workspace",
+            WorkspaceHostPath: "/host/workspace",
             GitRemoteUrl: "https://example.com/repo.git",
             GitAuthorName: "Agent",
             GitAuthorEmail: "agent@example.com",
             GitHubToken: "token",
             RepoOwner: "owner",
             RepoName: "repo",
-            DefaultBaseBranch: "develop",
-            PollIntervalSeconds: 45,
-            FastPollIntervalSeconds: 12,
-            WorkItemLabel: "work",
-            InProgressLabel: "in-progress",
-            DoneLabel: "done",
-            BlockedLabel: "blocked",
-            PlannerLabel: "planner",
-            TechLeadLabel: "techlead",
-            DevLabel: "dev",
-            TestLabel: "test",
-            ReleaseLabel: "release",
-            UserReviewRequiredLabel: "user-review",
-            ReviewNeededLabel: "review-needed",
-            ReviewedLabel: "reviewed",
-            SpecQuestionsLabel: "spec-questions",
-            SpecClarifiedLabel: "spec-clarified",
-            CodeReviewNeededLabel: "code-review-needed",
-            CodeReviewApprovedLabel: "code-review-approved",
-            CodeReviewChangesRequestedLabel: "code-review-changes-requested",
-            ResetLabel: "reset",
+            Workflow: new CoreConfig.WorkflowConfig(
+                DefaultBaseBranch: "develop",
+                PollIntervalSeconds: 45,
+                FastPollIntervalSeconds: 12,
+                UseWorkflowMode: true
+            ),
+            Labels: new CoreConfig.LabelConfig(
+                WorkItemLabel: "work",
+                InProgressLabel: "in-progress",
+                DoneLabel: "done",
+                BlockedLabel: "blocked",
+                PlannerLabel: "planner",
+                TechLeadLabel: "techlead",
+                DevLabel: "dev",
+                TestLabel: "test",
+                ReleaseLabel: "release",
+                UserReviewRequiredLabel: "user-review",
+                ReviewNeededLabel: "review-needed",
+                ReviewedLabel: "reviewed",
+                SpecQuestionsLabel: "spec-questions",
+                SpecClarifiedLabel: "spec-clarified",
+                CodeReviewNeededLabel: "code-review-needed",
+                CodeReviewApprovedLabel: "code-review-approved",
+                CodeReviewChangesRequestedLabel: "code-review-changes-requested",
+                ResetLabel: "reset"
+            ),
             ProjectStatusInProgress: "In Progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "proj-owner",
             ProjectOwnerType: "org",
             ProjectNumber: 42,
-            ProjectStatusDone: "Done",
-            UseWorkflowMode: true
+            ProjectStatusDone: "Done"
         );
 
-        var actual = OrchestratorConfig.FromEnvironment();
+        var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
 
         Assert.Equal(expected, actual);
     }
@@ -156,7 +162,7 @@ public class OrchestratorConfigTests
     {
         using var scope = new EnvScope(AllKeys.ToDictionary(key => key, _ => (string?)null));
 
-        var expected = new OrchestratorConfig(
+        var expected = new CoreConfig.OrchestratorConfig(
             OpenAiBaseUrl: "https://api.openai.com/v1",
             OpenAiApiKey: "",
             OpenAiModel: "gpt-5-mini",
@@ -170,151 +176,110 @@ public class OrchestratorConfigTests
             GitHubToken: "",
             RepoOwner: "",
             RepoName: "",
-            DefaultBaseBranch: "main",
-            PollIntervalSeconds: 120,
-            FastPollIntervalSeconds: 30,
-            WorkItemLabel: "ready-for-agents",
-            InProgressLabel: "in-progress",
-            DoneLabel: "done",
-            BlockedLabel: "blocked",
-            PlannerLabel: "agent:planner",
-            TechLeadLabel: "agent:techlead",
-            DevLabel: "agent:dev",
-            TestLabel: "agent:test",
-            ReleaseLabel: "agent:release",
-            UserReviewRequiredLabel: "user-review-required",
-            ReviewNeededLabel: "agent:review-needed",
-            ReviewedLabel: "agent:reviewed",
-            SpecQuestionsLabel: "spec-questions",
-            SpecClarifiedLabel: "spec-clarified",
-            CodeReviewNeededLabel: "code-review-needed",
-            CodeReviewApprovedLabel: "code-review-approved",
-            CodeReviewChangesRequestedLabel: "code-review-changes-requested",
-            ResetLabel: "agent:reset",
+            Workflow: new CoreConfig.WorkflowConfig(
+                DefaultBaseBranch: "main",
+                PollIntervalSeconds: 120,
+                FastPollIntervalSeconds: 30,
+                UseWorkflowMode: false
+            ),
+            Labels: new CoreConfig.LabelConfig(
+                WorkItemLabel: "ready-for-agents",
+                InProgressLabel: "in-progress",
+                DoneLabel: "done",
+                BlockedLabel: "blocked",
+                PlannerLabel: "agent:planner",
+                TechLeadLabel: "agent:techlead",
+                DevLabel: "agent:dev",
+                TestLabel: "agent:test",
+                ReleaseLabel: "agent:release",
+                UserReviewRequiredLabel: "user-review-required",
+                ReviewNeededLabel: "agent:review-needed",
+                ReviewedLabel: "agent:reviewed",
+                SpecQuestionsLabel: "spec-questions",
+                SpecClarifiedLabel: "spec-clarified",
+                CodeReviewNeededLabel: "code-review-needed",
+                CodeReviewApprovedLabel: "code-review-approved",
+                CodeReviewChangesRequestedLabel: "code-review-changes-requested",
+                ResetLabel: "agent:reset"
+            ),
             ProjectStatusInProgress: "In progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "",
             ProjectOwnerType: "user",
             ProjectNumber: null,
-            ProjectStatusDone: "Done",
-            UseWorkflowMode: false
+            ProjectStatusDone: "Done"
         );
 
-        var actual = OrchestratorConfig.FromEnvironment();
+        var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
 
         Assert.Equal(expected, actual);
     }
 
     [Fact]
-    public void FromEnvironment_WithMissingRequiredValues()
-    {
-        using var scope = new EnvScope(new Dictionary<string, string?>
-        {
-            ["REPO_OWNER"] = "   ",
-            ["REPO_NAME"] = null
-        });
-
-        var actual = OrchestratorConfig.FromEnvironment();
-
-        Assert.Equal(string.Empty, actual.RepoOwner);
-        Assert.Equal(string.Empty, actual.RepoName);
-    }
-
-    [Fact]
-    public void FromEnvironment_WithInvalidIntegers()
+    public void FromEnvironment_WithInvalidValues()
     {
         using var scope = new EnvScope(new Dictionary<string, string?>
         {
             ["POLL_INTERVAL_SECONDS"] = "abc",
-            ["FAST_POLL_INTERVAL_SECONDS"] = "not-a-number",
-            ["PROJECT_NUMBER"] = "nope"
-        });
-
-        var actual = OrchestratorConfig.FromEnvironment();
-
-        Assert.Equal(120, actual.PollIntervalSeconds);
-        Assert.Equal(30, actual.FastPollIntervalSeconds);
-        Assert.Null(actual.ProjectNumber);
-    }
-
-    [Fact]
-    public void FromEnvironment_WithBooleanParsing()
-    {
-        using var scope = new EnvScope(new Dictionary<string, string?>
-        {
-            ["USE_WORKFLOW_MODE"] = "true"
-        });
-
-        var actual = OrchestratorConfig.FromEnvironment();
-
-        Assert.True(actual.UseWorkflowMode);
-    }
-
-    [Fact]
-    public void FromEnvironment_GetIntWithValidValues()
-    {
-        using var scope = new EnvScope(new Dictionary<string, string?>
-        {
-            ["POLL_INTERVAL_SECONDS"] = "10",
-            ["FAST_POLL_INTERVAL_SECONDS"] = "20"
-        });
-
-        var actual = OrchestratorConfig.FromEnvironment();
-
-        Assert.Equal(10, actual.PollIntervalSeconds);
-        Assert.Equal(20, actual.FastPollIntervalSeconds);
-    }
-
-    [Fact]
-    public void FromEnvironment_GetIntWithInvalidValues()
-    {
-        using var scope = new EnvScope(new Dictionary<string, string?>
-        {
-            ["POLL_INTERVAL_SECONDS"] = "bad"
-        });
-
-        var actual = OrchestratorConfig.FromEnvironment();
-
-        Assert.Equal(120, actual.PollIntervalSeconds);
-    }
-
-    [Fact]
-    public void FromEnvironment_GetNullableIntEdgeCases()
-    {
-        using var scope = new EnvScope(new Dictionary<string, string?>
-        {
-            ["PROJECT_NUMBER"] = "0"
-        });
-
-        var actual = OrchestratorConfig.FromEnvironment();
-
-        Assert.Equal(0, actual.ProjectNumber);
-    }
-
-    [Fact]
-    public void FromEnvironment_GetNullableIntWithEmptyValue()
-    {
-        using var scope = new EnvScope(new Dictionary<string, string?>
-        {
-            ["PROJECT_NUMBER"] = ""
-        });
-
-        var actual = OrchestratorConfig.FromEnvironment();
-
-        Assert.Null(actual.ProjectNumber);
-    }
-
-    [Fact]
-    public void FromEnvironment_WithInvalidBooleanValue()
-    {
-        using var scope = new EnvScope(new Dictionary<string, string?>
-        {
+            ["FAST_POLL_INTERVAL_SECONDS"] = "nope",
+            ["PROJECT_NUMBER"] = "invalid",
             ["USE_WORKFLOW_MODE"] = "not-a-bool"
         });
 
-        var actual = OrchestratorConfig.FromEnvironment();
+        var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
 
-        Assert.False(actual.UseWorkflowMode);
+        Assert.Equal(120, actual.Workflow.PollIntervalSeconds);
+        Assert.Equal(30, actual.Workflow.FastPollIntervalSeconds);
+        Assert.False(actual.Workflow.UseWorkflowMode);
+        Assert.Null(actual.ProjectNumber);
+    }
+
+    [Fact]
+    public void FromEnvironment_WorkspaceHostPathFallsBackToWorkspacePath()
+    {
+        using var scope = new EnvScope(new Dictionary<string, string?>
+        {
+            ["WORKSPACE_PATH"] = "/tmp/overridden",
+            ["WORKSPACE_HOST_PATH"] = null
+        });
+
+        var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
+
+        Assert.Equal("/tmp/overridden", actual.WorkspacePath);
+        Assert.Equal("/tmp/overridden", actual.WorkspaceHostPath);
+    }
+
+    [Fact]
+    public void FromEnvironment_UsesWorkspaceHostPathWhenProvided()
+    {
+        using var scope = new EnvScope(new Dictionary<string, string?>
+        {
+            ["WORKSPACE_PATH"] = "/tmp/overridden",
+            ["WORKSPACE_HOST_PATH"] = "/host/path"
+        });
+
+        var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
+
+        Assert.Equal("/tmp/overridden", actual.WorkspacePath);
+        Assert.Equal("/host/path", actual.WorkspaceHostPath);
+    }
+
+    [Fact]
+    public void FromEnvironment_IgnoresWhitespaceValues()
+    {
+        using var scope = new EnvScope(new Dictionary<string, string?>
+        {
+            ["OPENAI_BASE_URL"] = "   ",
+            ["GIT_AUTHOR_NAME"] = "  ",
+            ["WORKSPACE_PATH"] = "   "
+        });
+
+        var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
+
+        Assert.Equal("https://api.openai.com/v1", actual.OpenAiBaseUrl);
+        Assert.Equal("Orchestrator Agent", actual.GitAuthorName);
+        Assert.Equal("/workspace", actual.WorkspacePath);
+        Assert.Equal("/workspace", actual.WorkspaceHostPath);
     }
 
     private sealed class EnvScope : IDisposable
