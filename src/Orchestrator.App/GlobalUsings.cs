@@ -20,3 +20,6 @@ global using Orchestrator.App.Utilities;
 
 // Workflows
 global using Orchestrator.App.Workflows;
+
+// Watcher
+global using Orchestrator.App.Watcher;

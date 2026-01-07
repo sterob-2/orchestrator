@@ -7,8 +7,8 @@ namespace Orchestrator.App;
 
 /// <summary>
 /// Minimal entry point for Workstream 1.
-/// Loads configuration and starts the orchestrator.
-/// Will be replaced by Workstream 3's Watcher + WorkflowRunner.
+/// Loads configuration and starts the watcher.
+/// Uses the legacy orchestrator while the Watcher + WorkflowRunner evolve.
 /// </summary>
 internal static class Program
 {
@@ -59,7 +59,7 @@ internal static class Program
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
-        // Create and run orchestrator
+        // Create and run watcher
         var orchestrator = new LegacyOrchestrator(
             cfg,
             services.GitHub,
@@ -67,7 +67,8 @@ internal static class Program
             services.RepoGit,
             services.Llm,
             mcpManager);
-        await orchestrator.RunAsync(cts.Token);
+        var watcher = new Watcher.GitHubIssueWatcher(orchestrator);
+        await watcher.RunAsync(cts.Token);
 
         return 0;
     }

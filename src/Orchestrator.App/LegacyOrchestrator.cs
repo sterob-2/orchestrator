@@ -10,7 +10,7 @@ namespace Orchestrator.App;
 /// Legacy orchestration logic from prototype.
 /// This will be replaced by Workstream 3's Watcher + WorkflowRunner.
 /// </summary>
-internal class LegacyOrchestrator
+internal class LegacyOrchestrator : IWorkItemRunner
 {
     private readonly OrchestratorConfig _cfg;
     private readonly IGitHubClient _github;
