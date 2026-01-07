@@ -23,3 +23,6 @@ global using Orchestrator.App.Workflows;
 
 // Watcher
 global using Orchestrator.App.Watcher;
+
+// Parsing
+global using Orchestrator.App.Parsing;
