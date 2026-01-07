@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using CoreModels = Orchestrator.App.Core.Models;
 using Xunit;
@@ -94,6 +95,10 @@ public class CoreModelsTests
         var spec = new CoreModels.ParsedSpec(
             Goal: "Ship feature",
             NonGoals: "No redesign",
+            Status: "Draft",
+            Updated: new DateTime(2024, 1, 12),
+            ArchitectureReferences: new List<string> { "ADR-1" },
+            Risks: new List<string> { "Risk-1" },
             Components: new List<string> { "API" },
             TouchList: touchList,
             Interfaces: new List<string> { "IService" },
@@ -105,6 +110,10 @@ public class CoreModelsTests
 
         Assert.Equal("Ship feature", spec.Goal);
         Assert.Equal("No redesign", spec.NonGoals);
+        Assert.Equal("Draft", spec.Status);
+        Assert.Equal(new DateTime(2024, 1, 12), spec.Updated);
+        Assert.Equal("ADR-1", spec.ArchitectureReferences[0]);
+        Assert.Equal("Risk-1", spec.Risks[0]);
         Assert.Equal("API", spec.Components[0]);
         Assert.Equal(touchList, spec.TouchList);
         Assert.Equal("IService", spec.Interfaces[0]);

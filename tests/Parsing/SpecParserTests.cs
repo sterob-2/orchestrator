@@ -1,3 +1,4 @@
+using System;
 using FluentAssertions;
 using Orchestrator.App.Core.Models;
 using Orchestrator.App.Parsing;
@@ -12,6 +13,8 @@ public class SpecParserTests
     {
         var parser = new SpecParser();
         var input = @"# Spec: Test
+STATUS: Draft
+UPDATED: 2024-02-10
 
 ## Goal
 Make it work.
@@ -32,6 +35,15 @@ Don't break it.
 ```csharp
 interface ITest {}
 ```
+
+## Architektur-Referenzen
+- ADR-001
+- docs/architecture.md
+
+## Risiken
+| Risiko | Beschreibung |
+|--------|--------------|
+| R1 | Timebox |
 
 ## Scenarios
 Scenario: A
@@ -58,6 +70,10 @@ Scenario: B
 
         result.Goal.Should().Be("Make it work.");
         result.NonGoals.Should().Be("Don't break it.");
+        result.Status.Should().Be("Draft");
+        result.Updated.Should().Be(new DateTime(2024, 2, 10));
+        result.ArchitectureReferences.Should().HaveCount(2).And.Contain("ADR-001");
+        result.Risks.Should().HaveCount(1);
         result.Components.Should().HaveCount(2).And.Contain("Core");
         result.TouchList.Should().HaveCount(1);
         result.TouchList[0].Path.Should().Be("src/A.cs");
@@ -65,5 +81,23 @@ Scenario: B
         result.Scenarios.Should().HaveCount(2);
         result.Sequence.Should().HaveCount(2);
         result.TestMatrix.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void Parse_SpecWithoutOptionalSections_ReturnsEmptyValues()
+    {
+        var parser = new SpecParser();
+        var input = @"# Spec: Test
+
+## Goal
+Make it work.
+";
+
+        var result = parser.Parse(input);
+
+        result.Status.Should().BeEmpty();
+        result.Updated.Should().BeNull();
+        result.ArchitectureReferences.Should().BeEmpty();
+        result.Risks.Should().BeEmpty();
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Orchestrator.App.Core.Models;
@@ -18,9 +19,13 @@ public class SpecParser
     public ParsedSpec Parse(string content)
     {
         var sections = ParseSections(content);
+        var status = GetTopLevelHeaderValue(content, "STATUS");
+        var updated = ParseUpdated(GetTopLevelHeaderValue(content, "UPDATED"));
 
         var goal = GetSection(sections, "Ziel", "Goal");
         var nonGoals = GetSection(sections, "Nicht-Ziele", "Non-Goals");
+        var architectureReferences = ParseList(GetSection(sections, "Architektur-Referenzen", "Architecture References"));
+        var risks = ParseRisks(GetSection(sections, "Risiken", "Risks"));
         var components = ParseList(GetSection(sections, "Komponenten", "Components"));
         var touchListContent = GetSection(sections, "Touch List");
         var touchList = _touchListParser.Parse(touchListContent);
@@ -32,6 +37,10 @@ public class SpecParser
         return new ParsedSpec(
             Goal: goal,
             NonGoals: nonGoals,
+            Status: status,
+            Updated: updated,
+            ArchitectureReferences: architectureReferences,
+            Risks: risks,
             Components: components,
             TouchList: touchList,
             Interfaces: interfaces,
@@ -67,6 +76,48 @@ public class SpecParser
         }
 
         return sections;
+    }
+
+    private static string GetTopLevelHeaderValue(string content, string header)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return string.Empty;
+
+        var topLevelContent = GetTopLevelContent(content);
+        var lines = topLevelContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith($"{header}:", StringComparison.OrdinalIgnoreCase))
+            {
+                return trimmed[(header.Length + 1)..].Trim();
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string GetTopLevelContent(string content)
+    {
+        var match = Regex.Match(content, @"^##\s+", RegexOptions.Multiline);
+        var endIndex = match.Success ? match.Index : content.Length;
+        return content.Substring(0, endIndex);
+    }
+
+    private static DateTime? ParseUpdated(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+
+        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed))
+        {
+            return parsed;
+        }
+
+        if (DateTime.TryParse(value, out parsed))
+        {
+            return parsed;
+        }
+
+        return null;
     }
 
     private string GetSection(Dictionary<string, string> sections, params string[] keys)
@@ -192,5 +243,22 @@ public class SpecParser
         }
 
         return rows;
+    }
+
+    private List<string> ParseRisks(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return new List<string>();
+
+        var lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        if (lines.Any(line => line.Trim().StartsWith("|", StringComparison.Ordinal)))
+        {
+            var rows = ParseTableRows(content);
+            if (rows.Count > 0)
+            {
+                return rows;
+            }
+        }
+
+        return ParseList(content);
     }
 }
