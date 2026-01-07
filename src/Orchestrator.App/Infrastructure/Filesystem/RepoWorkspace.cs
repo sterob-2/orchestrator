@@ -17,8 +17,23 @@ internal sealed class RepoWorkspace : IRepoWorkspace
 
     public string ResolvePath(string relativePath)
     {
+        var rootFull = Path.GetFullPath(Root).TrimEnd(Path.DirectorySeparatorChar);
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return rootFull;
+        }
+
         var normalized = relativePath.Replace('/', Path.DirectorySeparatorChar);
-        return Path.Combine(Root, normalized);
+        var combined = Path.GetFullPath(Path.Combine(rootFull, normalized));
+        var rootPrefix = rootFull + Path.DirectorySeparatorChar;
+
+        if (!combined.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(combined, rootFull, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Path escapes workspace root: {relativePath}");
+        }
+
+        return combined;
     }
 
     public bool Exists(string relativePath) => File.Exists(ResolvePath(relativePath));

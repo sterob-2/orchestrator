@@ -47,10 +47,7 @@ public class SpecParser
         var sections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (string.IsNullOrWhiteSpace(content)) return sections;
 
-        // Regex to find headers like "## Header"
-        // We look for "## " at the start of a line
-        var regex = new Regex(@"^##\s+(.+)$
-", RegexOptions.Multiline);
+        var regex = new Regex(@"^##\s+(.+)$", RegexOptions.Multiline);
         var matches = regex.Matches(content);
 
         if (matches.Count == 0) return sections;
@@ -84,27 +81,19 @@ public class SpecParser
     private List<string> ParseList(string content)
     {
         if (string.IsNullOrWhiteSpace(content)) return new List<string>();
-        
-        // Matches lines starting with - or * or 1.
-        var lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-        var items = new List<string>();
 
-        foreach (var line in lines)
-        {
-            var trimmed = line.Trim();
-            if (trimmed.StartsWith("- ") || trimmed.StartsWith("* ") || Regex.IsMatch(trimmed, @"^\d+\."))
+        return content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .Select(l =>
             {
-                // Remove the bullet/number
-                var clean = Regex.Replace(trimmed, @"^([-*]|\d+\.)\s+", "");
-                items.Add(clean);
-            }
-            else if (!string.IsNullOrWhiteSpace(trimmed))
-            {
-                // Also accept non-bulleted lines if it's a simple list section
-                 items.Add(trimmed);
-            }
-        }
-        return items;
+                if (l.StartsWith("- ") || l.StartsWith("* ") || Regex.IsMatch(l, @"^\d+\."))
+                {
+                    return Regex.Replace(l, @"^([-*]|\d+\.)\s+", "");
+                }
+                return l;
+            })
+            .ToList();
     }
 
     private List<string> ParseCodeBlocks(string content)
@@ -112,16 +101,12 @@ public class SpecParser
         var blocks = new List<string>();
         if (string.IsNullOrWhiteSpace(content)) return blocks;
 
-        var regex = new Regex(@"```.*?\n(.*?)
-```", RegexOptions.Singleline);
+        var regex = new Regex(@"```.*?\r?\n(.*?)\r?\n```", RegexOptions.Singleline);
         foreach (Match match in regex.Matches(content))
         {
             blocks.Add(match.Groups[1].Value.Trim());
         }
 
-        // If no code blocks found, return the whole content split by lines? 
-        // Or just the whole content as one block if it's not empty?
-        // Requirement says "Interfaces" section. It might contain code blocks.
         if (blocks.Count == 0 && !string.IsNullOrWhiteSpace(content))
         {
              blocks.Add(content);
@@ -135,10 +120,6 @@ public class SpecParser
         var scenarios = new List<string>();
         if (string.IsNullOrWhiteSpace(content)) return scenarios;
 
-        // Split by "Scenario:" but keep the delimiter
-        // A simple way is to find indices of "Scenario:"
-        // Note: This is a simple parser, might be confused by "Scenario:" inside comments or strings.
-        
         var regex = new Regex(@"(^|\n)Scenario:", RegexOptions.Multiline);
         var matches = regex.Matches(content);
         
@@ -147,12 +128,10 @@ public class SpecParser
         for (int i = 0; i < matches.Count; i++)
         {
             var start = matches[i].Index;
-            // If the match starts with \n, we want to include the "Scenario:" part which is at match.Index + 1
             if (content[start] == '\n') start++;
 
             var end = (i + 1 < matches.Count) ? matches[i + 1].Index : content.Length;
-            // Adjust end if next match starts with \n
-             if (i + 1 < matches.Count && content[end] == '\n') end++; // actually we split AT the newline before Scenario
+             if (i + 1 < matches.Count && content[end] == '\n') end++;
 
             var body = content.Substring(start, end - start).Trim();
             if (!string.IsNullOrWhiteSpace(body))
@@ -166,31 +145,18 @@ public class SpecParser
 
     private List<string> ParseTableRows(string content)
     {
-        // For Testmatrix, we just want the rows (maybe excluding header)
-        // This returns raw rows for now.
         if (string.IsNullOrWhiteSpace(content)) return new List<string>();
 
-        var lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-        var rows = new List<string>();
-        
-        bool tableStarted = false;
-        foreach (var line in lines)
-        {
-             var trimmed = line.Trim();
-             if (!trimmed.StartsWith("|")) continue;
-             
-             if (trimmed.Contains("---"))
-             {
-                 tableStarted = true;
-                 continue;
-             }
+        var lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .ToList();
 
-             if (tableStarted)
-             {
-                 rows.Add(trimmed);
-             }
-        }
+        var separatorIndex = lines.FindIndex(l => l.StartsWith('|') && l.Contains("---"));
 
-        return rows;
+        if (separatorIndex < 0) return new List<string>();
+
+        return lines.Skip(separatorIndex + 1)
+            .Where(l => l.StartsWith('|'))
+            .ToList();
     }
 }

@@ -141,4 +141,13 @@ public class FileOperationHelperTests
 
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task ExistsAsync_WithUnsafePath_Throws()
+    {
+        var ctx = MockWorkContext.Create();
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => FileOperationHelper.ExistsAsync(ctx, "../secrets.txt"));
+    }
 }

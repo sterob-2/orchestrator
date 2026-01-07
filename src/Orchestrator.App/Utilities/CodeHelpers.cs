@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Orchestrator.App.Core.Interfaces;
 
 namespace Orchestrator.App.Utilities;
@@ -9,34 +10,14 @@ public static class CodeHelpers
 {
     internal static List<string> ValidateSpecFiles(IEnumerable<string> files, IRepoWorkspace workspace)
     {
-        var invalid = new List<string>();
-        foreach (var file in files)
+        return files.Where(file =>
         {
-            if (!WorkItemParsers.IsSafeRelativePath(file))
-            {
-                invalid.Add(file);
-                continue;
-            }
+            if (!WorkItemParsers.IsSafeRelativePath(file)) return true;
+            if (!IsAllowedPath(file)) return true;
+            if (workspace.Exists(file)) return false;
 
-            if (!IsAllowedPath(file))
-            {
-                invalid.Add(file);
-                continue;
-            }
-
-            if (workspace.Exists(file))
-            {
-                continue;
-            }
-
-            var extension = Path.GetExtension(file);
-            if (!IsAllowedExtension(extension))
-            {
-                invalid.Add(file);
-            }
-        }
-
-        return invalid;
+            return !IsAllowedExtension(Path.GetExtension(file));
+        }).ToList();
     }
 
     internal static bool IsAllowedPath(string path)
@@ -49,24 +30,14 @@ public static class CodeHelpers
             "Assets/Tests/"
         };
 
-        foreach (var prefix in allowedPrefixes)
-        {
-            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return string.Equals(path, "orchestrator/README.md", StringComparison.OrdinalIgnoreCase);
+        return allowedPrefixes.Any(prefix => path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) ||
+               string.Equals(path, "orchestrator/README.md", StringComparison.OrdinalIgnoreCase);
     }
 
     internal static bool IsAllowedExtension(string extension)
     {
-        return extension.Equals(".cs", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".md", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".json", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".yml", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".yaml", StringComparison.OrdinalIgnoreCase);
+        var allowed = new[] { ".cs", ".md", ".json", ".yml", ".yaml" };
+        return allowed.Contains(extension, StringComparer.OrdinalIgnoreCase);
     }
 
     internal static bool IsTestFile(string path)
