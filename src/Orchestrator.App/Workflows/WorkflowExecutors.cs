@@ -158,6 +158,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         var refinement = await BuildRefinementAsync(input, cancellationToken);
         var serialized = WorkflowJson.Serialize(refinement);
         await context.QueueStateUpdateAsync(WorkflowStateKeys.RefinementResult, serialized, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.RefinementResult] = serialized;
 
         var summary = $"Refinement captured ({refinement.AcceptanceCriteria.Count} criteria, {refinement.OpenQuestions.Count} open questions).";
         return (true, summary);
@@ -205,6 +206,11 @@ internal sealed class DorExecutor : WorkflowStageExecutor
             () => string.Empty,
             cancellationToken: cancellationToken);
 
+        if (string.IsNullOrEmpty(refinementJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.RefinementResult, out var fallbackJson))
+        {
+             refinementJson = fallbackJson;
+        }
+
         if (!WorkflowJson.TryDeserialize(refinementJson, out RefinementResult? refinement) || refinement is null)
         {
             return (false, "DoR gate failed: missing refinement output.");
@@ -219,7 +225,9 @@ internal sealed class DorExecutor : WorkflowStageExecutor
             ? "DoR gate passed."
             : $"DoR gate failed: {string.Join(" ", result.Failures)}";
 
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.DorGateResult, WorkflowJson.Serialize(result), cancellationToken);
+        var serializedResult = WorkflowJson.Serialize(result);
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.DorGateResult, serializedResult, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.DorGateResult] = serializedResult;
         return (result.Passed, notes);
     }
 }
@@ -263,7 +271,9 @@ internal sealed class TechLeadExecutor : WorkflowStageExecutor
         var parsedSpec = new SpecParser().Parse(specContent);
         var (frameworks, patterns) = ResolvePlaybookUsage(playbook, specContent);
         var result = new TechLeadResult(specPath, parsedSpec, frameworks, patterns);
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.TechLeadResult, WorkflowJson.Serialize(result), cancellationToken);
+        var serializedResult = WorkflowJson.Serialize(result);
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.TechLeadResult, serializedResult, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.TechLeadResult] = serializedResult;
 
         return (true, $"TechLead spec saved to {specPath}.");
     }
@@ -356,7 +366,9 @@ internal sealed class SpecGateExecutor : WorkflowStageExecutor
             }
         }
 
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.SpecGateResult, WorkflowJson.Serialize(result), cancellationToken);
+        var serializedResult = WorkflowJson.Serialize(result);
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.SpecGateResult, serializedResult, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.SpecGateResult] = serializedResult;
 
         var notes = result.Passed
             ? "Spec gate passed."
@@ -441,7 +453,9 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         var commitOk = WorkContext.Repo.CommitAndPush(branchName, $"feat: issue {input.WorkItem.Number}", changedFiles);
 
         var result = new DevResult(commitOk, input.WorkItem.Number, changedFiles, "");
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.DevResult, WorkflowJson.Serialize(result), cancellationToken);
+        var serializedResult = WorkflowJson.Serialize(result);
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.DevResult, serializedResult, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.DevResult] = serializedResult;
 
         return commitOk
             ? (true, $"Dev changes committed on {branchName}.")
@@ -490,6 +504,11 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
             () => string.Empty,
             cancellationToken: cancellationToken);
 
+        if (string.IsNullOrEmpty(devJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.DevResult, out var fallbackDevJson))
+        {
+             devJson = fallbackDevJson;
+        }
+
         if (!WorkflowJson.TryDeserialize(devJson, out DevResult? devResult) || devResult is null)
         {
             return (false, "Code review blocked: missing dev result.");
@@ -535,7 +554,9 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
         WorkContext.Metrics?.RecordCodeReview(finalResult.Findings.Count, finalResult.Approved);
 
         await FileOperationHelper.WriteAllTextAsync(WorkContext, finalResult.ReviewPath, BuildReviewMarkdown(finalResult));
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.CodeReviewResult, WorkflowJson.Serialize(finalResult), cancellationToken);
+        var serializedResult = WorkflowJson.Serialize(finalResult);
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.CodeReviewResult, serializedResult, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.CodeReviewResult] = serializedResult;
 
         var notes = approved
             ? "Code review approved."
@@ -678,12 +699,20 @@ internal sealed class DodExecutor : WorkflowStageExecutor
             WorkflowStateKeys.DevResult,
             () => string.Empty,
             cancellationToken: cancellationToken);
+        if (string.IsNullOrEmpty(devJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.DevResult, out var fallbackDevJson))
+        {
+             devJson = fallbackDevJson;
+        }
         WorkflowJson.TryDeserialize(devJson, out DevResult? devResult);
 
         var codeReviewJson = await context.ReadOrInitStateAsync(
             WorkflowStateKeys.CodeReviewResult,
             () => string.Empty,
             cancellationToken: cancellationToken);
+        if (string.IsNullOrEmpty(codeReviewJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.CodeReviewResult, out var fallbackReviewJson))
+        {
+             codeReviewJson = fallbackReviewJson;
+        }
         WorkflowJson.TryDeserialize(codeReviewJson, out CodeReviewResult? codeReviewResult);
 
         var changedFiles = devResult?.ChangedFiles ?? Array.Empty<string>();
@@ -719,7 +748,9 @@ internal sealed class DodExecutor : WorkflowStageExecutor
         {
             WorkContext.Metrics?.RecordGateFailures(result.Failures);
         }
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.DodGateResult, WorkflowJson.Serialize(result), cancellationToken);
+        var serializedResult = WorkflowJson.Serialize(result);
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.DodGateResult, serializedResult, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.DodGateResult] = serializedResult;
 
         var notes = result.Passed
             ? "DoD gate passed."
@@ -773,6 +804,11 @@ internal sealed class ReleaseExecutor : WorkflowStageExecutor
             () => string.Empty,
             cancellationToken: cancellationToken);
 
+        if (string.IsNullOrEmpty(dodJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.DodGateResult, out var fallbackDodJson))
+        {
+             dodJson = fallbackDodJson;
+        }
+
         if (!WorkflowJson.TryDeserialize(dodJson, out GateResult? dodResult) || dodResult is null || !dodResult.Passed)
         {
             return (false, "Release blocked: DoD gate not passed.");
@@ -804,7 +840,9 @@ internal sealed class ReleaseExecutor : WorkflowStageExecutor
         await FileOperationHelper.WriteAllTextAsync(WorkContext, releasePath, releaseNotes);
 
         var result = new ReleaseResult(number, prUrl, Merged: false);
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.ReleaseResult, WorkflowJson.Serialize(result), cancellationToken);
+        var serializedResult = WorkflowJson.Serialize(result);
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.ReleaseResult, serializedResult, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.ReleaseResult] = serializedResult;
 
         return (true, $"Release notes saved to {releasePath}.");
     }
