@@ -71,10 +71,20 @@ internal sealed class GitHubIssueWatcher
 
     public void RequestScan()
     {
-        if (!_scanSignals.Writer.TryWrite(true))
+        if (!TryRequestScan())
         {
             Logger.WriteLine("Watcher trigger dropped.");
         }
+    }
+
+    internal bool TryRequestScan()
+    {
+        return _scanSignals.Writer.TryWrite(true);
+    }
+
+    internal void CompleteScanChannel()
+    {
+        _scanSignals.Writer.TryComplete();
     }
 
     internal async Task<WorkItem?> RunOnceAsync(CancellationToken cancellationToken)

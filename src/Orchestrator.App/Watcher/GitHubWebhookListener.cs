@@ -73,59 +73,23 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
         var response = context.Response;
         response.ContentType = "text/plain";
 
-        if (!string.Equals(request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
-        {
-            response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
-            response.Close();
-            return;
-        }
-
-        if (!string.Equals(request.Url?.AbsolutePath, _path, StringComparison.OrdinalIgnoreCase))
-        {
-            response.StatusCode = (int)HttpStatusCode.NotFound;
-            response.Close();
-            return;
-        }
-
         var payload = await ReadBodyAsync(request, cancellationToken);
-        if (!IsSignatureValid(_config.WebhookSecret, payload, request.Headers["X-Hub-Signature-256"]))
-        {
-            response.StatusCode = (int)HttpStatusCode.Unauthorized;
-            response.Close();
-            return;
-        }
-
         var eventName = request.Headers["X-GitHub-Event"];
-        if (string.Equals(eventName, "ping", StringComparison.OrdinalIgnoreCase))
+        var decision = EvaluateRequest(
+            request.HttpMethod,
+            request.Url?.AbsolutePath,
+            _path,
+            _config.WebhookSecret,
+            request.Headers["X-Hub-Signature-256"],
+            payload,
+            eventName);
+
+        if (decision.ShouldTrigger)
         {
-            response.StatusCode = (int)HttpStatusCode.OK;
-            response.Close();
-            return;
+            _onWebhook();
         }
 
-        var action = TryGetAction(payload);
-        if (string.IsNullOrWhiteSpace(eventName))
-        {
-            response.StatusCode = (int)HttpStatusCode.BadRequest;
-            response.Close();
-            return;
-        }
-
-        if (string.Equals(eventName, "issues", StringComparison.OrdinalIgnoreCase) && action is null)
-        {
-            response.StatusCode = (int)HttpStatusCode.BadRequest;
-            response.Close();
-            return;
-        }
-        if (!IsRelevantEvent(eventName, action))
-        {
-            response.StatusCode = (int)HttpStatusCode.Accepted;
-            response.Close();
-            return;
-        }
-
-        _onWebhook();
-        response.StatusCode = (int)HttpStatusCode.Accepted;
+        response.StatusCode = decision.StatusCode;
         response.Close();
     }
 
@@ -161,6 +125,54 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
         using var hmac = new HMACSHA256(keyBytes);
         var hash = hmac.ComputeHash(payload);
         return "sha256=" + Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    internal static WebhookDecision EvaluateRequest(
+        string? httpMethod,
+        string? path,
+        string expectedPath,
+        string? secret,
+        string? signatureHeader,
+        byte[] payload,
+        string? eventName)
+    {
+        if (!string.Equals(httpMethod, "POST", StringComparison.OrdinalIgnoreCase))
+        {
+            return new WebhookDecision((int)HttpStatusCode.MethodNotAllowed, false);
+        }
+
+        if (!string.Equals(path, expectedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return new WebhookDecision((int)HttpStatusCode.NotFound, false);
+        }
+
+        if (!IsSignatureValid(secret, payload, signatureHeader))
+        {
+            return new WebhookDecision((int)HttpStatusCode.Unauthorized, false);
+        }
+
+        if (string.IsNullOrWhiteSpace(eventName))
+        {
+            return new WebhookDecision((int)HttpStatusCode.BadRequest, false);
+        }
+
+        if (string.Equals(eventName, "ping", StringComparison.OrdinalIgnoreCase))
+        {
+            return new WebhookDecision((int)HttpStatusCode.OK, false);
+        }
+
+        var action = TryGetAction(payload);
+        if (string.Equals(eventName, "issues", StringComparison.OrdinalIgnoreCase) && action is null)
+        {
+            return new WebhookDecision((int)HttpStatusCode.BadRequest, false);
+        }
+
+        if (!IsRelevantEvent(eventName, action))
+        {
+            return new WebhookDecision((int)HttpStatusCode.Accepted, false);
+        }
+
+        return new WebhookDecision((int)HttpStatusCode.Accepted, true);
     }
 
     internal static bool IsRelevantEvent(string? eventName, string? action)
@@ -219,6 +231,8 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
         _listener.Close();
         return ValueTask.CompletedTask;
     }
+
+    internal sealed record WebhookDecision(int StatusCode, bool ShouldTrigger);
 
     private bool TryStartListener(bool useHttps)
     {

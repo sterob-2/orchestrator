@@ -98,4 +98,130 @@ public class GitHubWebhookListenerTests
 
         Assert.Null(action);
     }
+
+    [Fact]
+    public void EvaluateRequest_RejectsNonPostMethod()
+    {
+        var payload = "{}"u8.ToArray();
+
+        var decision = GitHubWebhookListener.EvaluateRequest(
+            httpMethod: "GET",
+            path: "/webhook",
+            expectedPath: "/webhook",
+            secret: null,
+            signatureHeader: null,
+            payload: payload,
+            eventName: "issues");
+
+        Assert.Equal((int)System.Net.HttpStatusCode.MethodNotAllowed, decision.StatusCode);
+        Assert.False(decision.ShouldTrigger);
+    }
+
+    [Fact]
+    public void EvaluateRequest_RejectsWrongPath()
+    {
+        var payload = "{}"u8.ToArray();
+
+        var decision = GitHubWebhookListener.EvaluateRequest(
+            httpMethod: "POST",
+            path: "/wrong",
+            expectedPath: "/webhook",
+            secret: null,
+            signatureHeader: null,
+            payload: payload,
+            eventName: "issues");
+
+        Assert.Equal((int)System.Net.HttpStatusCode.NotFound, decision.StatusCode);
+        Assert.False(decision.ShouldTrigger);
+    }
+
+    [Fact]
+    public void EvaluateRequest_RejectsInvalidSignature()
+    {
+        var payload = "{}"u8.ToArray();
+
+        var decision = GitHubWebhookListener.EvaluateRequest(
+            httpMethod: "POST",
+            path: "/webhook",
+            expectedPath: "/webhook",
+            secret: "secret",
+            signatureHeader: "sha256=bad",
+            payload: payload,
+            eventName: "issues");
+
+        Assert.Equal((int)System.Net.HttpStatusCode.Unauthorized, decision.StatusCode);
+        Assert.False(decision.ShouldTrigger);
+    }
+
+    [Fact]
+    public void EvaluateRequest_HandlesPing()
+    {
+        var payload = "{}"u8.ToArray();
+
+        var decision = GitHubWebhookListener.EvaluateRequest(
+            httpMethod: "POST",
+            path: "/webhook",
+            expectedPath: "/webhook",
+            secret: null,
+            signatureHeader: null,
+            payload: payload,
+            eventName: "ping");
+
+        Assert.Equal((int)System.Net.HttpStatusCode.OK, decision.StatusCode);
+        Assert.False(decision.ShouldTrigger);
+    }
+
+    [Fact]
+    public void EvaluateRequest_RejectsMissingEvent()
+    {
+        var payload = "{}"u8.ToArray();
+
+        var decision = GitHubWebhookListener.EvaluateRequest(
+            httpMethod: "POST",
+            path: "/webhook",
+            expectedPath: "/webhook",
+            secret: null,
+            signatureHeader: null,
+            payload: payload,
+            eventName: null);
+
+        Assert.Equal((int)System.Net.HttpStatusCode.BadRequest, decision.StatusCode);
+        Assert.False(decision.ShouldTrigger);
+    }
+
+    [Fact]
+    public void EvaluateRequest_RejectsIssuesWithoutAction()
+    {
+        var payload = "{}"u8.ToArray();
+
+        var decision = GitHubWebhookListener.EvaluateRequest(
+            httpMethod: "POST",
+            path: "/webhook",
+            expectedPath: "/webhook",
+            secret: null,
+            signatureHeader: null,
+            payload: payload,
+            eventName: "issues");
+
+        Assert.Equal((int)System.Net.HttpStatusCode.BadRequest, decision.StatusCode);
+        Assert.False(decision.ShouldTrigger);
+    }
+
+    [Fact]
+    public void EvaluateRequest_AcceptsRelevantIssueEvent()
+    {
+        var payload = "{\"action\":\"opened\"}"u8.ToArray();
+
+        var decision = GitHubWebhookListener.EvaluateRequest(
+            httpMethod: "POST",
+            path: "/webhook",
+            expectedPath: "/webhook",
+            secret: null,
+            signatureHeader: null,
+            payload: payload,
+            eventName: "issues");
+
+        Assert.Equal((int)System.Net.HttpStatusCode.Accepted, decision.StatusCode);
+        Assert.True(decision.ShouldTrigger);
+    }
 }
