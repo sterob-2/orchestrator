@@ -65,19 +65,7 @@ internal sealed class FileWorkflowMetricsStore : IWorkflowMetricsStore
 
             await File.AppendAllTextAsync(fullPath, json + Environment.NewLine, cancellationToken);
         }
-        catch (IOException ex)
-        {
-            Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
-        }
         catch (UnauthorizedAccessException ex)
-        {
-            Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
-        }
-        catch (DirectoryNotFoundException ex)
-        {
-            Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
-        }
-        catch (PathTooLongException ex)
         {
             Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
         }
@@ -86,6 +74,10 @@ internal sealed class FileWorkflowMetricsStore : IWorkflowMetricsStore
             Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
         }
         catch (NotSupportedException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
+        }
+        catch (IOException ex)
         {
             Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
         }
@@ -126,22 +118,7 @@ internal sealed class FileWorkflowMetricsStore : IWorkflowMetricsStore
             results.Reverse();
             return results;
         }
-        catch (IOException ex)
-        {
-            Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
-            return Array.Empty<WorkflowRunMetrics>();
-        }
         catch (UnauthorizedAccessException ex)
-        {
-            Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
-            return Array.Empty<WorkflowRunMetrics>();
-        }
-        catch (DirectoryNotFoundException ex)
-        {
-            Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
-            return Array.Empty<WorkflowRunMetrics>();
-        }
-        catch (PathTooLongException ex)
         {
             Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
             return Array.Empty<WorkflowRunMetrics>();
@@ -152,6 +129,11 @@ internal sealed class FileWorkflowMetricsStore : IWorkflowMetricsStore
             return Array.Empty<WorkflowRunMetrics>();
         }
         catch (NotSupportedException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
+            return Array.Empty<WorkflowRunMetrics>();
+        }
+        catch (IOException ex)
         {
             Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
             return Array.Empty<WorkflowRunMetrics>();
