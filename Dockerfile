@@ -8,11 +8,9 @@ FROM mcr.microsoft.com/dotnet/runtime:8.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    docker.io \
     git \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl -fsSL https://get.docker.com -o get-docker.sh \
-    && sh get-docker.sh \
-    && rm get-docker.sh
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=build /out ./
