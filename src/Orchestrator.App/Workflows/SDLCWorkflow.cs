@@ -26,7 +26,7 @@ internal static class SDLCWorkflow
     {
         WorkflowOutput? finalOutput = null;
 
-        Console.WriteLine($"[Workflow] Starting workflow for issue #{input.WorkItem.Number}...");
+        Logger.WriteLine($"[Workflow] Starting workflow for issue #{input.WorkItem.Number}...");
 
         // Execute workflow
         Run run = await InProcessExecution.RunAsync(workflow, input);
@@ -37,7 +37,7 @@ internal static class SDLCWorkflow
             switch (evt)
             {
                 case ExecutorCompletedEvent completedEvt:
-                    Console.WriteLine($"[Workflow] Executor completed: {completedEvt.ExecutorId}");
+                    Logger.WriteLine($"[Workflow] Executor completed: {completedEvt.ExecutorId}");
                     if (completedEvt.Data is WorkflowOutput output)
                     {
                         finalOutput = output;
@@ -45,18 +45,18 @@ internal static class SDLCWorkflow
                         {
                             await onOutput(output);
                         }
-                        Console.WriteLine($"   Success: {output.Success}");
-                        Console.WriteLine($"   Notes: {output.Notes}");
+                        Logger.WriteLine($"   Success: {output.Success}");
+                        Logger.WriteLine($"   Notes: {output.Notes}");
                         if (output.NextStage is not null)
                         {
-                            Console.WriteLine($"   Next Stage: {output.NextStage}");
+                            Logger.WriteLine($"   Next Stage: {output.NextStage}");
                         }
                     }
                     break;
             }
         }
 
-        Console.WriteLine($"[Workflow] Workflow completed!");
+        Logger.WriteLine($"[Workflow] Workflow completed!");
         return finalOutput;
     }
 }
