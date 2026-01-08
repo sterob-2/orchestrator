@@ -16,7 +16,7 @@ public class DorGateValidatorTests
             new List<string> { "estimate:3", config.Labels.WorkItemLabel });
 
         var refinement = new RefinementResult(
-            "Clarified story",
+            "Clarified story that is sufficiently long to pass the Definition of Ready gate criteria and be valid.",
             new List<string>
             {
                 "Given a user has an account, when they pay, then the balance updates.",

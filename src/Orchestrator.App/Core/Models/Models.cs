@@ -18,7 +18,7 @@ internal sealed record WorkContext(
     /// </summary>
     public McpFileOperations? McpFiles => Mcp != null ? new McpFileOperations(Mcp) : null;
     
-    public System.Collections.Concurrent.ConcurrentDictionary<string, string> State => SharedState ?? new();
+    public System.Collections.Concurrent.ConcurrentDictionary<string, string> State { get; } = SharedState ?? new();
 };
 
 internal sealed record LlmCallMetrics(
