@@ -33,6 +33,16 @@ internal abstract class WorkflowStageExecutor : Executor<WorkflowInput, Workflow
     }
 }
 
+internal sealed class ContextBuilderExecutor : WorkflowStageExecutor
+{
+    public ContextBuilderExecutor() : base("ContextBuilder")
+    {
+    }
+
+    protected override WorkflowStage Stage => WorkflowStage.ContextBuilder;
+    protected override string Notes => "Context builder placeholder executed.";
+}
+
 internal sealed class RefinementExecutor : WorkflowStageExecutor
 {
     public RefinementExecutor() : base("Refinement")

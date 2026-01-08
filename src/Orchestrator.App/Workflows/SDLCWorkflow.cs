@@ -12,7 +12,7 @@ internal static class SDLCWorkflow
     /// </summary>
     public static Workflow BuildStageWorkflow(WorkflowStage stage)
     {
-        return WorkflowFactory.Build(stage);
+        return WorkflowFactory.BuildGraph(stage);
     }
 
     /// <summary>
@@ -20,9 +20,12 @@ internal static class SDLCWorkflow
     /// </summary>
     public static async Task<WorkflowOutput?> RunWorkflowAsync(
         Workflow workflow,
-        WorkflowInput input)
+        WorkflowInput input,
+        WorkflowStage? stage = null)
     {
         WorkflowOutput? finalOutput = null;
+        WorkflowOutput? stageOutput = null;
+        var targetExecutorId = stage.HasValue ? ExecutorIdFor(stage.Value) : null;
 
         Console.WriteLine($"[Workflow] Starting workflow for issue #{input.WorkItem.Number}...");
 
@@ -39,6 +42,12 @@ internal static class SDLCWorkflow
                     if (completedEvt.Data is WorkflowOutput output)
                     {
                         finalOutput = output;
+                        if (targetExecutorId != null &&
+                            completedEvt.ExecutorId == targetExecutorId &&
+                            stageOutput == null)
+                        {
+                            stageOutput = output;
+                        }
                         Console.WriteLine($"   Success: {output.Success}");
                         Console.WriteLine($"   Notes: {output.Notes}");
                         if (output.NextStage is not null)
@@ -51,6 +60,23 @@ internal static class SDLCWorkflow
         }
 
         Console.WriteLine($"[Workflow] Workflow completed!");
-        return finalOutput;
+        return stageOutput ?? finalOutput;
+    }
+
+    private static string ExecutorIdFor(WorkflowStage stage)
+    {
+        return stage switch
+        {
+            WorkflowStage.ContextBuilder => "ContextBuilder",
+            WorkflowStage.Refinement => "Refinement",
+            WorkflowStage.DoR => "DoR",
+            WorkflowStage.TechLead => "TechLead",
+            WorkflowStage.SpecGate => "SpecGate",
+            WorkflowStage.Dev => "Dev",
+            WorkflowStage.CodeReview => "CodeReview",
+            WorkflowStage.DoD => "DoD",
+            WorkflowStage.Release => "Release",
+            _ => "Refinement"
+        };
     }
 }

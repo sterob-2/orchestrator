@@ -17,12 +17,12 @@ This plan breaks the v3.1 concept into parallelizable workstreams. Each workstre
 - Deliverable: Core project compiles; infrastructure can be swapped via DI without changing callers.
 
 ## Workstream 3: Workflow Engine and Watcher
-- Implement `Watcher/GitHubIssueWatcher` to translate labels into workflow start/reset signals; move polling logic into the watcher (no legacy runner).
-- Build `Workflows/WorkflowFactory` and `WorkflowRunner` to assemble the graph from the concept (ContextBuilder → Refinement ↔ DoR → TechLead ↔ SpecGate → Dev → CodeReview ↔ Dev → DoD ↔ Dev → Release).
-- Add checkpointing and iteration limit enforcement with configurable thresholds.
-- Implement label synchronization handlers (`LabelSyncHandler`, `HumanInLoopHandler`) that project workflow state to board labels.
-- Remove legacy agents and all feature-flagged flow switching while introducing the workflow runner.
-- Deliverable: Running workflow skeleton with stub executors that return placeholder results and drive label updates.
+- [x] Implement `Watcher/GitHubIssueWatcher` to translate labels into workflow start/reset signals; polling removed (no legacy runner).
+- [x] Build `Workflows/WorkflowFactory` and `WorkflowRunner` to assemble the graph from the concept (ContextBuilder → Refinement ↔ DoR → TechLead ↔ SpecGate → Dev → CodeReview ↔ Dev → DoD ↔ Dev → Release).
+- [x] Add checkpointing and iteration limit enforcement with configurable thresholds.
+- [x] Implement label synchronization handlers (`LabelSyncHandler`, `HumanInLoopHandler`) that project workflow state to board labels.
+- [x] Remove legacy agents and all feature-flagged flow switching while introducing the workflow runner.
+- [x] Deliverable: Running workflow skeleton with stub executors that return placeholder results and drive label updates.
 
 ## Workstream 4: Gates and Playbook Validation
 - Implement DoR gate rules (DoR-01..07) against refinement output and issue metadata.

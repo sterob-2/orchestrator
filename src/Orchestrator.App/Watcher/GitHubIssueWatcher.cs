@@ -7,61 +7,44 @@ internal sealed class GitHubIssueWatcher
     private readonly IWorkflowRunner _runner;
     private readonly Func<WorkItem, WorkContext> _contextFactory;
     private readonly IWorkflowCheckpointStore _checkpointStore;
-    private readonly Func<TimeSpan, CancellationToken, Task> _delay;
 
     public GitHubIssueWatcher(
         OrchestratorConfig config,
         IGitHubClient github,
         IWorkflowRunner runner,
         Func<WorkItem, WorkContext> contextFactory,
-        IWorkflowCheckpointStore checkpointStore,
-        Func<TimeSpan, CancellationToken, Task>? delay = null)
+        IWorkflowCheckpointStore checkpointStore)
     {
         _config = config;
         _github = github;
         _runner = runner;
         _contextFactory = contextFactory;
         _checkpointStore = checkpointStore;
-        _delay = delay ?? Task.Delay;
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
-        WorkItem? lastWorkItem = null;
-
-        while (!cancellationToken.IsCancellationRequested)
+        if (cancellationToken.IsCancellationRequested)
         {
-            try
-            {
-                lastWorkItem = await RunOnceAsync(cancellationToken);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (System.Net.Http.HttpRequestException ex)
-            {
-                Logger.WriteLine(ex.ToString());
-            }
-            catch (TimeoutException ex)
-            {
-                Logger.WriteLine(ex.ToString());
-            }
+            Logger.WriteLine("Orchestrator stopped");
+            return;
+        }
 
-            if (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
-
-            try
-            {
-                var interval = ComputePollIntervalSeconds(_config, lastWorkItem);
-                await _delay(TimeSpan.FromSeconds(interval), cancellationToken);
-            }
-            catch (TaskCanceledException)
-            {
-                break;
-            }
+        try
+        {
+            await RunOnceAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (System.Net.Http.HttpRequestException ex)
+        {
+            Logger.WriteLine(ex.ToString());
+        }
+        catch (TimeoutException ex)
+        {
+            Logger.WriteLine(ex.ToString());
         }
 
         Logger.WriteLine("Orchestrator stopped");
@@ -152,31 +135,6 @@ internal sealed class GitHubIssueWatcher
         await _github.AddLabelsAsync(item.Number, _config.Labels.WorkItemLabel);
     }
 
-    private static int ComputePollIntervalSeconds(OrchestratorConfig cfg, WorkItem? workItem)
-    {
-        if (workItem == null)
-        {
-            return cfg.Workflow.PollIntervalSeconds;
-        }
-
-        if (HasAnyLabel(
-            workItem,
-            cfg.Labels.PlannerLabel,
-            cfg.Labels.DorLabel,
-            cfg.Labels.TechLeadLabel,
-            cfg.Labels.SpecGateLabel,
-            cfg.Labels.DevLabel,
-            cfg.Labels.TestLabel,
-            cfg.Labels.ReleaseLabel,
-            cfg.Labels.CodeReviewNeededLabel,
-            cfg.Labels.CodeReviewChangesRequestedLabel))
-        {
-            return cfg.Workflow.FastPollIntervalSeconds;
-        }
-
-        return cfg.Workflow.PollIntervalSeconds;
-    }
-
     private static bool HasLabel(WorkItem item, string label)
     {
         return item.Labels.Contains(label, StringComparer.OrdinalIgnoreCase);
@@ -189,7 +147,12 @@ internal sealed class GitHubIssueWatcher
 
     private WorkflowStage? GetStageFromLabels(WorkItem item)
     {
-        if (HasLabel(item, _config.Labels.WorkItemLabel) || HasLabel(item, _config.Labels.PlannerLabel))
+        if (HasLabel(item, _config.Labels.WorkItemLabel))
+        {
+            return WorkflowStage.ContextBuilder;
+        }
+
+        if (HasLabel(item, _config.Labels.PlannerLabel))
         {
             return WorkflowStage.Refinement;
         }

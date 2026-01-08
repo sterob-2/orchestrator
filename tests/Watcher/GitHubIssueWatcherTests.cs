@@ -28,14 +28,13 @@ public class GitHubIssueWatcherTests
                 new Mock<IRepoWorkspace>().Object,
                 new Mock<IRepoGit>().Object,
                 new Mock<ILlmClient>().Object),
-            checkpoints,
-            (_, _) => Task.CompletedTask);
+            checkpoints);
 
         await watcher.RunOnceAsync(CancellationToken.None);
 
         Assert.True(runner.Called);
         Assert.Equal(workItem, runner.WorkItem);
-        Assert.Equal(WorkflowStage.Refinement, runner.Stage);
+        Assert.Equal(WorkflowStage.ContextBuilder, runner.Stage);
     }
 
     [Fact]
@@ -61,8 +60,7 @@ public class GitHubIssueWatcherTests
                 new Mock<IRepoWorkspace>().Object,
                 new Mock<IRepoGit>().Object,
                 new Mock<ILlmClient>().Object),
-            checkpoints,
-            (_, _) => Task.CompletedTask);
+            checkpoints);
 
         await watcher.RunOnceAsync(CancellationToken.None);
 
@@ -93,8 +91,7 @@ public class GitHubIssueWatcherTests
                 new Mock<IRepoWorkspace>().Object,
                 new Mock<IRepoGit>().Object,
                 new Mock<ILlmClient>().Object),
-            checkpoints,
-            (_, _) => Task.CompletedTask);
+            checkpoints);
 
         await watcher.RunOnceAsync(CancellationToken.None);
 
@@ -133,8 +130,7 @@ public class GitHubIssueWatcherTests
                 new Mock<IRepoWorkspace>().Object,
                 new Mock<IRepoGit>().Object,
                 new Mock<ILlmClient>().Object),
-            checkpoints.Object,
-            (_, _) => Task.CompletedTask);
+            checkpoints.Object);
 
         await watcher.RunOnceAsync(CancellationToken.None);
 

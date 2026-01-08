@@ -31,14 +31,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner
             return blocked;
         }
 
-        var workflow = WorkflowFactory.Build(stage);
+        var workflow = WorkflowFactory.BuildGraph(stage);
         var input = new WorkflowInput(
             context.WorkItem,
             BuildProjectContext(context.Config),
             Mode: null,
             Attempt: attempt);
 
-        var output = await SDLCWorkflow.RunWorkflowAsync(workflow, input);
+        var output = await SDLCWorkflow.RunWorkflowAsync(workflow, input, stage);
         if (output != null)
         {
             await _labelSync.ApplyAsync(context.WorkItem, output);
@@ -52,6 +52,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner
     {
         return stage switch
         {
+            WorkflowStage.ContextBuilder => 1,
             WorkflowStage.Refinement or WorkflowStage.DoR => config.MaxRefinementIterations,
             WorkflowStage.TechLead or WorkflowStage.SpecGate => config.MaxTechLeadIterations,
             WorkflowStage.Dev => config.MaxDevIterations,

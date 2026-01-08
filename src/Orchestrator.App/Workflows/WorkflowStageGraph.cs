@@ -6,6 +6,7 @@ internal static class WorkflowStageGraph
     {
         return stage switch
         {
+            WorkflowStage.ContextBuilder => WorkflowStage.Refinement,
             WorkflowStage.Refinement => WorkflowStage.DoR,
             WorkflowStage.DoR => WorkflowStage.TechLead,
             WorkflowStage.TechLead => WorkflowStage.SpecGate,

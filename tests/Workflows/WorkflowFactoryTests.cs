@@ -11,6 +11,7 @@ public class WorkflowFactoryTests
     [InlineData("CodeReview")]
     [InlineData("DoD")]
     [InlineData("Release")]
+    [InlineData("ContextBuilder")]
     public async Task Build_ReturnsWorkflowWithExpectedNextStage(string stageName)
     {
         var stage = Enum.Parse<WorkflowStage>(stageName);
@@ -21,7 +22,7 @@ public class WorkflowFactoryTests
             Mode: null,
             Attempt: 0);
 
-        var output = await SDLCWorkflow.RunWorkflowAsync(workflow, input);
+        var output = await SDLCWorkflow.RunWorkflowAsync(workflow, input, stage);
 
         Assert.NotNull(output);
         Assert.Equal(WorkflowStageGraph.NextStageFor(stage), output!.NextStage);
