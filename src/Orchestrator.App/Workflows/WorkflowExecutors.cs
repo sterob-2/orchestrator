@@ -113,6 +113,16 @@ internal sealed class ContextBuilderExecutor : WorkflowStageExecutor
     }
 }
 
+internal sealed class ContextBuilderExecutor : WorkflowStageExecutor
+{
+    public ContextBuilderExecutor() : base("ContextBuilder")
+    {
+    }
+
+    protected override WorkflowStage Stage => WorkflowStage.ContextBuilder;
+    protected override string Notes => "Context builder placeholder executed.";
+}
+
 internal sealed class RefinementExecutor : WorkflowStageExecutor
 {
     public RefinementExecutor(WorkflowConfig workflowConfig) : base("Refinement", workflowConfig)

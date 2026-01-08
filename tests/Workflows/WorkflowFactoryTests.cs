@@ -25,7 +25,7 @@ public class WorkflowFactoryTests
             Mode: null,
             Attempt: 0);
 
-        var output = await SDLCWorkflow.RunWorkflowAsync(workflow, input);
+        var output = await SDLCWorkflow.RunWorkflowAsync(workflow, input, stage);
 
         Assert.NotNull(output);
         Assert.True(output!.Success);
