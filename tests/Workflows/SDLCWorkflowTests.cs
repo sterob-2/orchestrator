@@ -9,7 +9,8 @@ public class SDLCWorkflowTests
     [Fact]
     public void BuildStageWorkflow_ReturnsWorkflow()
     {
-        var workflow = SDLCWorkflow.BuildStageWorkflow(WorkflowStage.Refinement);
+        var config = MockWorkContext.CreateConfig();
+        var workflow = SDLCWorkflow.BuildStageWorkflow(WorkflowStage.Refinement, config.Workflow, config.Labels);
 
         Assert.NotNull(workflow);
     }

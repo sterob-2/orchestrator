@@ -1,59 +1,79 @@
-using System.Collections.Generic;
 using Microsoft.Agents.AI.Workflows;
 
 namespace Orchestrator.App.Workflows;
 
 internal static class WorkflowFactory
 {
-    public static Workflow Build(WorkflowStage stage)
+    public static Workflow Build(WorkflowStage stage, WorkflowConfig workflowConfig, LabelConfig labels)
     {
-        return BuildGraph(stage);
+        var executor = CreateExecutor(stage, workflowConfig, labels);
+        return new WorkflowBuilder(executor)
+            .WithOutputFrom(executor)
+            .Build();
     }
 
-    public static Workflow BuildGraph(WorkflowStage startStage)
+    public static Workflow BuildGraph(WorkflowConfig workflowConfig, LabelConfig labels, WorkflowStage? startOverride)
     {
-        var executors = CreateExecutors();
-        var contextBuilder = executors[WorkflowStage.ContextBuilder];
-        var refinement = executors[WorkflowStage.Refinement];
-        var dorGate = executors[WorkflowStage.DoR];
-        var techLead = executors[WorkflowStage.TechLead];
-        var specGate = executors[WorkflowStage.SpecGate];
-        var dev = executors[WorkflowStage.Dev];
-        var codeReview = executors[WorkflowStage.CodeReview];
-        var dodGate = executors[WorkflowStage.DoD];
-        var release = executors[WorkflowStage.Release];
+        var contextBuilder = new ContextBuilderExecutor(workflowConfig, labels, startOverride);
+        var refinement = new RefinementExecutor(workflowConfig);
+        var dorGate = new DorExecutor(workflowConfig);
+        var techLead = new TechLeadExecutor(workflowConfig);
+        var specGate = new SpecGateExecutor(workflowConfig);
+        var dev = new DevExecutor(workflowConfig);
+        var codeReview = new CodeReviewExecutor(workflowConfig);
+        var dodGate = new DodExecutor(workflowConfig);
+        var release = new ReleaseExecutor(workflowConfig);
 
-        var builder = new WorkflowBuilder(executors[startStage])
-            .WithOutputFrom(executors[startStage])
+        var builder = new WorkflowBuilder(contextBuilder)
+            .WithOutputFrom(contextBuilder)
+            .WithOutputFrom(refinement)
+            .WithOutputFrom(dorGate)
+            .WithOutputFrom(techLead)
+            .WithOutputFrom(specGate)
+            .WithOutputFrom(dev)
+            .WithOutputFrom(codeReview)
+            .WithOutputFrom(dodGate)
+            .WithOutputFrom(release)
             .AddEdge(contextBuilder, refinement)
+            .AddEdge(contextBuilder, dorGate)
+            .AddEdge(contextBuilder, techLead)
+            .AddEdge(contextBuilder, specGate)
+            .AddEdge(contextBuilder, dev)
+            .AddEdge(contextBuilder, codeReview)
+            .AddEdge(contextBuilder, dodGate)
+            .AddEdge(contextBuilder, release)
             .AddEdge(refinement, dorGate)
-            .AddEdge<WorkflowOutput>(dorGate, techLead, output => output is { Success: true })
-            .AddEdge<WorkflowOutput>(dorGate, refinement, output => output is { Success: false })
+            .AddEdge(dorGate, techLead)
+            .AddEdge(dorGate, refinement)
             .AddEdge(techLead, specGate)
-            .AddEdge<WorkflowOutput>(specGate, dev, output => output is { Success: true })
-            .AddEdge<WorkflowOutput>(specGate, techLead, output => output is { Success: false })
+            .AddEdge(specGate, dev)
+            .AddEdge(specGate, techLead)
             .AddEdge(dev, codeReview)
-            .AddEdge<WorkflowOutput>(codeReview, dodGate, output => output is { Success: true })
-            .AddEdge<WorkflowOutput>(codeReview, dev, output => output is { Success: false })
-            .AddEdge<WorkflowOutput>(dodGate, release, output => output is { Success: true })
-            .AddEdge<WorkflowOutput>(dodGate, dev, output => output is { Success: false });
+            .AddEdge(codeReview, dodGate)
+            .AddEdge(codeReview, dev)
+            .AddEdge(dodGate, release)
+            .AddEdge(dodGate, dev);
 
-        return builder.Build(validateOrphans: false);
+        return builder.Build();
     }
 
-    private static Dictionary<WorkflowStage, Executor<WorkflowInput, WorkflowOutput>> CreateExecutors()
+    private static Executor<WorkflowInput, WorkflowOutput> CreateExecutor(
+        WorkflowStage stage,
+        WorkflowConfig workflowConfig,
+        LabelConfig labels)
     {
-        return new Dictionary<WorkflowStage, Executor<WorkflowInput, WorkflowOutput>>
+        return stage switch
         {
-            [WorkflowStage.ContextBuilder] = new ContextBuilderExecutor(),
-            [WorkflowStage.Refinement] = new RefinementExecutor(),
-            [WorkflowStage.DoR] = new DorExecutor(),
-            [WorkflowStage.TechLead] = new TechLeadExecutor(),
-            [WorkflowStage.SpecGate] = new SpecGateExecutor(),
-            [WorkflowStage.Dev] = new DevExecutor(),
-            [WorkflowStage.CodeReview] = new CodeReviewExecutor(),
-            [WorkflowStage.DoD] = new DodExecutor(),
-            [WorkflowStage.Release] = new ReleaseExecutor()
+            WorkflowStage.ContextBuilder => new ContextBuilderExecutor(workflowConfig, labels, null),
+            WorkflowStage.Refinement => new RefinementExecutor(workflowConfig),
+            WorkflowStage.DoR => new DorExecutor(workflowConfig),
+            WorkflowStage.TechLead => new TechLeadExecutor(workflowConfig),
+            WorkflowStage.SpecGate => new SpecGateExecutor(workflowConfig),
+            WorkflowStage.Dev => new DevExecutor(workflowConfig),
+            WorkflowStage.CodeReview => new CodeReviewExecutor(workflowConfig),
+            WorkflowStage.DoD => new DodExecutor(workflowConfig),
+            WorkflowStage.Release => new ReleaseExecutor(workflowConfig),
+            _ => new RefinementExecutor(workflowConfig)
         };
     }
 }

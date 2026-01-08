@@ -10,9 +10,9 @@ internal static class SDLCWorkflow
     /// <summary>
     /// Creates a single-stage workflow for the requested stage.
     /// </summary>
-    public static Workflow BuildStageWorkflow(WorkflowStage stage)
+    public static Workflow BuildStageWorkflow(WorkflowStage stage, WorkflowConfig workflowConfig, LabelConfig labels)
     {
-        return WorkflowFactory.BuildGraph(stage);
+        return WorkflowFactory.Build(stage, workflowConfig, labels);
     }
 
     /// <summary>
@@ -21,11 +21,9 @@ internal static class SDLCWorkflow
     public static async Task<WorkflowOutput?> RunWorkflowAsync(
         Workflow workflow,
         WorkflowInput input,
-        WorkflowStage? stage = null)
+        Func<WorkflowOutput, Task>? onOutput = null)
     {
         WorkflowOutput? finalOutput = null;
-        WorkflowOutput? stageOutput = null;
-        var targetExecutorId = stage.HasValue ? ExecutorIdFor(stage.Value) : null;
 
         Console.WriteLine($"[Workflow] Starting workflow for issue #{input.WorkItem.Number}...");
 
@@ -42,11 +40,9 @@ internal static class SDLCWorkflow
                     if (completedEvt.Data is WorkflowOutput output)
                     {
                         finalOutput = output;
-                        if (targetExecutorId != null &&
-                            completedEvt.ExecutorId == targetExecutorId &&
-                            stageOutput == null)
+                        if (onOutput != null)
                         {
-                            stageOutput = output;
+                            await onOutput(output);
                         }
                         Console.WriteLine($"   Success: {output.Success}");
                         Console.WriteLine($"   Notes: {output.Notes}");
@@ -60,23 +56,6 @@ internal static class SDLCWorkflow
         }
 
         Console.WriteLine($"[Workflow] Workflow completed!");
-        return stageOutput ?? finalOutput;
-    }
-
-    private static string ExecutorIdFor(WorkflowStage stage)
-    {
-        return stage switch
-        {
-            WorkflowStage.ContextBuilder => "ContextBuilder",
-            WorkflowStage.Refinement => "Refinement",
-            WorkflowStage.DoR => "DoR",
-            WorkflowStage.TechLead => "TechLead",
-            WorkflowStage.SpecGate => "SpecGate",
-            WorkflowStage.Dev => "Dev",
-            WorkflowStage.CodeReview => "CodeReview",
-            WorkflowStage.DoD => "DoD",
-            WorkflowStage.Release => "Release",
-            _ => "Refinement"
-        };
+        return finalOutput;
     }
 }
