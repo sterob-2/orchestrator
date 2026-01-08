@@ -1,0 +1,26 @@
+project: Orchestrator
+version: 2.0
+
+allowed_frameworks:
+  - id: FW-01
+    name: .NET 8
+    version: 8.x
+  - id: FW-02
+    name: xUnit
+    version: 2.x
+
+forbidden_frameworks:
+  - name: Newtonsoft.Json
+    use_instead: System.Text.Json
+
+allowed_patterns:
+  - id: PAT-01
+    name: Clean Architecture
+    reference: docs/architecture/clean-architecture.md
+  - id: PAT-02
+    name: Repository Pattern
+    reference: docs/architecture/repository-pattern.md
+
+forbidden_patterns:
+  - id: PAT-99
+    name: Singleton
