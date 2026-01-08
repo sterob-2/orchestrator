@@ -7,7 +7,7 @@ public class Playbook
 {
     [YamlMember(Alias = "project")]
     public string Project { get; set; } = "";
-    
+
     [YamlMember(Alias = "version")]
     public string Version { get; set; } = "";
 

@@ -1,5 +1,5 @@
-using YamlDotNet.Serialization;
 using Orchestrator.App.Core.Models;
+using YamlDotNet.Serialization;
 
 namespace Orchestrator.App.Parsing;
 
