@@ -65,7 +65,27 @@ internal sealed class FileWorkflowMetricsStore : IWorkflowMetricsStore
 
             await File.AppendAllTextAsync(fullPath, json + Environment.NewLine, cancellationToken);
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
+        }
+        catch (DirectoryNotFoundException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
+        }
+        catch (PathTooLongException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
+        }
+        catch (JsonException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
+        }
+        catch (NotSupportedException ex)
         {
             Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
         }
@@ -116,7 +136,22 @@ internal sealed class FileWorkflowMetricsStore : IWorkflowMetricsStore
             Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
             return Array.Empty<WorkflowRunMetrics>();
         }
+        catch (DirectoryNotFoundException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
+            return Array.Empty<WorkflowRunMetrics>();
+        }
+        catch (PathTooLongException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
+            return Array.Empty<WorkflowRunMetrics>();
+        }
         catch (JsonException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
+            return Array.Empty<WorkflowRunMetrics>();
+        }
+        catch (NotSupportedException ex)
         {
             Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
             return Array.Empty<WorkflowRunMetrics>();
