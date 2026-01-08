@@ -29,7 +29,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
       with:
         fetch-depth: 0
 
@@ -47,7 +47,7 @@ jobs:
 
     - name: Cache SonarCloud packages
       if: steps.check_token.outputs.has_token == 'true'
-      uses: actions/cache@v5
+      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
       with:
         path: ~/sonar/cache
         key: ${{ runner.os }}-sonar
@@ -56,7 +56,7 @@ jobs:
     - name: Cache SonarCloud scanner
       if: steps.check_token.outputs.has_token == 'true'
       id: cache-sonar-scanner
-      uses: actions/cache@v5
+      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
       with:
         path: ./.sonar/scanner
         key: ${{ runner.os }}-sonar-scanner
@@ -121,7 +121,7 @@ jobs:
 
     - name: Upload coverage to artifacts
       if: steps.check_token.outputs.has_token == 'true'
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
       with:
         name: sonar-coverage
         path: coverage.xml
@@ -134,14 +134,14 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
     - name: Extract metadata
       id: meta
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
@@ -150,7 +150,7 @@ jobs:
           type=sha
 
     - name: Build Docker image
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
       with:
         context: .
         push: false
@@ -165,10 +165,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
     - name: Run hadolint
-      uses: hadolint/hadolint-action@v3.3.0
+      uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
       with:
         dockerfile: Dockerfile
         failure-threshold: warning
@@ -179,10 +179,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
+      uses: github/codeql-action/init@5d4e8d1aca955e8d8589aabd499c5cae939e33c7 # v4
       with:
         languages: csharp
         queries: security-extended,security-and-quality
@@ -191,7 +191,7 @@ jobs:
       run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
+      uses: github/codeql-action/analyze@5d4e8d1aca955e8d8589aabd499c5cae939e33c7 # v4
       with:
         category: "/language:csharp"
 
@@ -201,12 +201,12 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
       with:
         fetch-depth: 0
 
     - name: TruffleHog Secret Scan
-      uses: trufflesecurity/trufflehog@main
+      uses: trufflesecurity/trufflehog@a1d997362d636325de3acbb6318517a6e16ed766 # main
       with:
         extra_args: --only-verified
 
@@ -216,7 +216,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
       with:
         fetch-depth: 0
 
@@ -239,7 +239,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
     - name: Restore dependencies
       run: dotnet restore ${{ env.SOLUTION_PATH }}
@@ -267,7 +267,7 @@ jobs:
       run: dotnet publish ${{ env.SOLUTION_PATH }} --configuration Release --output ./publish
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
       with:
         name: orchestrator-app
         path: ./publish
@@ -281,13 +281,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
     - name: Log in to Container Registry
-      uses: docker/login-action@v3
+      uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
@@ -295,7 +295,7 @@ jobs:
 
     - name: Extract metadata
       id: meta
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
@@ -306,7 +306,7 @@ jobs:
           type=raw,value=latest,enable={{is_default_branch}}
 
     - name: Build and push Docker image
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
       with:
         context: .
         push: true
@@ -315,14 +315,14 @@ jobs:
         platforms: linux/amd64
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@22438a435773de8c97dc0958cc0b823c45b064ac # master
       with:
         image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
         format: 'sarif'
         output: 'trivy-results.sarif'
 
     - name: Upload Trivy results to GitHub Security
-      uses: github/codeql-action/upload-sarif@v4
+      uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7 # v4
       with:
         sarif_file: 'trivy-results.sarif'
       continue-on-error: true
