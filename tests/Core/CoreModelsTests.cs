@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using CoreModels = Orchestrator.App.Core.Models;
 using Xunit;
+using CoreModels = Orchestrator.App.Core.Models;
 
 namespace Orchestrator.App.Tests.Core;
 

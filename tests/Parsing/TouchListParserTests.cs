@@ -22,7 +22,7 @@ public class TouchListParserTests
         result[0].Operation.Should().Be(TouchOperation.Modify);
         result[0].Path.Should().Be("src/A.cs");
         result[0].Notes.Should().Be("Change logic");
-        
+
         result[1].Operation.Should().Be(TouchOperation.Add);
         result[1].Path.Should().Be("src/B.cs");
     }
@@ -51,7 +51,7 @@ public class TouchListParserTests
         var result = TouchListParser.Parse(input);
         result.Should().BeEmpty();
     }
-    
+
     [Fact]
     public void Parse_EmptyInput_ReturnsEmpty()
     {

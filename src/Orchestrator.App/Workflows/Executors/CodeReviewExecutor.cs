@@ -29,7 +29,7 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
 
         if (string.IsNullOrEmpty(devJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.DevResult, out var fallbackDevJson))
         {
-             devJson = fallbackDevJson;
+            devJson = fallbackDevJson;
         }
 
         if (!WorkflowJson.TryDeserialize(devJson, out DevResult? devResult) || devResult is null)

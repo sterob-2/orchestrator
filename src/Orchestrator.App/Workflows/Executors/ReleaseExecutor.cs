@@ -27,7 +27,7 @@ internal sealed class ReleaseExecutor : WorkflowStageExecutor
 
         if (string.IsNullOrEmpty(dodJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.DodGateResult, out var fallbackDodJson))
         {
-             dodJson = fallbackDodJson;
+            dodJson = fallbackDodJson;
         }
 
         if (!WorkflowJson.TryDeserialize(dodJson, out GateResult? dodResult) || dodResult is null || !dodResult.Passed)

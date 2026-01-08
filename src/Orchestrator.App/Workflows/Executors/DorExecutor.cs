@@ -25,7 +25,7 @@ internal sealed class DorExecutor : WorkflowStageExecutor
 
         if (string.IsNullOrEmpty(refinementJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.RefinementResult, out var fallbackJson))
         {
-             refinementJson = fallbackJson;
+            refinementJson = fallbackJson;
         }
 
         if (!WorkflowJson.TryDeserialize(refinementJson, out RefinementResult? refinement) || refinement is null)

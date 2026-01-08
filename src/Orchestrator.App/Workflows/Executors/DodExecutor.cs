@@ -30,7 +30,7 @@ internal sealed class DodExecutor : WorkflowStageExecutor
             cancellationToken: cancellationToken);
         if (string.IsNullOrEmpty(devJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.DevResult, out var fallbackDevJson))
         {
-             devJson = fallbackDevJson;
+            devJson = fallbackDevJson;
         }
         WorkflowJson.TryDeserialize(devJson, out DevResult? devResult);
 
@@ -40,7 +40,7 @@ internal sealed class DodExecutor : WorkflowStageExecutor
             cancellationToken: cancellationToken);
         if (string.IsNullOrEmpty(codeReviewJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.CodeReviewResult, out var fallbackReviewJson))
         {
-             codeReviewJson = fallbackReviewJson;
+            codeReviewJson = fallbackReviewJson;
         }
         WorkflowJson.TryDeserialize(codeReviewJson, out CodeReviewResult? codeReviewResult);
 

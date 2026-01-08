@@ -1,7 +1,7 @@
 using System.IO;
+using LibGit2Sharp;
 using Orchestrator.App.Infrastructure.Git;
 using Orchestrator.App.Tests.TestHelpers;
-using LibGit2Sharp;
 using Xunit;
 
 namespace Orchestrator.App.Tests.Infrastructure.Git;

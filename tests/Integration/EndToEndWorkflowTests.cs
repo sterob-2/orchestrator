@@ -19,7 +19,7 @@ public class EndToEndWorkflowTests : IDisposable
         _tempWorkspace = new TempWorkspace();
         _githubMock = new Mock<IGitHubClient>();
         _repoMock = new Mock<IRepoGit>();
-        
+
         // Setup default Git mocks
         _repoMock.Setup(x => x.EnsureBranch(It.IsAny<string>(), It.IsAny<string>()));
         _repoMock.Setup(x => x.CommitAndPush(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>()))
@@ -44,7 +44,7 @@ public class EndToEndWorkflowTests : IDisposable
                     }
                 }";
             }
-            
+
             if (system.Contains("senior tech lead"))
             {
                 // Return the template filled out
@@ -131,7 +131,7 @@ Then Edge
         // Arrange
         var workItem = MockWorkContext.CreateWorkItem(number: 1, labels: new List<string> { "ready-for-agents", "estimate:3" });
         var config = MockWorkContext.CreateConfig(workspacePath: _tempWorkspace.WorkspacePath);
-        
+
         var workContext = MockWorkContext.Create(
             workItem: workItem,
             github: _githubMock.Object,
@@ -203,7 +203,7 @@ Then ...
         // Act
         // Build the full graph
         var workflow = WorkflowFactory.BuildGraph(workContext, startOverride: null);
-        
+
         var input = new WorkflowInput(
             workItem,
             new ProjectContext("owner", "repo", "main", _tempWorkspace.WorkspacePath, _tempWorkspace.WorkspacePath, "owner", "user", 1),
@@ -226,7 +226,7 @@ Then ...
 
         // Verify Git Interactions
         _repoMock.Verify(x => x.CommitAndPush(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>()), Times.AtLeastOnce);
-        
+
         // Verify GitHub Interactions
         _githubMock.Verify(x => x.OpenPullRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }

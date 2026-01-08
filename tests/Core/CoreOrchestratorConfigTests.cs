@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using CoreConfig = Orchestrator.App.Core.Configuration;
 using Xunit;
+using CoreConfig = Orchestrator.App.Core.Configuration;
 
 namespace Orchestrator.App.Tests.Core;
 

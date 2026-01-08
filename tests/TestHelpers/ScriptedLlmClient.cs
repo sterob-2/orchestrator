@@ -21,7 +21,7 @@ public class ScriptedLlmClient : ILlmClient
 
     public Task<string> CompleteChatWithMcpToolsAsync(string model, string systemPrompt, string userPrompt, IEnumerable<McpClientTool> mcpTools, McpClientManager mcpManager)
     {
-         var response = _responseFactory(systemPrompt, userPrompt);
-         return Task.FromResult(response);
+        var response = _responseFactory(systemPrompt, userPrompt);
+        return Task.FromResult(response);
     }
 }
