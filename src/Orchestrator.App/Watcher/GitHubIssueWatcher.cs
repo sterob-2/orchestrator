@@ -38,6 +38,7 @@ internal sealed class GitHubIssueWatcher
             return;
         }
         Logger.WriteLine("Watcher started. Waiting for webhook triggers.");
+        RequestScan();
 
         while (!cancellationToken.IsCancellationRequested)
         {

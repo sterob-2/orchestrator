@@ -201,6 +201,37 @@ public class GitHubIssueWatcherTests
     }
 
     [Fact]
+    public async Task RunAsync_SeedsInitialScan()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = MockWorkContext.CreateWorkItem(labels: new List<string> { config.Labels.WorkItemLabel });
+
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetOpenWorkItemsAsync(It.IsAny<int>()))
+            .ReturnsAsync(new List<WorkItem> { workItem });
+
+        using var cts = new CancellationTokenSource();
+        var runner = new CancelingRunner(cts);
+        var checkpoints = new InMemoryWorkflowCheckpointStore();
+        var watcher = new GitHubIssueWatcher(
+            config,
+            github.Object,
+            runner,
+            item => new WorkContext(
+                item,
+                github.Object,
+                config,
+                new Mock<IRepoWorkspace>().Object,
+                new Mock<IRepoGit>().Object,
+                new Mock<ILlmClient>().Object),
+            checkpoints);
+
+        await watcher.RunAsync(cts.Token);
+
+        Assert.True(runner.Called);
+    }
+
+    [Fact]
     public void TryRequestScan_ReturnsFalseAfterChannelCompleted()
     {
         var config = MockWorkContext.CreateConfig();
