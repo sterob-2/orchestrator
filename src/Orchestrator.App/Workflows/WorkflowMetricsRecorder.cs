@@ -35,14 +35,9 @@ internal sealed class WorkflowMetricsRecorder : IMetricsRecorder
     {
         lock (_lock)
         {
-            if (_iterations.TryGetValue(stage, out var current))
-            {
-                _iterations[stage] = Math.Max(current, attempt);
-            }
-            else
-            {
-                _iterations[stage] = attempt;
-            }
+            _iterations[stage] = _iterations.TryGetValue(stage, out var current)
+                ? Math.Max(current, attempt)
+                : attempt;
         }
     }
 
