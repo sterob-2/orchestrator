@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Agents.AI.Workflows;
 using Orchestrator.App.Parsing;
 using Orchestrator.App.Utilities;
@@ -41,6 +42,7 @@ internal abstract class WorkflowStageExecutor : Executor<WorkflowInput, Workflow
         var nextAttempt = currentAttempts + 1;
         await context.QueueStateUpdateAsync(attemptKey, nextAttempt, cancellationToken);
         CurrentAttempt = nextAttempt;
+        WorkContext.Metrics?.RecordIteration(Stage, nextAttempt);
 
         var limit = MaxIterationsForStage(_workflowConfig, Stage);
         if (nextAttempt > limit)
@@ -75,6 +77,26 @@ internal abstract class WorkflowStageExecutor : Executor<WorkflowInput, Workflow
     protected virtual WorkflowStage? DetermineNextStage(bool success, WorkflowInput input)
     {
         return WorkflowStageGraph.NextStageFor(Stage, success);
+    }
+
+    protected async Task<string> CallLlmAsync(
+        string model,
+        string systemPrompt,
+        string userPrompt,
+        CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var response = await WorkContext.Llm.GetUpdatedFileAsync(model, systemPrompt, userPrompt);
+        stopwatch.Stop();
+
+        WorkContext.Metrics?.RecordLlmCall(new LlmCallMetrics(
+            Model: model,
+            PromptChars: systemPrompt.Length + userPrompt.Length,
+            CompletionChars: response.Length,
+            ElapsedMilliseconds: stopwatch.Elapsed.TotalMilliseconds,
+            Cost: null));
+
+        return response;
     }
 
     private static int MaxIterationsForStage(WorkflowConfig config, WorkflowStage stage)
@@ -149,10 +171,11 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         var playbook = new PlaybookParser().Parse(playbookContent);
         var prompt = RefinementPrompt.Build(workItem, playbook, existingSpec);
 
-        var response = await WorkContext.Llm.GetUpdatedFileAsync(
+        var response = await CallLlmAsync(
             WorkContext.Config.TechLeadModel,
             prompt.System,
-            prompt.User);
+            prompt.User,
+            cancellationToken);
 
         if (!WorkflowJson.TryDeserialize(response, out RefinementResult? result) || result is null)
         {
@@ -188,6 +211,10 @@ internal sealed class DorExecutor : WorkflowStageExecutor
         }
 
         var result = DorGateValidator.Evaluate(input.WorkItem, refinement, WorkContext.Config.Labels);
+        if (!result.Passed && result.Failures.Count > 0)
+        {
+            WorkContext.Metrics?.RecordGateFailures(result.Failures);
+        }
         var notes = result.Passed
             ? "DoR gate passed."
             : $"DoR gate failed: {string.Join(" ", result.Failures)}";
@@ -222,10 +249,11 @@ internal sealed class TechLeadExecutor : WorkflowStageExecutor
         }
 
         var prompt = TechLeadPrompt.Build(input.WorkItem, playbook, template);
-        var response = await WorkContext.Llm.GetUpdatedFileAsync(
+        var response = await CallLlmAsync(
             WorkContext.Config.TechLeadModel,
             prompt.System,
-            prompt.User);
+            prompt.User,
+            cancellationToken);
 
         var specDraft = string.IsNullOrWhiteSpace(response) ? template : response;
         var specContent = TemplateUtil.EnsureTemplateHeader(specDraft, WorkContext, WorkflowPaths.SpecTemplatePath);
@@ -314,6 +342,10 @@ internal sealed class SpecGateExecutor : WorkflowStageExecutor
         var playbook = new PlaybookParser().Parse(playbookContent);
         var parsedSpec = new SpecParser().Parse(specContent);
         var result = SpecGateValidator.Evaluate(parsedSpec, playbook, WorkContext.Workspace);
+        if (!result.Passed && result.Failures.Count > 0)
+        {
+            WorkContext.Metrics?.RecordGateFailures(result.Failures);
+        }
 
         if (result.Passed)
         {
@@ -378,10 +410,11 @@ internal sealed class DevExecutor : WorkflowStageExecutor
                         ? await FileOperationHelper.ReadAllTextAsync(WorkContext, entry.Path)
                         : null;
                     var prompt = DevPrompt.Build(mode, parsedSpec, entry, existing);
-                    var updated = await WorkContext.Llm.GetUpdatedFileAsync(
+                    var updated = await CallLlmAsync(
                         WorkContext.Config.DevModel,
                         prompt.System,
-                        prompt.User);
+                        prompt.User,
+                        cancellationToken);
                     if (string.IsNullOrWhiteSpace(updated))
                     {
                         return (false, $"Dev blocked: empty output for {entry.Path}.");
@@ -432,7 +465,7 @@ internal sealed class DevExecutor : WorkflowStageExecutor
             return "tdd";
         }
 
-        return "default";
+        return "minimal";
     }
 }
 
@@ -464,10 +497,11 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
 
         var diffSummary = BuildDiffSummary(devResult.ChangedFiles);
         var prompt = CodeReviewPrompt.Build(input.WorkItem, devResult.ChangedFiles, diffSummary);
-        var response = await WorkContext.Llm.GetUpdatedFileAsync(
+        var response = await CallLlmAsync(
             WorkContext.Config.OpenAiModel,
             prompt.System,
-            prompt.User);
+            prompt.User,
+            cancellationToken);
 
         if (!TryParseReview(response, out var reviewResult))
         {
@@ -497,6 +531,8 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
             RequiresHumanReview = requiresHuman,
             ReviewPath = WorkflowPaths.ReviewPath(input.WorkItem.Number)
         };
+
+        WorkContext.Metrics?.RecordCodeReview(finalResult.Findings.Count, finalResult.Approved);
 
         await FileOperationHelper.WriteAllTextAsync(WorkContext, finalResult.ReviewPath, BuildReviewMarkdown(finalResult));
         await context.QueueStateUpdateAsync(WorkflowStateKeys.CodeReviewResult, WorkflowJson.Serialize(finalResult), cancellationToken);
@@ -679,6 +715,10 @@ internal sealed class DodExecutor : WorkflowStageExecutor
             SpecComplete: TemplateUtil.IsStatusComplete(specContent));
 
         var result = DodGateValidator.Evaluate(dodInput);
+        if (!result.Passed && result.Failures.Count > 0)
+        {
+            WorkContext.Metrics?.RecordGateFailures(result.Failures);
+        }
         await context.QueueStateUpdateAsync(WorkflowStateKeys.DodGateResult, WorkflowJson.Serialize(result), cancellationToken);
 
         var notes = result.Passed

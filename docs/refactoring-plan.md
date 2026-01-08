@@ -52,10 +52,10 @@ This plan breaks the v3.1 concept into parallelizable workstreams. Each workstre
 - [x] Deliverable: Label/state sync module with tests; manual label interventions correctly steer workflow.
 
 ## Workstream 7: Metrics, Telemetry, and Limits
-- Add metrics capture per workflow run (issue, mode, LLM calls, iterations, cost, duration, findings count, approval flag).
-- Aggregate metrics scaffolding for future dashboards; persist to lightweight store (file or in-memory) initially.
-- Enforce iteration limits (Refinement↔DoR, TechLead↔SpecGate, Dev↔Review, Dev↔DoD) with escalation to human review.
-- Deliverable: Metrics recorder and limit enforcer integrated into WorkflowRunner.
+- [x] Add metrics capture per workflow run (issue, mode, LLM calls, iterations, cost, duration, findings count, approval flag).
+- [x] Aggregate metrics scaffolding for future dashboards; persist to lightweight store (file or in-memory) initially.
+- [x] Enforce iteration limits (Refinement↔DoR, TechLead↔SpecGate, Dev↔Review, Dev↔DoD) with escalation to human review.
+- [x] Deliverable: Metrics recorder and limit enforcer integrated into WorkflowRunner.
 
 ## Workstream 8: Parsing Utilities and Spec Schema Support
 - [x] Implement `Parsing/SpecParser`, `TouchListParser`, `GherkinValidator`, `PlaybookParser` aligned to schema in Section 8.

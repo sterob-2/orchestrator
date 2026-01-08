@@ -65,7 +65,8 @@ internal static class Program
         var checkpoints = new Workflows.InMemoryWorkflowCheckpointStore();
         var labelSync = new Workflows.LabelSyncHandler(services.GitHub, cfg.Labels);
         var humanInLoop = new Workflows.HumanInLoopHandler(services.GitHub, cfg.Labels);
-        var runner = new Workflows.WorkflowRunner(labelSync, humanInLoop);
+        var metricsStore = new Workflows.FileWorkflowMetricsStore(services.Workspace, Workflows.WorkflowPaths.MetricsPath);
+        var runner = new Workflows.WorkflowRunner(labelSync, humanInLoop, metricsStore, checkpoints);
         var watcher = new Watcher.GitHubIssueWatcher(
             cfg,
             services.GitHub,
@@ -77,7 +78,7 @@ internal static class Program
                 services.Workspace,
                 services.RepoGit,
                 services.Llm,
-                mcpManager),
+                Mcp: mcpManager),
             checkpoints);
         var webhook = new Watcher.GitHubWebhookListener(cfg, watcher.RequestScan);
         try
