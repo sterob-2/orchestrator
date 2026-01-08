@@ -150,7 +150,7 @@ public class ModelsTests
         var config = OrchestratorConfig.FromEnvironment();
         var mockMcp = new Mock<McpClientManager>();
 
-        var context = new WorkContext(item, null!, config, null!, null!, null!, mockMcp.Object);
+        var context = new WorkContext(item, null!, config, null!, null!, null!, Mcp: mockMcp.Object);
 
         Assert.NotNull(context.McpFiles);
         Assert.IsType<McpFileOperations>(context.McpFiles);
@@ -162,7 +162,7 @@ public class ModelsTests
         var item = new WorkItem(1, "Title", "Body", "https://example.com", new List<string>());
         var config = OrchestratorConfig.FromEnvironment();
 
-        var context = new WorkContext(item, null!, config, null!, null!, null!, null);
+        var context = new WorkContext(item, null!, config, null!, null!, null!, Mcp: null);
 
         Assert.Null(context.McpFiles);
     }

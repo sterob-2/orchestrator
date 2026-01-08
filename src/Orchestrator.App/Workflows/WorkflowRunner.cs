@@ -4,37 +4,92 @@ internal sealed class WorkflowRunner : IWorkflowRunner
 {
     private readonly LabelSyncHandler _labelSync;
     private readonly HumanInLoopHandler _humanInLoop;
+    private readonly IWorkflowMetricsStore? _metricsStore;
+    private readonly IWorkflowCheckpointStore _checkpointStore;
 
     public WorkflowRunner(
         LabelSyncHandler labelSync,
-        HumanInLoopHandler humanInLoop)
+        HumanInLoopHandler humanInLoop,
+        IWorkflowMetricsStore? metricsStore,
+        IWorkflowCheckpointStore checkpointStore)
     {
         _labelSync = labelSync;
         _humanInLoop = humanInLoop;
+        _metricsStore = metricsStore;
+        _checkpointStore = checkpointStore;
     }
 
     public async Task<WorkflowOutput?> RunAsync(WorkContext context, WorkflowStage stage, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var workflow = WorkflowFactory.BuildGraph(context, stage);
+        var mode = ResolveMode(context.WorkItem);
+        var recorder = _metricsStore is not null ? new WorkflowMetricsRecorder(_metricsStore, context.Config) : null;
+        var runContext = context with { Metrics = recorder };
+
+        recorder?.BeginRun(context.WorkItem, stage, mode);
+
+        var attempt = _checkpointStore.IncrementStage(context.WorkItem.Number, stage);
+        var limit = MaxIterationsForStage(context.Config.Workflow, stage);
+        if (attempt > limit)
+        {
+            var blocked = new WorkflowOutput(
+                Success: false,
+                Notes: $"Iteration limit reached for {stage} ({attempt}/{limit}).",
+                NextStage: null);
+
+            await _labelSync.ApplyAsync(runContext.WorkItem, blocked);
+            await _humanInLoop.ApplyAsync(runContext.WorkItem, blocked);
+
+            if (recorder is not null)
+            {
+                var iterations = new Dictionary<WorkflowStage, int> { [stage] = attempt };
+                await recorder.CompleteRunAsync(
+                    runContext.WorkItem,
+                    stage,
+                    mode,
+                    success: false,
+                    nextStage: null,
+                    iterations,
+                    cancellationToken);
+            }
+
+            return blocked;
+        }
+
+        var workflow = WorkflowFactory.BuildGraph(runContext, stage);
         var input = new WorkflowInput(
-            context.WorkItem,
-            BuildProjectContext(context.Config),
-            Mode: null,
+            runContext.WorkItem,
+            BuildProjectContext(runContext.Config),
+            Mode: mode,
             Attempt: 0);
 
-        return await SDLCWorkflow.RunWorkflowAsync(
+        var output = await SDLCWorkflow.RunWorkflowAsync(
             workflow,
             input,
             async stageOutput =>
             {
-                await _labelSync.ApplyAsync(context.WorkItem, stageOutput);
+                await _labelSync.ApplyAsync(runContext.WorkItem, stageOutput);
                 if (!stageOutput.Success && stageOutput.NextStage is null)
                 {
-                    await _humanInLoop.ApplyAsync(context.WorkItem, stageOutput);
+                    await _humanInLoop.ApplyAsync(runContext.WorkItem, stageOutput);
                 }
             });
+
+        if (recorder is not null)
+        {
+            var iterations = new Dictionary<WorkflowStage, int> { [stage] = attempt };
+            await recorder.CompleteRunAsync(
+                runContext.WorkItem,
+                stage,
+                mode,
+                output?.Success ?? false,
+                output?.NextStage,
+                iterations,
+                cancellationToken);
+        }
+
+        return output;
     }
 
     private static ProjectContext BuildProjectContext(OrchestratorConfig cfg)
@@ -49,5 +104,35 @@ internal sealed class WorkflowRunner : IWorkflowRunner
             cfg.ProjectOwnerType,
             cfg.ProjectNumber
         );
+    }
+
+    private static int MaxIterationsForStage(WorkflowConfig config, WorkflowStage stage)
+    {
+        return stage switch
+        {
+            WorkflowStage.ContextBuilder => 1,
+            WorkflowStage.Refinement or WorkflowStage.DoR => config.MaxRefinementIterations,
+            WorkflowStage.TechLead or WorkflowStage.SpecGate => config.MaxTechLeadIterations,
+            WorkflowStage.Dev => config.MaxDevIterations,
+            WorkflowStage.CodeReview => config.MaxCodeReviewIterations,
+            WorkflowStage.DoD => config.MaxDodIterations,
+            WorkflowStage.Release => 1,
+            _ => 1
+        };
+    }
+
+    private static string ResolveMode(WorkItem item)
+    {
+        if (item.Labels.Any(label => string.Equals(label, "mode:batch", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "batch";
+        }
+
+        if (item.Labels.Any(label => string.Equals(label, "mode:tdd", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "tdd";
+        }
+
+        return "minimal";
     }
 }

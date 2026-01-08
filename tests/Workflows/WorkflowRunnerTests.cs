@@ -22,8 +22,9 @@ public class WorkflowRunnerTests
 
         var labelSync = new LabelSyncHandler(github.Object, config.Labels);
         var humanInLoop = new HumanInLoopHandler(github.Object, config.Labels);
+        var metricsStore = new InMemoryWorkflowMetricsStore();
         var checkpoints = new InMemoryWorkflowCheckpointStore();
-        var runner = new WorkflowRunner(labelSync, humanInLoop);
+        var runner = new WorkflowRunner(labelSync, humanInLoop, metricsStore, checkpoints);
 
         var output = await runner.RunAsync(context, WorkflowStage.Dev, CancellationToken.None);
 
@@ -40,18 +41,21 @@ public class WorkflowRunnerTests
         };
         var workItem = new WorkItem(2, "Title", "Body", "url", new List<string>());
         var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.RemoveLabelsAsync(It.IsAny<int>(), It.IsAny<string[]>()))
+            .Returns(Task.CompletedTask);
+        github.Setup(g => g.AddLabelsAsync(It.IsAny<int>(), It.IsAny<string[]>()))
+            .Returns(Task.CompletedTask);
         var workspace = new Mock<IRepoWorkspace>();
         var repo = new Mock<IRepoGit>();
         var llm = new Mock<ILlmClient>();
         var context = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
-        var workflow = WorkflowFactory.Build(WorkflowStage.Dev, context);
-        var input = new WorkflowInput(
-            workItem,
-            new ProjectContext("owner", "repo", "main", "/tmp", "/tmp", "owner", "user", 1),
-            Mode: null,
-            Attempt: 0);
+        var labelSync = new LabelSyncHandler(github.Object, config.Labels);
+        var humanInLoop = new HumanInLoopHandler(github.Object, config.Labels);
+        var metricsStore = new InMemoryWorkflowMetricsStore();
+        var checkpoints = new InMemoryWorkflowCheckpointStore();
+        var runner = new WorkflowRunner(labelSync, humanInLoop, metricsStore, checkpoints);
 
-        var output = await SDLCWorkflow.RunWorkflowAsync(workflow, input);
+        var output = await runner.RunAsync(context, WorkflowStage.Dev, CancellationToken.None);
 
         Assert.NotNull(output);
         Assert.False(output!.Success);

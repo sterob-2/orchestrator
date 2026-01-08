@@ -9,6 +9,7 @@ internal sealed record WorkContext(
     IRepoWorkspace Workspace,
     IRepoGit Repo,
     ILlmClient Llm,
+    IMetricsRecorder? Metrics = null,
     McpClientManager? Mcp = null)
 {
     /// <summary>
@@ -16,6 +17,30 @@ internal sealed record WorkContext(
     /// </summary>
     public McpFileOperations? McpFiles => Mcp != null ? new McpFileOperations(Mcp) : null;
 };
+
+internal sealed record LlmCallMetrics(
+    string Model,
+    int PromptChars,
+    int CompletionChars,
+    double ElapsedMilliseconds,
+    decimal? Cost);
+
+internal sealed record WorkflowRunMetrics(
+    int IssueNumber,
+    string RepoOwner,
+    string RepoName,
+    WorkflowStage Stage,
+    string Mode,
+    DateTimeOffset StartedAt,
+    DateTimeOffset EndedAt,
+    double DurationMilliseconds,
+    bool Success,
+    WorkflowStage? NextStage,
+    int? CodeReviewFindings,
+    bool? Approved,
+    IReadOnlyDictionary<WorkflowStage, int> Iterations,
+    IReadOnlyList<string> GateFailures,
+    IReadOnlyList<LlmCallMetrics> LlmCalls);
 
 internal sealed record RepoFile(string Path, string Content, string Sha);
 
