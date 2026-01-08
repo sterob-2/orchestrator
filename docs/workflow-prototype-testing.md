@@ -19,7 +19,7 @@ We've created a **workflow skeleton** using Microsoft Agent Framework with stubb
 
 3. **`WorkflowRunner.cs`** - Orchestrates stage execution and label sync
 
-4. **`GitHubIssueWatcher.cs`** - Polls issues and triggers the workflow runner based on labels
+4. **`GitHubIssueWatcher.cs`** - Receives webhook triggers and runs the workflow runner based on labels
 
 5. **Updated Files**:
    - `Orchestrator.App.csproj` - Added `Microsoft.Agents.AI.Workflows` package
@@ -32,7 +32,7 @@ We've created a **workflow skeleton** using Microsoft Agent Framework with stubb
 ```
 GitHub Issue with stage label (e.g., `agent:planner`, `agent:techlead`, `agent:dev`)
     ↓
-GitHubIssueWatcher polls and selects work item
+GitHubIssueWatcher receives trigger and selects a work item
     ↓
 WorkflowRunner builds stage workflow
     ↓

@@ -169,7 +169,7 @@ public class GitHubIssueWatcherTests
     }
 
     [Fact]
-    public async Task RunAsync_ProcessesInitialScanSignal()
+    public async Task RunAsync_ProcessesRequestedScan()
     {
         var config = MockWorkContext.CreateConfig();
         var workItem = MockWorkContext.CreateWorkItem(labels: new List<string> { config.Labels.WorkItemLabel });
@@ -194,6 +194,7 @@ public class GitHubIssueWatcherTests
                 new Mock<ILlmClient>().Object),
             checkpoints);
 
+        watcher.RequestScan();
         await watcher.RunAsync(cts.Token);
 
         Assert.True(runner.Called);

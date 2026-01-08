@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 namespace Orchestrator.App.Watcher;
 
@@ -10,6 +11,7 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
     private readonly Action _onWebhook;
     private readonly HttpListener _listener;
     private readonly string _path;
+    private string? _activePrefix;
 
     public GitHubWebhookListener(OrchestratorConfig config, Action onWebhook)
     {
@@ -17,24 +19,25 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
         _onWebhook = onWebhook;
         _listener = new HttpListener();
         _path = NormalizePath(config.WebhookPath);
-
-        var prefix = $"https://{_config.WebhookListenHost}:{_config.WebhookPort}{_path}/";
-        _listener.Prefixes.Add(prefix);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        try
+        if (string.IsNullOrWhiteSpace(_config.WebhookSecret))
         {
-            _listener.Start();
+            Logger.WriteLine("[Webhook] Warning: WEBHOOK_SECRET is not set; signature validation is disabled.");
         }
-        catch (HttpListenerException ex)
+
+        if (!TryStartListener(useHttps: true) && !TryStartListener(useHttps: false))
         {
-            Logger.WriteLine($"[Webhook] Failed to start listener: {ex.Message}");
+            Logger.WriteLine("[Webhook] Failed to start listener on HTTPS or HTTP.");
             return;
         }
 
-        Logger.WriteLine($"[Webhook] Listening on {_listener.Prefixes.First()}");
+        if (_activePrefix is not null)
+        {
+            Logger.WriteLine($"[Webhook] Listening on {_activePrefix}");
+        }
 
         try
         {
@@ -92,6 +95,35 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
             return;
         }
 
+        var eventName = request.Headers["X-GitHub-Event"];
+        if (string.Equals(eventName, "ping", StringComparison.OrdinalIgnoreCase))
+        {
+            response.StatusCode = (int)HttpStatusCode.OK;
+            response.Close();
+            return;
+        }
+
+        var action = TryGetAction(payload);
+        if (string.IsNullOrWhiteSpace(eventName))
+        {
+            response.StatusCode = (int)HttpStatusCode.BadRequest;
+            response.Close();
+            return;
+        }
+
+        if (string.Equals(eventName, "issues", StringComparison.OrdinalIgnoreCase) && action is null)
+        {
+            response.StatusCode = (int)HttpStatusCode.BadRequest;
+            response.Close();
+            return;
+        }
+        if (!IsRelevantEvent(eventName, action))
+        {
+            response.StatusCode = (int)HttpStatusCode.Accepted;
+            response.Close();
+            return;
+        }
+
         _onWebhook();
         response.StatusCode = (int)HttpStatusCode.Accepted;
         response.Close();
@@ -131,6 +163,45 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
         return "sha256=" + Convert.ToHexString(hash).ToLowerInvariant();
     }
 
+    internal static bool IsRelevantEvent(string? eventName, string? action)
+    {
+        if (string.IsNullOrWhiteSpace(eventName))
+        {
+            return false;
+        }
+
+        if (!string.Equals(eventName, "issues", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return action is not null && (
+            action.Equals("opened", StringComparison.OrdinalIgnoreCase)
+            || action.Equals("edited", StringComparison.OrdinalIgnoreCase)
+            || action.Equals("labeled", StringComparison.OrdinalIgnoreCase)
+            || action.Equals("unlabeled", StringComparison.OrdinalIgnoreCase)
+            || action.Equals("reopened", StringComparison.OrdinalIgnoreCase));
+    }
+
+    internal static string? TryGetAction(byte[] payload)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(payload);
+            if (document.RootElement.TryGetProperty("action", out var actionElement) &&
+                actionElement.ValueKind == JsonValueKind.String)
+            {
+                return actionElement.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        return null;
+    }
+
     internal static string NormalizePath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -147,5 +218,30 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
     {
         _listener.Close();
         return ValueTask.CompletedTask;
+    }
+
+    private bool TryStartListener(bool useHttps)
+    {
+        var scheme = useHttps ? "https" : "http";
+        var prefix = $"{scheme}://{_config.WebhookListenHost}:{_config.WebhookPort}{_path}/";
+        _listener.Prefixes.Clear();
+        _listener.Prefixes.Add(prefix);
+
+        try
+        {
+            _listener.Start();
+            _activePrefix = prefix;
+            if (!useHttps)
+            {
+                Logger.WriteLine("[Webhook] Warning: HTTP listener enabled; use HTTPS in production.");
+            }
+
+            return true;
+        }
+        catch (HttpListenerException ex)
+        {
+            Logger.WriteLine($"[Webhook] Failed to start {scheme.ToUpperInvariant()} listener: {ex.Message}");
+            return false;
+        }
     }
 }

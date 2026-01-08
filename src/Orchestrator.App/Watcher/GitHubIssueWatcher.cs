@@ -37,8 +37,7 @@ internal sealed class GitHubIssueWatcher
             Logger.WriteLine("Orchestrator stopped");
             return;
         }
-
-        RequestScan();
+        Logger.WriteLine("Watcher started. Waiting for webhook triggers.");
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -72,7 +71,10 @@ internal sealed class GitHubIssueWatcher
 
     public void RequestScan()
     {
-        _scanSignals.Writer.TryWrite(true);
+        if (!_scanSignals.Writer.TryWrite(true))
+        {
+            Logger.WriteLine("Watcher trigger dropped.");
+        }
     }
 
     internal async Task<WorkItem?> RunOnceAsync(CancellationToken cancellationToken)

@@ -62,4 +62,40 @@ public class GitHubWebhookListenerTests
 
         Assert.False(valid);
     }
+
+    [Theory]
+    [InlineData("issues", "opened", true)]
+    [InlineData("issues", "labeled", true)]
+    [InlineData("issues", "unlabeled", true)]
+    [InlineData("issues", "edited", true)]
+    [InlineData("issues", "reopened", true)]
+    [InlineData("issues", "closed", false)]
+    [InlineData("pull_request", "opened", false)]
+    [InlineData(null, "opened", false)]
+    public void IsRelevantEvent_FiltersEvents(string? eventName, string? action, bool expected)
+    {
+        var result = GitHubWebhookListener.IsRelevantEvent(eventName, action);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void TryGetAction_ReturnsActionFromPayload()
+    {
+        var payload = "{\"action\":\"opened\"}"u8.ToArray();
+
+        var action = GitHubWebhookListener.TryGetAction(payload);
+
+        Assert.Equal("opened", action);
+    }
+
+    [Fact]
+    public void TryGetAction_ReturnsNullOnInvalidJson()
+    {
+        var payload = "{not-json"u8.ToArray();
+
+        var action = GitHubWebhookListener.TryGetAction(payload);
+
+        Assert.Null(action);
+    }
 }
