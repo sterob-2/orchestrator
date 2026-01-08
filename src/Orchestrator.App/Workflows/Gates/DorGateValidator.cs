@@ -22,7 +22,8 @@ internal static class DorGateValidator
             failures.Add("DoR-01: Title is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(item.Body) || item.Body.Trim().Length < 50)
+        var description = !string.IsNullOrWhiteSpace(refinement.ClarifiedStory) ? refinement.ClarifiedStory : item.Body;
+        if (string.IsNullOrWhiteSpace(description) || description.Trim().Length < 50)
         {
             failures.Add("DoR-02: Description must be at least 50 characters.");
         }

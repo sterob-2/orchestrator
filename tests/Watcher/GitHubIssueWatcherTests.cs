@@ -1,5 +1,11 @@
 using Moq;
+using Orchestrator.App.Core.Configuration;
+using Orchestrator.App.Core.Interfaces;
+using Orchestrator.App.Core.Models;
 using Orchestrator.App.Tests.TestHelpers;
+using Orchestrator.App.Watcher;
+using Orchestrator.App.Workflows;
+using Orchestrator.App.Workflows.Executors;
 
 namespace Orchestrator.App.Tests.Watcher;
 

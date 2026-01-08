@@ -1,0 +1,102 @@
+using Microsoft.Agents.AI.Workflows;
+using Orchestrator.App.Core.Configuration;
+using Orchestrator.App.Core.Models;
+using Orchestrator.App.Parsing;
+using Orchestrator.App.Utilities;
+
+namespace Orchestrator.App.Workflows.Executors;
+
+internal sealed class TechLeadExecutor : WorkflowStageExecutor
+{
+    public TechLeadExecutor(WorkContext workContext, WorkflowConfig workflowConfig) : base("TechLead", workContext, workflowConfig)
+    {
+    }
+
+    protected override WorkflowStage Stage => WorkflowStage.TechLead;
+    protected override string Notes => "TechLead spec generated.";
+
+    protected override async ValueTask<(bool Success, string Notes)> ExecuteAsync(
+        WorkflowInput input,
+        IWorkflowContext context,
+        CancellationToken cancellationToken)
+    {
+        var playbook = await LoadPlaybookAsync();
+        var template = WorkContext.Workspace.ReadOrTemplate(
+            WorkflowPaths.SpecTemplatePath,
+            WorkflowPaths.SpecTemplatePath,
+            TemplateUtil.BuildTokens(WorkContext));
+        if (string.IsNullOrWhiteSpace(template))
+        {
+            template = DefaultSpecTemplate;
+        }
+
+        var prompt = TechLeadPrompt.Build(input.WorkItem, playbook, template);
+        var response = await CallLlmAsync(
+            WorkContext.Config.TechLeadModel,
+            prompt.System,
+            prompt.User,
+            cancellationToken);
+
+        var specDraft = string.IsNullOrWhiteSpace(response) ? template : response;
+        var specContent = TemplateUtil.EnsureTemplateHeader(specDraft, WorkContext, WorkflowPaths.SpecTemplatePath);
+        var specPath = WorkflowPaths.SpecPath(input.WorkItem.Number);
+        await FileOperationHelper.WriteAllTextAsync(WorkContext, specPath, specContent);
+
+        var parsedSpec = new SpecParser().Parse(specContent);
+        var (frameworks, patterns) = ResolvePlaybookUsage(playbook, specContent);
+        var result = new TechLeadResult(specPath, parsedSpec, frameworks, patterns);
+        var serializedResult = WorkflowJson.Serialize(result);
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.TechLeadResult, serializedResult, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.TechLeadResult] = serializedResult;
+
+        return (true, $"TechLead spec saved to {specPath}.");
+    }
+
+    private async Task<Playbook> LoadPlaybookAsync()
+    {
+        var content = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.PlaybookPath) ?? "";
+        return new PlaybookParser().Parse(content);
+    }
+
+    private static (IReadOnlyList<string> Frameworks, IReadOnlyList<string> Patterns) ResolvePlaybookUsage(Playbook playbook, string specContent)
+    {
+        var frameworks = playbook.AllowedFrameworks
+            .Where(f => IsReferenced(specContent, f.Name) || IsReferenced(specContent, f.Id))
+            .Select(f => f.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var patterns = playbook.AllowedPatterns
+            .Where(p => IsReferenced(specContent, p.Name) || IsReferenced(specContent, p.Id))
+            .Select(p => p.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return (frameworks, patterns);
+    }
+
+    private static bool IsReferenced(string content, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return content.Contains(value, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private const string DefaultSpecTemplate =
+        "# Spec: Issue {{ISSUE_NUMBER}} - {{ISSUE_TITLE}}\n\n" +
+        "STATUS: DRAFT\n" +
+        "UPDATED: {{UPDATED_AT_UTC}}\n\n" +
+        "## Ziel\n...\n\n" +
+        "## Nicht-Ziele\n- ...\n\n" +
+        "## Komponenten\n- ...\n\n" +
+        "## Touch List\n| Operation | Path | Notes |\n| --- | --- | --- |\n| Modify | src/Example.cs | ... |\n\n" +
+        "## Interfaces\n```csharp\n```\n\n" +
+        "## Szenarien\nScenario: ...\nGiven ...\nWhen ...\nThen ...\n\n" +
+        "Scenario: ...\nGiven ...\nWhen ...\nThen ...\n\n" +
+        "Scenario: ...\nGiven ...\nWhen ...\nThen ...\n\n" +
+        "## Sequenz\n1. ...\n2. ...\n\n" +
+        "## Testmatrix\n| Test | Files | Notes |\n| --- | --- | --- |\n| Unit | tests/ExampleTests.cs | ... |\n";
+}

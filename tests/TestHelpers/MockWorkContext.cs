@@ -13,7 +13,8 @@ internal static class MockWorkContext
         OrchestratorConfig? config = null,
         IRepoWorkspace? workspace = null,
         IRepoGit? repo = null,
-        ILlmClient? llm = null)
+        ILlmClient? llm = null,
+        System.Collections.Concurrent.ConcurrentDictionary<string, string>? sharedState = null)
     {
         workItem ??= CreateWorkItem();
         github ??= CreateGitHubClient();
@@ -22,7 +23,7 @@ internal static class MockWorkContext
         repo ??= CreateRepo(config);
         llm ??= CreateLlmClient(config);
 
-        return new WorkContext(workItem, github, config, workspace, repo, llm);
+        return new WorkContext(workItem, github, config, workspace, repo, llm, null, null, sharedState ?? new System.Collections.Concurrent.ConcurrentDictionary<string, string>());
     }
 
     public static WorkItem CreateWorkItem(

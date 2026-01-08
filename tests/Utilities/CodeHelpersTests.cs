@@ -1,5 +1,5 @@
-using Orchestrator.App.Utilities;
 using Orchestrator.App.Tests.TestHelpers;
+using Orchestrator.App.Utilities;
 using Xunit;
 
 namespace Orchestrator.App.Tests.Utilities;

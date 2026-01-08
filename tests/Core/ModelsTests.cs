@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using Moq;
 using Orchestrator.App;
 using Orchestrator.App.Core.Configuration;
+using Orchestrator.App.Workflows;
+using Orchestrator.App.Workflows.Executors;
 using Xunit;
 
 namespace Orchestrator.App.Tests.Core;

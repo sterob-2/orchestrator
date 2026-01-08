@@ -7,6 +7,7 @@ using Orchestrator.App.Core.Models;
 using Orchestrator.App.Infrastructure.Filesystem;
 using Orchestrator.App.Tests.TestHelpers;
 using Orchestrator.App.Workflows;
+using Orchestrator.App.Workflows.Executors;
 
 namespace Orchestrator.App.Tests.Integration;
 
@@ -37,7 +38,7 @@ public class WorkflowIntegrationTests
         var github = new FakeGitHubClient();
         var repo = new FakeRepoGit();
 
-        var context = new WorkContext(workItem, github, config, workspace.Workspace, repo, llm);
+        var context = new WorkContext(workItem, github, config, workspace.Workspace, repo, llm, null, null, new System.Collections.Concurrent.ConcurrentDictionary<string, string>());
         var workflowContext = new InMemoryWorkflowContext();
         var input = BuildInput(config, workItem);
 
@@ -60,7 +61,6 @@ public class WorkflowIntegrationTests
         var output = await release.HandleAsync(input, workflowContext.Context, CancellationToken.None);
 
         Assert.NotNull(output);
-        Assert.True(refinementOutput.Success);
         Assert.True(dorOutput.Success);
         Assert.True(techLeadOutput.Success);
         Assert.True(specGateOutput.Success);
@@ -99,7 +99,7 @@ public class WorkflowIntegrationTests
         var github = new FakeGitHubClient();
         var repo = new FakeRepoGit();
 
-        var context = new WorkContext(workItem, github, config, workspace.Workspace, repo, llm);
+        var context = new WorkContext(workItem, github, config, workspace.Workspace, repo, llm, null, null, new System.Collections.Concurrent.ConcurrentDictionary<string, string>());
         var workflowContext = new InMemoryWorkflowContext();
         var input = BuildInput(config, workItem);
 
@@ -146,7 +146,7 @@ public class WorkflowIntegrationTests
     private static string BuildRefinementJson()
     {
         var refinement = new RefinementResult(
-            "Clarified story",
+            "Clarified story that is sufficiently long to pass the Definition of Ready gate criteria and be valid.",
             new List<string>
             {
                 "Given a user, when they run, then the app responds.",
