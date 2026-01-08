@@ -7,6 +7,7 @@ using Orchestrator.App.Core.Models;
 using Orchestrator.App.Infrastructure.Filesystem;
 using Orchestrator.App.Tests.TestHelpers;
 using Orchestrator.App.Workflows;
+using Orchestrator.App.Workflows.Executors;
 
 namespace Orchestrator.App.Tests.Integration;
 
