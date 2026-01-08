@@ -23,13 +23,19 @@ This plan breaks the v3.1 concept into parallelizable workstreams. Each workstre
 - [x] Implement label synchronization handlers (`LabelSyncHandler`, `HumanInLoopHandler`) that project workflow state to board labels.
 - [x] Remove legacy agents and all feature-flagged flow switching while introducing the workflow runner.
 - [x] Deliverable: Running workflow skeleton with stub executors that return placeholder results and drive label updates.
+### Review Findings (Open)
+- [ ] Labels are used as workflow source-of-truth for start/next stage selection; align with concept where workflow state is authoritative.
+- [ ] Gate result labels (dor/spec/review/dod) are not applied; board lacks required gate outcomes.
+- [ ] Workflow graph uses unconditional edges and manual routing; align with conditional edge semantics from concept.
+- [ ] Mode override labels (`mode:batch`, `mode:tdd`) not parsed; `WorkflowInput.Mode` always null.
+- [ ] MS AF checkpointing (`Checkpointed<T>` + `ICheckpointManager`) not integrated; workflow state not persisted across runs.
 
 ## Workstream 4: Gates and Playbook Validation
-- Implement DoR gate rules (DoR-01..07) against refinement output and issue metadata.
-- Implement Spec Gate checks: required sections, Touch List format, Gherkin validity, file existence, playbook pattern/framework constraints.
-- Implement DoD gate checks: GitHub checks API, SonarQube API placeholders, spec compliance (AKs, Touch List, forbidden files), review state, cleanup rules.
-- Create `docs/architecture-playbook.yaml` template v2 and a parser/validator that executors can consume.
-- Deliverable: Gate validators with unit tests and clear failure payloads for executor loops.
+- [x] Implement DoR gate rules (DoR-01..07) against refinement output and issue metadata.
+- [x] Implement Spec Gate checks: required sections, Touch List format, Gherkin validity, file existence, playbook pattern/framework constraints.
+- [x] Implement DoD gate checks: GitHub checks API, SonarQube API placeholders, spec compliance (AKs, Touch List, forbidden files), review state, cleanup rules.
+- [x] Create `docs/architecture-playbook.yaml` template v2 and a parser/validator that executors can consume.
+- [x] Deliverable: Gate validators with unit tests and clear failure payloads for executor loops.
 
 ## Workstream 5: Executors Implementation
 - RefinementExecutor: call LLM with constrained prompt, produce `RefinementResult`, loop with DoR gate feedback.

@@ -1,6 +1,6 @@
 namespace Orchestrator.App.Core.Models;
 
-internal sealed record ComplexityIndicators(
+public sealed record ComplexityIndicators(
     IReadOnlyList<string> Signals,
     string? Summary
 );
