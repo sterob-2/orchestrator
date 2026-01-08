@@ -83,7 +83,7 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
         }
 
         var payload = await ReadBodyAsync(request, cancellationToken);
-        if (!IsSignatureValid(payload, request.Headers["X-Hub-Signature-256"]))
+        if (!IsSignatureValid(_config.WebhookSecret, payload, request.Headers["X-Hub-Signature-256"]))
         {
             response.StatusCode = (int)HttpStatusCode.Unauthorized;
             response.Close();
@@ -102,9 +102,9 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
         return memory.ToArray();
     }
 
-    private bool IsSignatureValid(byte[] payload, string? signatureHeader)
+    internal static bool IsSignatureValid(string? secret, byte[] payload, string? signatureHeader)
     {
-        if (string.IsNullOrWhiteSpace(_config.WebhookSecret))
+        if (string.IsNullOrWhiteSpace(secret))
         {
             return true;
         }
@@ -114,17 +114,22 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
             return false;
         }
 
-        var keyBytes = Encoding.UTF8.GetBytes(_config.WebhookSecret);
-        using var hmac = new HMACSHA256(keyBytes);
-        var hash = hmac.ComputeHash(payload);
-        var expected = "sha256=" + Convert.ToHexString(hash).ToLowerInvariant();
+        var expected = ComputeSignature(secret, payload);
 
         return CryptographicOperations.FixedTimeEquals(
             Encoding.UTF8.GetBytes(expected),
             Encoding.UTF8.GetBytes(signatureHeader));
     }
 
-    private static string NormalizePath(string? path)
+    internal static string ComputeSignature(string secret, byte[] payload)
+    {
+        var keyBytes = Encoding.UTF8.GetBytes(secret);
+        using var hmac = new HMACSHA256(keyBytes);
+        var hash = hmac.ComputeHash(payload);
+        return "sha256=" + Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    internal static string NormalizePath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {

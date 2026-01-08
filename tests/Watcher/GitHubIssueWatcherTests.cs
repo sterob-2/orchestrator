@@ -140,6 +140,65 @@ public class GitHubIssueWatcherTests
         github.Verify(g => g.AddLabelsAsync(workItem.Number, config.Labels.WorkItemLabel), Times.Once);
     }
 
+    [Fact]
+    public async Task RunAsync_StopsImmediatelyWhenCancelled()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var github = new Mock<IGitHubClient>();
+        var runner = new TestRunner();
+        var checkpoints = new InMemoryWorkflowCheckpointStore();
+        var watcher = new GitHubIssueWatcher(
+            config,
+            github.Object,
+            runner,
+            item => new WorkContext(
+                item,
+                github.Object,
+                config,
+                new Mock<IRepoWorkspace>().Object,
+                new Mock<IRepoGit>().Object,
+                new Mock<ILlmClient>().Object),
+            checkpoints);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await watcher.RunAsync(cts.Token);
+
+        Assert.False(runner.Called);
+    }
+
+    [Fact]
+    public async Task RunAsync_ProcessesInitialScanSignal()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = MockWorkContext.CreateWorkItem(labels: new List<string> { config.Labels.WorkItemLabel });
+
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetOpenWorkItemsAsync(It.IsAny<int>()))
+            .ReturnsAsync(new List<WorkItem> { workItem });
+
+        using var cts = new CancellationTokenSource();
+        var runner = new CancelingRunner(cts);
+        var checkpoints = new InMemoryWorkflowCheckpointStore();
+        var watcher = new GitHubIssueWatcher(
+            config,
+            github.Object,
+            runner,
+            item => new WorkContext(
+                item,
+                github.Object,
+                config,
+                new Mock<IRepoWorkspace>().Object,
+                new Mock<IRepoGit>().Object,
+                new Mock<ILlmClient>().Object),
+            checkpoints);
+
+        await watcher.RunAsync(cts.Token);
+
+        Assert.True(runner.Called);
+    }
+
     private sealed class TestRunner : IWorkflowRunner
     {
         public bool Called { get; private set; }
@@ -151,6 +210,24 @@ public class GitHubIssueWatcherTests
             Called = true;
             WorkItem = context.WorkItem;
             Stage = stage;
+            return Task.FromResult<WorkflowOutput?>(new WorkflowOutput(true, "ok", WorkflowStageGraph.NextStageFor(stage)));
+        }
+    }
+
+    private sealed class CancelingRunner : IWorkflowRunner
+    {
+        private readonly CancellationTokenSource _cts;
+        public bool Called { get; private set; }
+
+        public CancelingRunner(CancellationTokenSource cts)
+        {
+            _cts = cts;
+        }
+
+        public Task<WorkflowOutput?> RunAsync(WorkContext context, WorkflowStage stage, CancellationToken cancellationToken)
+        {
+            Called = true;
+            _cts.Cancel();
             return Task.FromResult<WorkflowOutput?>(new WorkflowOutput(true, "ok", WorkflowStageGraph.NextStageFor(stage)));
         }
     }

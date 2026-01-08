@@ -81,8 +81,6 @@ public sealed record OrchestratorConfig(
 
         var workflow = new WorkflowConfig(
             DefaultBaseBranch: Get("DEFAULT_BASE_BRANCH", "main"),
-            PollIntervalSeconds: GetInt("POLL_INTERVAL_SECONDS", 120),
-            FastPollIntervalSeconds: GetInt("FAST_POLL_INTERVAL_SECONDS", 30),
             MaxRefinementIterations: GetInt("MAX_REFINEMENT_ITERATIONS", 3),
             MaxTechLeadIterations: GetInt("MAX_TECHLEAD_ITERATIONS", 3),
             MaxDevIterations: GetInt("MAX_DEV_ITERATIONS", 3),

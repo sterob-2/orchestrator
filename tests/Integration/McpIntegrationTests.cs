@@ -39,8 +39,6 @@ public class McpTestFixture : IAsyncLifetime
             RepoName: "test-repo",
             Workflow: new WorkflowConfig(
                 DefaultBaseBranch: "main",
-                PollIntervalSeconds: 120,
-                FastPollIntervalSeconds: 30,
                 MaxRefinementIterations: 3,
                 MaxTechLeadIterations: 3,
                 MaxDevIterations: 3,

@@ -25,8 +25,6 @@ public class CoreOrchestratorConfigTests
         "REPO_OWNER",
         "REPO_NAME",
         "DEFAULT_BASE_BRANCH",
-        "POLL_INTERVAL_SECONDS",
-        "FAST_POLL_INTERVAL_SECONDS",
         "MAX_REFINEMENT_ITERATIONS",
         "MAX_TECHLEAD_ITERATIONS",
         "MAX_DEV_ITERATIONS",
@@ -83,8 +81,6 @@ public class CoreOrchestratorConfigTests
             ["REPO_OWNER"] = "owner",
             ["REPO_NAME"] = "repo",
             ["DEFAULT_BASE_BRANCH"] = "develop",
-            ["POLL_INTERVAL_SECONDS"] = "45",
-            ["FAST_POLL_INTERVAL_SECONDS"] = "12",
             ["MAX_REFINEMENT_ITERATIONS"] = "2",
             ["MAX_TECHLEAD_ITERATIONS"] = "4",
             ["MAX_DEV_ITERATIONS"] = "5",
@@ -140,8 +136,6 @@ public class CoreOrchestratorConfigTests
             RepoName: "repo",
             Workflow: new CoreConfig.WorkflowConfig(
                 DefaultBaseBranch: "develop",
-                PollIntervalSeconds: 45,
-                FastPollIntervalSeconds: 12,
                 MaxRefinementIterations: 2,
                 MaxTechLeadIterations: 4,
                 MaxDevIterations: 5,
@@ -208,8 +202,6 @@ public class CoreOrchestratorConfigTests
             RepoName: "",
             Workflow: new CoreConfig.WorkflowConfig(
                 DefaultBaseBranch: "main",
-                PollIntervalSeconds: 120,
-                FastPollIntervalSeconds: 30,
                 MaxRefinementIterations: 3,
                 MaxTechLeadIterations: 3,
                 MaxDevIterations: 3,
@@ -260,8 +252,6 @@ public class CoreOrchestratorConfigTests
     {
         using var scope = new EnvScope(new Dictionary<string, string?>
         {
-            ["POLL_INTERVAL_SECONDS"] = "abc",
-            ["FAST_POLL_INTERVAL_SECONDS"] = "nope",
             ["MAX_REFINEMENT_ITERATIONS"] = "invalid",
             ["MAX_TECHLEAD_ITERATIONS"] = "invalid",
             ["MAX_DEV_ITERATIONS"] = "invalid",
@@ -272,8 +262,6 @@ public class CoreOrchestratorConfigTests
 
         var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
 
-        Assert.Equal(120, actual.Workflow.PollIntervalSeconds);
-        Assert.Equal(30, actual.Workflow.FastPollIntervalSeconds);
         Assert.Equal(3, actual.Workflow.MaxRefinementIterations);
         Assert.Equal(3, actual.Workflow.MaxTechLeadIterations);
         Assert.Equal(3, actual.Workflow.MaxDevIterations);
