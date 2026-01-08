@@ -91,6 +91,10 @@ internal static class MockWorkContext
                 CodeReviewChangesRequestedLabel: "code-review-changes-requested",
                 ResetLabel: "agent:reset"
             ),
+            WebhookListenHost: "localhost",
+            WebhookPort: 5005,
+            WebhookPath: "/webhook",
+            WebhookSecret: "test-secret",
             ProjectStatusInProgress: "In Progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "test-owner",

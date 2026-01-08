@@ -79,12 +79,19 @@ internal static class Program
                 services.Llm,
                 mcpManager),
             checkpoints);
+        var webhook = new Watcher.GitHubWebhookListener(cfg, watcher.RequestScan);
         try
         {
-            await watcher.RunAsync(cts.Token);
+            var webhookTask = (!cts.IsCancellationRequested && cfg.WebhookPort > 0)
+                ? webhook.StartAsync(cts.Token)
+                : Task.CompletedTask;
+            await Task.WhenAll(
+                watcher.RunAsync(cts.Token),
+                webhookTask);
         }
         finally
         {
+            await webhook.DisposeAsync();
             await mcpManager.DisposeAsync();
         }
 
