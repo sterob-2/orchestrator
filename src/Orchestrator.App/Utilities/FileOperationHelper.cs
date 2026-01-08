@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Orchestrator.App.Utilities;
@@ -68,5 +69,23 @@ internal static class FileOperationHelper
             return null;
         }
         return await ReadAllTextAsync(ctx, path);
+    }
+
+    /// <summary>
+    /// Deletes a file using MCP if available, otherwise Workspace.
+    /// </summary>
+    public static async Task DeleteAsync(WorkContext ctx, string path)
+    {
+        EnsureSafeRelativePath(path);
+        if (ctx.McpFiles != null)
+        {
+            await ctx.McpFiles.DeleteAsync(path);
+        }
+
+        var fullPath = ctx.Workspace.ResolvePath(path);
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+        }
     }
 }

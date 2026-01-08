@@ -3,18 +3,46 @@
 STATUS: DRAFT
 UPDATED: {{UPDATED_AT_UTC}}
 
-## Scope
-- Define exact scope and non-goals.
+## Ziel
+Beschreibe das Ziel in 2-3 Saetzen.
 
-## Files
-- path/to/file.cs
-- path/to/TestFileTests.cs
+## Nicht-Ziele
+- ...
 
-## Risks
-- List technical risks and mitigations.
+## Komponenten
+- ...
 
-## Implementation Plan
-1) ...
+## Touch List
+| Operation | Path | Notes |
+| --- | --- | --- |
+| Modify | src/Example.cs | ... |
 
-## Acceptance Criteria
-- [ ] Define acceptance criteria
+## Interfaces
+```csharp
+// Interface stubs or signatures
+```
+
+## Szenarien
+Scenario: Example
+Given ...
+When ...
+Then ...
+
+Scenario: ...
+Given ...
+When ...
+Then ...
+
+Scenario: ...
+Given ...
+When ...
+Then ...
+
+## Sequenz
+1. ...
+2. ...
+
+## Testmatrix
+| Test | Files | Notes |
+| --- | --- | --- |
+| Unit | tests/ExampleTests.cs | ... |

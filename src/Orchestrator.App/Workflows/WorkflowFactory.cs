@@ -4,25 +4,27 @@ namespace Orchestrator.App.Workflows;
 
 internal static class WorkflowFactory
 {
-    public static Workflow Build(WorkflowStage stage, WorkflowConfig workflowConfig, LabelConfig labels)
+    public static Workflow Build(WorkflowStage stage, WorkContext workContext)
     {
-        var executor = CreateExecutor(stage, workflowConfig, labels);
+        var executor = CreateExecutor(stage, workContext);
         return new WorkflowBuilder(executor)
             .WithOutputFrom(executor)
             .Build();
     }
 
-    public static Workflow BuildGraph(WorkflowConfig workflowConfig, LabelConfig labels, WorkflowStage? startOverride)
+    public static Workflow BuildGraph(WorkContext workContext, WorkflowStage? startOverride)
     {
-        var contextBuilder = new ContextBuilderExecutor(workflowConfig, labels, startOverride);
-        var refinement = new RefinementExecutor(workflowConfig);
-        var dorGate = new DorExecutor(workflowConfig);
-        var techLead = new TechLeadExecutor(workflowConfig);
-        var specGate = new SpecGateExecutor(workflowConfig);
-        var dev = new DevExecutor(workflowConfig);
-        var codeReview = new CodeReviewExecutor(workflowConfig);
-        var dodGate = new DodExecutor(workflowConfig);
-        var release = new ReleaseExecutor(workflowConfig);
+        var workflowConfig = workContext.Config.Workflow;
+        var labels = workContext.Config.Labels;
+        var contextBuilder = new ContextBuilderExecutor(workContext, workflowConfig, labels, startOverride);
+        var refinement = new RefinementExecutor(workContext, workflowConfig);
+        var dorGate = new DorExecutor(workContext, workflowConfig);
+        var techLead = new TechLeadExecutor(workContext, workflowConfig);
+        var specGate = new SpecGateExecutor(workContext, workflowConfig);
+        var dev = new DevExecutor(workContext, workflowConfig);
+        var codeReview = new CodeReviewExecutor(workContext, workflowConfig);
+        var dodGate = new DodExecutor(workContext, workflowConfig);
+        var release = new ReleaseExecutor(workContext, workflowConfig);
 
         var builder = new WorkflowBuilder(contextBuilder)
             .WithOutputFrom(contextBuilder)
@@ -59,21 +61,22 @@ internal static class WorkflowFactory
 
     private static Executor<WorkflowInput, WorkflowOutput> CreateExecutor(
         WorkflowStage stage,
-        WorkflowConfig workflowConfig,
-        LabelConfig labels)
+        WorkContext workContext)
     {
+        var workflowConfig = workContext.Config.Workflow;
+        var labels = workContext.Config.Labels;
         return stage switch
         {
-            WorkflowStage.ContextBuilder => new ContextBuilderExecutor(workflowConfig, labels, null),
-            WorkflowStage.Refinement => new RefinementExecutor(workflowConfig),
-            WorkflowStage.DoR => new DorExecutor(workflowConfig),
-            WorkflowStage.TechLead => new TechLeadExecutor(workflowConfig),
-            WorkflowStage.SpecGate => new SpecGateExecutor(workflowConfig),
-            WorkflowStage.Dev => new DevExecutor(workflowConfig),
-            WorkflowStage.CodeReview => new CodeReviewExecutor(workflowConfig),
-            WorkflowStage.DoD => new DodExecutor(workflowConfig),
-            WorkflowStage.Release => new ReleaseExecutor(workflowConfig),
-            _ => new RefinementExecutor(workflowConfig)
+            WorkflowStage.ContextBuilder => new ContextBuilderExecutor(workContext, workflowConfig, labels, null),
+            WorkflowStage.Refinement => new RefinementExecutor(workContext, workflowConfig),
+            WorkflowStage.DoR => new DorExecutor(workContext, workflowConfig),
+            WorkflowStage.TechLead => new TechLeadExecutor(workContext, workflowConfig),
+            WorkflowStage.SpecGate => new SpecGateExecutor(workContext, workflowConfig),
+            WorkflowStage.Dev => new DevExecutor(workContext, workflowConfig),
+            WorkflowStage.CodeReview => new CodeReviewExecutor(workContext, workflowConfig),
+            WorkflowStage.DoD => new DodExecutor(workContext, workflowConfig),
+            WorkflowStage.Release => new ReleaseExecutor(workContext, workflowConfig),
+            _ => new RefinementExecutor(workContext, workflowConfig)
         };
     }
 }

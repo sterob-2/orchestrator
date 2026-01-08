@@ -5,23 +5,22 @@
 [![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=sterob-2_orchestrator&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=sterob-2_orchestrator)
 [![Docker Build](https://github.com/sterob-2/orchestrator/actions/workflows/docker.yml/badge.svg)](https://github.com/sterob-2/orchestrator/actions/workflows/docker.yml)
 
-An AI-powered GitHub repository orchestrator built with [Microsoft Agent Framework](https://github.com/microsoft/agents). Automatically manages development workflows by processing GitHub issues, creating specifications, implementing changes, and opening pull requests.
+An AI-driven SDLC orchestrator built on the Microsoft Agent Framework. It processes GitHub issues through a workflow graph (Refinement → DoR → TechLead → Spec Gate → Dev → Code Review → DoD → Release) and keeps GitHub labels in sync with workflow state.
 
 ## Features
 
-- **Automated Workflow Orchestration**: Processes GitHub issues labeled as work items through a complete development lifecycle
-- **AI-Powered Development**: Uses LLM agents for planning, specification, implementation, and code review
-- **Microsoft Agent Framework**: Built on Microsoft's agent framework for structured AI workflows
-- **GitHub Integration**: Seamless integration with GitHub Issues, Projects, and Pull Requests
-- **Quality Gates**: Comprehensive CI/CD pipeline with security scanning, code quality analysis, and automated testing
-- **Docker Support**: Containerized deployment with Docker Compose
+- **Workflow graph execution**: Full graph runs per trigger, with loopbacks on gate failures.
+- **Gate validators**: DoR, Spec, and DoD gates with explicit failure payloads.
+- **Spec tooling**: Spec schema parsing, Touch List parsing, and Gherkin validation.
+- **Playbook enforcement**: Allowed/forbidden frameworks and patterns via `docs/architecture-playbook.yaml`.
+- **Event-driven triggering**: Webhook listener triggers scans; no polling loop.
+- **MCP integration**: Optional filesystem/git/GitHub MCP tools for file ops.
 
 ## Runtime
 
-- **.NET 8** target framework
-- **.NET 10** runtime support via Docker
-- Runs as a long-lived service via Docker Compose
-- Self-hosted GitHub Actions runners supported
+- .NET 8 target framework
+- Runs locally or via Docker Compose
+- Triggered by GitHub webhooks (recommended)
 
 ## Quick Start
 
@@ -40,26 +39,35 @@ An AI-powered GitHub repository orchestrator built with [Microsoft Agent Framewo
 
 2. Configure required environment variables in `orchestrator/.env`:
 
-   **OpenAI Configuration:**
-   - `OPENAI_BASE_URL` - API endpoint (default: `https://api.openai.com/v1`)
-   - `OPENAI_API_KEY` - Your API key
-   - `OPENAI_MODEL` - Default model to use
-   - `DEV_MODEL` - Model for development stage (optional override)
-   - `TECHLEAD_MODEL` - Model for tech lead reviews (optional override)
-
-   **GitHub Configuration:**
-   - `GITHUB_TOKEN` - Personal Access Token or GitHub App token
+   **Required**
    - `REPO_OWNER` - Repository owner username/organization
    - `REPO_NAME` - Repository name
+   - `OPENAI_API_KEY` - LLM API key (required for executor calls)
+
+   **Recommended for full functionality**
+   - `GITHUB_TOKEN` - Personal Access Token or GitHub App token (labels, PRs, projects)
+   - `WORKSPACE_PATH` - Local workspace path for cloning (must be a git repo)
    - `DEFAULT_BASE_BRANCH` - Base branch for PRs (usually `main`)
 
-   **Git Configuration:**
-   - `WORKSPACE_PATH` - Local workspace path for cloning
-   - `GIT_REMOTE_URL` - (Optional) Git remote URL
+   **OpenAI Configuration (optional overrides)**
+   - `OPENAI_BASE_URL` - API endpoint (default: `https://api.openai.com/v1`)
+   - `OPENAI_MODEL` - Default model to use (default: `gpt-5-mini`)
+   - `DEV_MODEL` - Model for development stage (default: `gpt-5`)
+   - `TECHLEAD_MODEL` - Model for tech lead stage (default: `gpt-5-mini`)
+
+   **Git Configuration (optional overrides)**
+   - `WORKSPACE_HOST_PATH` - Host path for MCP Docker mounts (default: `WORKSPACE_PATH`)
+   - `GIT_REMOTE_URL` - Override git remote URL
    - `GIT_AUTHOR_NAME` - Commit author name
    - `GIT_AUTHOR_EMAIL` - Commit author email
 
-   **Workflow Labels:**
+   **Webhook Configuration (optional, defaults provided)**
+   - `WEBHOOK_LISTEN_HOST` - Host to bind (default: `localhost`)
+   - `WEBHOOK_PORT` - Port to bind (default: `5005`)
+   - `WEBHOOK_PATH` - Path to listen on (default: `/webhook`)
+   - `WEBHOOK_SECRET` - GitHub webhook secret for signature verification
+
+   **Workflow Labels (optional overrides)**
    - `WORK_ITEM_LABEL` - Label to trigger workflow
    - `IN_PROGRESS_LABEL` - Applied when work starts
    - `DONE_LABEL` - Applied when complete
@@ -72,30 +80,20 @@ An AI-powered GitHub repository orchestrator built with [Microsoft Agent Framewo
    - `CODE_REVIEW_CHANGES_REQUESTED_LABEL` - Changes requested
    - `RESET_LABEL` - Reset workflow state
 
-   **Polling Configuration:**
-   - `POLL_INTERVAL_SECONDS` - Normal polling interval
-   - `FAST_POLL_INTERVAL_SECONDS` - Fast polling when work in progress
-
-   **GitHub Projects (Optional):**
+   **GitHub Projects (optional)**
    - `PROJECT_OWNER` - Project owner
    - `PROJECT_OWNER_TYPE` - Owner type (user/organization)
    - `PROJECT_NUMBER` - Project number
 
 ### Running with Docker
 
-Build and start the orchestrator:
-
 ```bash
 docker compose -f orchestrator/docker-compose.yml up -d --build
 ```
 
-View logs:
-
 ```bash
 docker compose -f orchestrator/docker-compose.yml logs -f
 ```
-
-Stop the service:
 
 ```bash
 docker compose -f orchestrator/docker-compose.yml down
@@ -116,86 +114,24 @@ dotnet build src/Orchestrator.App/Orchestrator.App.csproj --configuration Releas
 dotnet test tests/Orchestrator.App.Tests.csproj --configuration Release
 ```
 
-## CI/CD Pipeline
+## Architecture Overview
 
-This repository includes a comprehensive CI/CD pipeline with multiple quality gates:
-
-### Continuous Integration
-
-- **Build & Test**: Automated build and test execution
-- **Code Quality Analysis**: Code formatting and style enforcement
-- **Dependency Scanning**: Vulnerability detection in dependencies
-
-### Security
-
-- **CodeQL Analysis**: Static code analysis for security vulnerabilities
-- **Secret Scanning**: TruffleHog integration for secret detection
-- **Dependency Review**: Automated dependency vulnerability scanning
-- **SBOM Generation**: Software Bill of Materials for releases
-
-### Quality Gates
-
-- **SonarCloud**: Code quality, coverage, and security analysis
-- **Docker Scanning**: Trivy vulnerability scanning for container images
-- **Dockerfile Linting**: hadolint validation
-
-### Release Pipeline
-
-- **Multi-Platform Builds**: Linux (x64, ARM64), Windows (x64), macOS (x64, ARM64)
-- **GitHub Releases**: Automated release creation with changelog
-- **Docker Registry**: Automated container publishing to GitHub Container Registry
-
-### Setting Up SonarCloud
-
-To enable SonarCloud quality gate:
-
-1. Sign up at [SonarCloud](https://sonarcloud.io) with your GitHub account
-2. Import the `sterob-2/orchestrator` repository
-3. Get your SonarCloud token
-4. Add the `SONAR_TOKEN` secret to your GitHub repository:
-   - Go to Repository Settings > Secrets and variables > Actions
-   - Create new repository secret named `SONAR_TOKEN`
-   - Paste your SonarCloud token
-
-The SonarCloud workflow will automatically analyze code quality and generate coverage reports on every push and pull request.
-
-## Architecture
-
-The orchestrator implements a state machine workflow for processing GitHub issues:
-
-1. **Discovery**: Polls GitHub for issues with the work item label
-2. **Planning**: Generates implementation plan and specification
-3. **Specification Review**: Allows user to review and clarify requirements
-4. **Implementation**: Creates implementation using AI agents
-5. **Code Review**: Optional automated code review
-6. **Pull Request**: Opens draft PR with implemented changes
+- **Workflow engine**: `WorkflowFactory` builds the SDLC graph; `WorkflowRunner` executes full runs.
+- **Executors**: Refinement, TechLead, Dev, CodeReview, Release plus gates (DoR, Spec, DoD).
+- **Artifacts**:
+  - Specs: `orchestrator/specs/issue-<id>.md`
+  - Questions: `orchestrator/questions/issue-<id>.md`
+  - Reviews: `orchestrator/reviews/issue-<id>.md`
+  - Releases: `orchestrator/release/issue-<id>.md`
+- **Playbook**: `docs/architecture-playbook.yaml` for framework/pattern constraints.
 
 ## Documentation
 
-### MCP Integration
-
-The orchestrator uses [Model Context Protocol (MCP)](https://modelcontextprotocol.io) for providing AI agents with access to filesystem, git, and GitHub operations.
-
-- **[MCP Setup Guide](docs/MCP_SETUP.md)** - Installing MCP server dependencies
-- **[Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md)** - Running orchestrator with MCP in Docker
-- **[MCP Agent Migration Plan](docs/MCP_AGENT_MIGRATION_PLAN.md)** - Roadmap for migrating agents to use MCP tools
-
-**Current MCP Status:**
-- ✅ Filesystem MCP Server: 14 tools
-- ✅ Git MCP Server: 12 tools
-- ✅ GitHub MCP Server: 40 tools
-- **Total: 66 tools available**
-
-### Additional Resources
-
-- [Microsoft Agent Framework](https://github.com/microsoft/agents) - Core framework documentation
-- [GitHub Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects) - Project board integration
-- [OpenAI API](https://platform.openai.com/docs/api-reference) - LLM API reference
+- Concept: `docs/sdlc-orchestrator-konzept-v3.md`
+- Refactoring plan: `docs/refactoring-plan.md`
+- MCP Setup: `docs/MCP_SETUP.md`
+- Docker Deployment: `docs/DOCKER_DEPLOYMENT.md`
 
 ## License
 
 This project is licensed under the MIT License.
-
-## Contributing
-
-Contributions are welcome! Please ensure all CI checks pass before submitting pull requests.

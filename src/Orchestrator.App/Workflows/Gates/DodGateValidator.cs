@@ -6,99 +6,52 @@ internal static class DodGateValidator
     {
         var failures = new List<string>();
 
-        if (!input.CiWorkflowGreen)
-        {
-            failures.Add("DoD-01: CI workflow is not green.");
-        }
-
-        if (!input.RequiredChecksGreen)
-        {
-            failures.Add("DoD-02: Required checks are not green.");
-        }
-
-        if (!input.NoPendingChecks)
-        {
-            failures.Add("DoD-03: Pending checks still exist.");
-        }
-
-        if (!input.QualityGateOk)
-        {
-            failures.Add("DoD-10: SonarQube quality gate not OK.");
-        }
-
-        if (!input.NoNewBugs)
-        {
-            failures.Add("DoD-11: New bugs detected.");
-        }
-
-        if (!input.NoNewVulnerabilities)
-        {
-            failures.Add("DoD-12: New vulnerabilities detected.");
-        }
-
-        if (!input.NoCriticalCodeSmells)
-        {
-            failures.Add("DoD-13: Critical code smells detected.");
-        }
-
-        if (!input.Coverage.HasValue || input.Coverage.Value < input.CoverageThreshold)
-        {
-            failures.Add("DoD-14: Coverage below threshold.");
-        }
-
-        if (!input.Duplication.HasValue || input.Duplication.Value > input.DuplicationThreshold)
-        {
-            failures.Add("DoD-15: Duplication above threshold.");
-        }
-
-        if (!input.AcceptanceCriteriaComplete)
-        {
-            failures.Add("DoD-20: Acceptance criteria are not complete.");
-        }
-
-        if (!input.TouchListSatisfied)
-        {
-            failures.Add("DoD-21: Touch list requirements not satisfied.");
-        }
-
-        if (!input.ForbiddenFilesClean)
-        {
-            failures.Add("DoD-22: Forbidden files were modified.");
-        }
-
-        if (!input.PlannedFilesChanged)
-        {
-            failures.Add("DoD-23: Planned files were not fully changed.");
-        }
-
-        if (!input.CodeReviewPassed)
-        {
-            failures.Add("DoD-30: AI code review not passed.");
-        }
-
-        if (!input.NoBlockerFindings)
-        {
-            failures.Add("DoD-31: Blocker findings remain.");
-        }
-
-        if (!input.NoTodos)
-        {
-            failures.Add("DoD-40: TODO markers remain.");
-        }
-
-        if (!input.NoFixmes)
-        {
-            failures.Add("DoD-41: FIXME markers remain.");
-        }
-
-        if (!input.SpecComplete)
-        {
-            failures.Add("DoD-42: Spec status not complete.");
-        }
+        AddFailureIfFalse(failures, input.CiWorkflowGreen, "DoD-01: CI workflow is not green.");
+        AddFailureIfFalse(failures, input.RequiredChecksGreen, "DoD-02: Required checks are not green.");
+        AddFailureIfFalse(failures, input.NoPendingChecks, "DoD-03: Pending checks still exist.");
+        AddFailureIfFalse(failures, input.QualityGateOk, "DoD-10: SonarQube quality gate not OK.");
+        AddFailureIfFalse(failures, input.NoNewBugs, "DoD-11: New bugs detected.");
+        AddFailureIfFalse(failures, input.NoNewVulnerabilities, "DoD-12: New vulnerabilities detected.");
+        AddFailureIfFalse(failures, input.NoCriticalCodeSmells, "DoD-13: Critical code smells detected.");
+        AddCoverageFailure(failures, input.Coverage, input.CoverageThreshold);
+        AddDuplicationFailure(failures, input.Duplication, input.DuplicationThreshold);
+        AddFailureIfFalse(failures, input.AcceptanceCriteriaComplete, "DoD-20: Acceptance criteria are not complete.");
+        AddFailureIfFalse(failures, input.TouchListSatisfied, "DoD-21: Touch list requirements not satisfied.");
+        AddFailureIfFalse(failures, input.ForbiddenFilesClean, "DoD-22: Forbidden files were modified.");
+        AddFailureIfFalse(failures, input.PlannedFilesChanged, "DoD-23: Planned files were not fully changed.");
+        AddFailureIfFalse(failures, input.CodeReviewPassed, "DoD-30: AI code review not passed.");
+        AddFailureIfFalse(failures, input.NoBlockerFindings, "DoD-31: Blocker findings remain.");
+        AddFailureIfFalse(failures, input.NoTodos, "DoD-40: TODO markers remain.");
+        AddFailureIfFalse(failures, input.NoFixmes, "DoD-41: FIXME markers remain.");
+        AddFailureIfFalse(failures, input.SpecComplete, "DoD-42: Spec status not complete.");
 
         return new GateResult(
             Passed: failures.Count == 0,
             Summary: failures.Count == 0 ? "DoD gate passed." : "DoD gate failed.",
             Failures: failures);
+    }
+
+    private static void AddFailureIfFalse(List<string> failures, bool condition, string message)
+    {
+        if (!condition)
+        {
+            failures.Add(message);
+        }
+    }
+
+    private static void AddCoverageFailure(List<string> failures, double? coverage, double threshold)
+    {
+        if (!coverage.HasValue || coverage.Value < threshold)
+        {
+            failures.Add("DoD-14: Coverage below threshold.");
+        }
+    }
+
+    private static void AddDuplicationFailure(List<string> failures, double? duplication, double threshold)
+    {
+        if (!duplication.HasValue || duplication.Value > threshold)
+        {
+            failures.Add("DoD-15: Duplication above threshold.");
+        }
     }
 }

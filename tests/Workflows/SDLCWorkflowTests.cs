@@ -10,7 +10,13 @@ public class SDLCWorkflowTests
     public void BuildStageWorkflow_ReturnsWorkflow()
     {
         var config = MockWorkContext.CreateConfig();
-        var workflow = SDLCWorkflow.BuildStageWorkflow(WorkflowStage.Refinement, config.Workflow, config.Labels);
+        var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
+        var github = new Mock<IGitHubClient>();
+        var workspace = new Mock<IRepoWorkspace>();
+        var repo = new Mock<IRepoGit>();
+        var llm = new Mock<ILlmClient>();
+        var context = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
+        var workflow = SDLCWorkflow.BuildStageWorkflow(WorkflowStage.Refinement, context);
 
         Assert.NotNull(workflow);
     }

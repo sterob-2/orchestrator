@@ -6,15 +6,13 @@ RUN dotnet publish ./Orchestrator.App/Orchestrator.App.csproj -c Release -o /out
 FROM mcr.microsoft.com/dotnet/runtime:8.0
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
     ca-certificates \
     curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Docker CLI for spawning MCP server containers
-RUN curl -fsSL https://get.docker.com -o get-docker.sh && \
-    sh get-docker.sh && \
-    rm get-docker.sh
+    git \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://get.docker.com -o get-docker.sh \
+    && sh get-docker.sh \
+    && rm get-docker.sh
 
 WORKDIR /app
 COPY --from=build /out ./
