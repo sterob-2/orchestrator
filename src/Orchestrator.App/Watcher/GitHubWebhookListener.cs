@@ -18,7 +18,7 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
         _listener = new HttpListener();
         _path = NormalizePath(config.WebhookPath);
 
-        var prefix = $"http://{_config.WebhookListenHost}:{_config.WebhookPort}{_path}/";
+        var prefix = $"https://{_config.WebhookListenHost}:{_config.WebhookPort}{_path}/";
         _listener.Prefixes.Add(prefix);
     }
 
