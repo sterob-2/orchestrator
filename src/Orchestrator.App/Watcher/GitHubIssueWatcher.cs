@@ -1,3 +1,5 @@
+using System.Threading.Channels;
+
 namespace Orchestrator.App.Watcher;
 
 internal sealed class GitHubIssueWatcher
@@ -7,6 +9,7 @@ internal sealed class GitHubIssueWatcher
     private readonly IWorkflowRunner _runner;
     private readonly Func<WorkItem, WorkContext> _contextFactory;
     private readonly IWorkflowCheckpointStore _checkpointStore;
+    private readonly Channel<bool> _scanSignals;
 
     public GitHubIssueWatcher(
         OrchestratorConfig config,
@@ -20,6 +23,11 @@ internal sealed class GitHubIssueWatcher
         _runner = runner;
         _contextFactory = contextFactory;
         _checkpointStore = checkpointStore;
+        _scanSignals = Channel.CreateUnbounded<bool>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false
+        });
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -30,24 +38,40 @@ internal sealed class GitHubIssueWatcher
             return;
         }
 
-        try
+        RequestScan();
+
+        while (!cancellationToken.IsCancellationRequested)
         {
-            await RunOnceAsync(cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            return;
-        }
-        catch (System.Net.Http.HttpRequestException ex)
-        {
-            Logger.WriteLine(ex.ToString());
-        }
-        catch (TimeoutException ex)
-        {
-            Logger.WriteLine(ex.ToString());
+            try
+            {
+                await _scanSignals.Reader.ReadAsync(cancellationToken);
+
+                while (_scanSignals.Reader.TryRead(out _))
+                {
+                }
+
+                await RunOnceAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (System.Net.Http.HttpRequestException ex)
+            {
+                Logger.WriteLine(ex.ToString());
+            }
+            catch (TimeoutException ex)
+            {
+                Logger.WriteLine(ex.ToString());
+            }
         }
 
         Logger.WriteLine("Orchestrator stopped");
+    }
+
+    public void RequestScan()
+    {
+        _scanSignals.Writer.TryWrite(true);
     }
 
     internal async Task<WorkItem?> RunOnceAsync(CancellationToken cancellationToken)
