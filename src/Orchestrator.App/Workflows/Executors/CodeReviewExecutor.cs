@@ -191,8 +191,8 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
             {
                 var location = string.IsNullOrWhiteSpace(finding.File)
                     ? ""
-                    : $" ({finding.File}{(finding.Line.HasValue ? $":{{finding.Line}}" : "")})";
-                builder.AppendLine($"- [{{finding.Severity}}] {{finding.Category}}: {{finding.Message}}{{location}}");
+                    : $" ({finding.File}{(finding.Line.HasValue ? $":{finding.Line}" : "")})";
+                builder.AppendLine($"- [{finding.Severity}] {finding.Category}: {finding.Message}{location}");
             }
         }
 
