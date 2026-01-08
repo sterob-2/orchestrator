@@ -25,7 +25,7 @@ internal static class WorkflowJson
         try
         {
             result = JsonSerializer.Deserialize<T>(json, Options);
-            return result != null;
+            return !EqualityComparer<T>.Default.Equals(result, default);
         }
         catch (JsonException)
         {
