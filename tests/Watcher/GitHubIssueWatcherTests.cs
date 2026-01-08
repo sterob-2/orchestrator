@@ -258,6 +258,31 @@ public class GitHubIssueWatcherTests
         Assert.False(accepted);
     }
 
+    [Fact]
+    public void RequestScan_LogsWhenChannelClosed()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var github = new Mock<IGitHubClient>();
+        var runner = new TestRunner();
+        var checkpoints = new InMemoryWorkflowCheckpointStore();
+        var watcher = new GitHubIssueWatcher(
+            config,
+            github.Object,
+            runner,
+            item => new WorkContext(
+                item,
+                github.Object,
+                config,
+                new Mock<IRepoWorkspace>().Object,
+                new Mock<IRepoGit>().Object,
+                new Mock<ILlmClient>().Object),
+            checkpoints);
+
+        watcher.CompleteScanChannel();
+
+        watcher.RequestScan();
+    }
+
     private sealed class TestRunner : IWorkflowRunner
     {
         public bool Called { get; private set; }

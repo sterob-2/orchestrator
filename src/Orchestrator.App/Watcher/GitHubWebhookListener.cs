@@ -12,13 +12,16 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
     private readonly HttpListener _listener;
     private readonly string _path;
     private string? _activePrefix;
+    private readonly bool _preferHttps;
+    internal string? ActivePrefix => _activePrefix;
 
-    public GitHubWebhookListener(OrchestratorConfig config, Action onWebhook)
+    public GitHubWebhookListener(OrchestratorConfig config, Action onWebhook, bool preferHttps = true)
     {
         _config = config;
         _onWebhook = onWebhook;
         _listener = new HttpListener();
         _path = NormalizePath(config.WebhookPath);
+        _preferHttps = preferHttps;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -28,7 +31,11 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
             Logger.WriteLine("[Webhook] Warning: WEBHOOK_SECRET is not set; signature validation is disabled.");
         }
 
-        if (!TryStartListener(useHttps: true) && !TryStartListener(useHttps: false))
+        var started = _preferHttps
+            ? TryStartListener(useHttps: true) || TryStartListener(useHttps: false)
+            : TryStartListener(useHttps: false);
+
+        if (!started)
         {
             Logger.WriteLine("[Webhook] Failed to start listener on HTTPS or HTTP.");
             return;
