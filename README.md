@@ -1,9 +1,8 @@
 # Orchestrator
 
 [![CI](https://github.com/sterob-2/orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/sterob-2/orchestrator/actions/workflows/ci.yml)
-[![Security Scanning](https://github.com/sterob-2/orchestrator/actions/workflows/security.yml/badge.svg)](https://github.com/sterob-2/orchestrator/actions/workflows/security.yml)
 [![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=sterob-2_orchestrator&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=sterob-2_orchestrator)
-[![Docker Build](https://github.com/sterob-2/orchestrator/actions/workflows/docker.yml/badge.svg)](https://github.com/sterob-2/orchestrator/actions/workflows/docker.yml)
+[![Release](https://github.com/sterob-2/orchestrator/actions/workflows/release.yml/badge.svg)](https://github.com/sterob-2/orchestrator/actions/workflows/release.yml)
 
 An AI-driven SDLC orchestrator built on the Microsoft Agent Framework. It processes GitHub issues through a workflow graph (Refinement → DoR → TechLead → Spec Gate → Dev → Code Review → DoD → Release) and keeps GitHub labels in sync with workflow state.
 
@@ -66,6 +65,7 @@ An AI-driven SDLC orchestrator built on the Microsoft Agent Framework. It proces
    - `WEBHOOK_PORT` - Port to bind (default: `5005`)
    - `WEBHOOK_PATH` - Path to listen on (default: `/webhook`)
    - `WEBHOOK_SECRET` - GitHub webhook secret for signature verification
+   - The listener attempts HTTPS first; if no HTTPS binding is available, it falls back to HTTP with a warning. Configure an HTTPS binding for production.
 
    **Workflow Labels (optional overrides)**
    - `WORK_ITEM_LABEL` - Label to trigger workflow

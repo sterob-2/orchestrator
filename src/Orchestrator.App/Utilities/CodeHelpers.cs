@@ -11,9 +11,12 @@ public static class CodeHelpers
     {
         return files.Where(file =>
         {
-            if (!WorkItemParsers.IsSafeRelativePath(file)) return true;
-            if (!IsAllowedPath(file)) return true;
-            if (workspace.Exists(file)) return false;
+            if (!WorkItemParsers.IsSafeRelativePath(file))
+                return true;
+            if (!IsAllowedPath(file))
+                return true;
+            if (workspace.Exists(file))
+                return false;
 
             return !IsAllowedExtension(Path.GetExtension(file));
         }).ToList();

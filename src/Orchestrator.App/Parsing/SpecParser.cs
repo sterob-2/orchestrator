@@ -40,11 +40,13 @@ public partial class SpecParser
     private static Dictionary<string, string> ParseSections(string content)
     {
         var sections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (string.IsNullOrWhiteSpace(content)) return sections;
+        if (string.IsNullOrWhiteSpace(content))
+            return sections;
 
         var matches = SectionHeaderRegex().Matches(content);
 
-        if (matches.Count == 0) return sections;
+        if (matches.Count == 0)
+            return sections;
 
         for (int i = 0; i < matches.Count; i++)
         {
@@ -52,7 +54,7 @@ public partial class SpecParser
             var header = currentMatch.Groups[1].Value.Trim();
             var start = currentMatch.Index + currentMatch.Length;
             var end = (i + 1 < matches.Count) ? matches[i + 1].Index : content.Length;
-            
+
             var body = content.Substring(start, end - start).Trim();
             sections[header] = body;
         }
@@ -74,7 +76,8 @@ public partial class SpecParser
 
     private static List<string> ParseList(string content)
     {
-        if (string.IsNullOrWhiteSpace(content)) return new List<string>();
+        if (string.IsNullOrWhiteSpace(content))
+            return new List<string>();
 
         var listItemRegex = ListItemPrefixRegex();
 
@@ -95,7 +98,8 @@ public partial class SpecParser
     private static List<string> ParseCodeBlocks(string content)
     {
         var blocks = new List<string>();
-        if (string.IsNullOrWhiteSpace(content)) return blocks;
+        if (string.IsNullOrWhiteSpace(content))
+            return blocks;
 
         foreach (Match match in CodeBlockRegex().Matches(content))
         {
@@ -104,7 +108,7 @@ public partial class SpecParser
 
         if (blocks.Count == 0 && !string.IsNullOrWhiteSpace(content))
         {
-             blocks.Add(content);
+            blocks.Add(content);
         }
 
         return blocks;
@@ -113,19 +117,23 @@ public partial class SpecParser
     private static List<string> ParseScenarios(string content)
     {
         var scenarios = new List<string>();
-        if (string.IsNullOrWhiteSpace(content)) return scenarios;
+        if (string.IsNullOrWhiteSpace(content))
+            return scenarios;
 
         var matches = ScenarioRegex().Matches(content);
-        
-        if (matches.Count == 0) return scenarios;
+
+        if (matches.Count == 0)
+            return scenarios;
 
         for (int i = 0; i < matches.Count; i++)
         {
             var start = matches[i].Index;
-            if (content[start] == '\n') start++;
+            if (content[start] == '\n')
+                start++;
 
             var end = (i + 1 < matches.Count) ? matches[i + 1].Index : content.Length;
-             if (i + 1 < matches.Count && content[end] == '\n') end++;
+            if (i + 1 < matches.Count && content[end] == '\n')
+                end++;
 
             var body = content.Substring(start, end - start).Trim();
             if (!string.IsNullOrWhiteSpace(body))
@@ -139,7 +147,8 @@ public partial class SpecParser
 
     private static List<string> ParseTableRows(string content)
     {
-        if (string.IsNullOrWhiteSpace(content)) return new List<string>();
+        if (string.IsNullOrWhiteSpace(content))
+            return new List<string>();
 
         var lines = content.Split(NewLineSeparators, StringSplitOptions.RemoveEmptyEntries)
             .Select(l => l.Trim())
@@ -147,7 +156,8 @@ public partial class SpecParser
 
         var separatorIndex = lines.FindIndex(l => l.StartsWith('|') && l.Contains("---"));
 
-        if (separatorIndex < 0) return new List<string>();
+        if (separatorIndex < 0)
+            return new List<string>();
 
         return lines.Skip(separatorIndex + 1)
             .Where(l => l.StartsWith('|'))

@@ -46,10 +46,10 @@ This plan breaks the v3.1 concept into parallelizable workstreams. Each workstre
 - [x] Deliverable: Executors wired into workflow, respecting gate outputs and iteration limits.
 
 ## Workstream 6: Labeling, Modes, and State Sync
-- Map labels from concept to runtime (`ready-for-agent`, stage labels, gate result labels, review labels).
-- Implement mode overrides (`mode:batch`, `mode:tdd`) and default mode selection in DevExecutor.
-- Ensure label updates happen idempotently and are driven from workflow events rather than ad hoc calls.
-- Deliverable: Label/state sync module with tests; manual label interventions correctly steer workflow.
+- [x] Map labels from concept to runtime (`ready-for-agent`, stage labels, gate result labels, review labels).
+- [x] Implement mode overrides (`mode:batch`, `mode:tdd`) and default mode selection in DevExecutor.
+- [x] Ensure label updates happen idempotently and are driven from workflow events rather than ad hoc calls.
+- [x] Deliverable: Label/state sync module with tests; manual label interventions correctly steer workflow.
 
 ## Workstream 7: Metrics, Telemetry, and Limits
 - Add metrics capture per workflow run (issue, mode, LLM calls, iterations, cost, duration, findings count, approval flag).

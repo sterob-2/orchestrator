@@ -128,10 +128,16 @@ public class McpClientManager : IAsyncDisposable
             toolPrefix: "filesystem",
             transportName: "FilesystemServer",
             dockerArgs: [
-                "run", "-i", "--rm",
-                "-v", $"{workspaceHostPath}:/workspace",
-                "-w", "/workspace",
-                "node:lts-alpine", "sh", "-c",
+                "run",
+                "-i",
+                "--rm",
+                "-v",
+                $"{workspaceHostPath}:/workspace",
+                "-w",
+                "/workspace",
+                "node:lts-alpine",
+                "sh",
+                "-c",
                 "npx -y @modelcontextprotocol/server-filesystem /workspace"
             ],
             helpMessage: "Ensure Docker is installed and workspace path is accessible.");
@@ -144,10 +150,16 @@ public class McpClientManager : IAsyncDisposable
             toolPrefix: "git",
             transportName: "GitServer",
             dockerArgs: [
-                "run", "-i", "--rm",
-                "-v", $"{repositoryHostPath}:/workspace",
-                "-w", "/workspace",
-                "python:3.12-alpine", "sh", "-c",
+                "run",
+                "-i",
+                "--rm",
+                "-v",
+                $"{repositoryHostPath}:/workspace",
+                "-w",
+                "/workspace",
+                "python:3.12-alpine",
+                "sh",
+                "-c",
                 "apk add --no-cache git && pip install --no-cache-dir uv > /dev/null 2>&1 && uvx mcp-server-git --repository /workspace"
             ],
             helpMessage: "Ensure Docker is installed and repository path is accessible.");
@@ -160,8 +172,11 @@ public class McpClientManager : IAsyncDisposable
             toolPrefix: "github",
             transportName: "GitHubServer",
             dockerArgs: [
-                "run", "-i", "--rm",
-                "-e", $"GITHUB_PERSONAL_ACCESS_TOKEN={githubToken}",
+                "run",
+                "-i",
+                "--rm",
+                "-e",
+                $"GITHUB_PERSONAL_ACCESS_TOKEN={githubToken}",
                 "ghcr.io/github/github-mcp-server"
             ],
             helpMessage: "Ensure Docker is installed, running, and GitHub token is valid.");

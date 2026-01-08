@@ -1,7 +1,7 @@
+using System.Net.Http;
 using Octokit;
 using Orchestrator.App.Core.Configuration;
 using Orchestrator.App.Core.Models;
-using System.Net.Http;
 using CoreIssueComment = Orchestrator.App.Core.Models.IssueComment;
 
 namespace Orchestrator.App.Infrastructure.GitHub;
@@ -176,7 +176,8 @@ internal sealed class OctokitGitHubClient : Orchestrator.App.Core.Interfaces.IGi
     /// </summary>
     public async Task AddLabelsAsync(int issueNumber, params string[] labels)
     {
-        if (labels.Length == 0) return;
+        if (labels.Length == 0)
+            return;
 
         await _octokit.Issue.Labels.AddToIssue(
             RepoOwner,

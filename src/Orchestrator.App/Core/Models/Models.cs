@@ -58,7 +58,8 @@ internal static class WorkItemBranch
             var normalized = isAsciiLetterOrDigit ? ch : '-';
             if (normalized == '-')
             {
-                if (dash) continue;
+                if (dash)
+                    continue;
                 dash = true;
             }
             else
