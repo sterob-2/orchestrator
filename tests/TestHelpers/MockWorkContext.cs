@@ -94,9 +94,12 @@ internal static class MockWorkContext
             WebhookPort: 5005,
             WebhookPath: "/webhook",
             WebhookSecret: "test-secret",
+            ProjectStatusInProgress: "In Progress",
+            ProjectStatusInReview: "In Review",
             ProjectOwner: "test-owner",
             ProjectOwnerType: "user",
-            ProjectNumber: 1
+            ProjectNumber: 1,
+            ProjectStatusDone: "Done"
         );
     }
 

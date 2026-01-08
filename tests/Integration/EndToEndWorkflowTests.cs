@@ -131,7 +131,11 @@ Then Edge
         // Arrange
         var workItem = MockWorkContext.CreateWorkItem(number: 1, labels: new List<string> { "ready-for-agents", "estimate:3" });
         var config = MockWorkContext.CreateConfig(workspacePath: _tempWorkspace.WorkspacePath);
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 6cb715d (fix: Implement SharedState for robust workflow persistence and add E2E tests)
         var workContext = MockWorkContext.Create(
             workItem: workItem,
             github: _githubMock.Object,
@@ -203,7 +207,11 @@ Then ...
         // Act
         // Build the full graph
         var workflow = WorkflowFactory.BuildGraph(workContext, startOverride: null);
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 6cb715d (fix: Implement SharedState for robust workflow persistence and add E2E tests)
         var input = new WorkflowInput(
             workItem,
             new ProjectContext("owner", "repo", "main", _tempWorkspace.WorkspacePath, _tempWorkspace.WorkspacePath, "owner", "user", 1),
@@ -226,7 +234,11 @@ Then ...
 
         // Verify Git Interactions
         _repoMock.Verify(x => x.CommitAndPush(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>()), Times.AtLeastOnce);
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 6cb715d (fix: Implement SharedState for robust workflow persistence and add E2E tests)
         // Verify GitHub Interactions
         _githubMock.Verify(x => x.OpenPullRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
