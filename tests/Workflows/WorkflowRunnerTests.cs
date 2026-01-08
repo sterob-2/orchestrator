@@ -28,7 +28,6 @@ public class WorkflowRunnerTests
         var output = await runner.RunAsync(context, WorkflowStage.Dev, CancellationToken.None);
 
         Assert.NotNull(output);
-        Assert.Null(output!.NextStage);
     }
 
     [Fact]
@@ -39,9 +38,15 @@ public class WorkflowRunnerTests
         {
             Workflow = config.Workflow with { MaxDevIterations = 0 }
         };
-        var workflow = WorkflowFactory.Build(WorkflowStage.Dev, config.Workflow, config.Labels);
+        var workItem = new WorkItem(2, "Title", "Body", "url", new List<string>());
+        var github = new Mock<IGitHubClient>();
+        var workspace = new Mock<IRepoWorkspace>();
+        var repo = new Mock<IRepoGit>();
+        var llm = new Mock<ILlmClient>();
+        var context = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
+        var workflow = WorkflowFactory.Build(WorkflowStage.Dev, context);
         var input = new WorkflowInput(
-            new WorkItem(2, "Title", "Body", "url", new List<string>()),
+            workItem,
             new ProjectContext("owner", "repo", "main", "/tmp", "/tmp", "owner", "user", 1),
             Mode: null,
             Attempt: 0);

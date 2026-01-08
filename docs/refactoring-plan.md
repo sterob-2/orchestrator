@@ -38,12 +38,12 @@ This plan breaks the v3.1 concept into parallelizable workstreams. Each workstre
 - [x] Deliverable: Gate validators with unit tests and clear failure payloads for executor loops.
 
 ## Workstream 5: Executors Implementation
-- RefinementExecutor: call LLM with constrained prompt, produce `RefinementResult`, loop with DoR gate feedback.
-- TechLeadExecutor: generate spec per schema, produce `TechLeadResult`, include Touch List, interfaces, scenarios, sequences, test matrix.
-- DevExecutor: honor Touch List, implement code and tests per spec; support modes (minimal/batch/tdd) and iteration limits.
-- CodeReviewExecutor: implement finding categories, thresholds (blocker/major), loop control; emit `CodeReviewResult`.
-- ReleaseExecutor: draft PR body, update labels, ensure DoD passed; do not auto-merge.
-- Deliverable: Executors wired into workflow, respecting gate outputs and iteration limits.
+- [x] RefinementExecutor: call LLM with constrained prompt, produce `RefinementResult`, loop with DoR gate feedback.
+- [x] TechLeadExecutor: generate spec per schema, produce `TechLeadResult`, include Touch List, interfaces, scenarios, sequences, test matrix.
+- [x] DevExecutor: honor Touch List, implement code and tests per spec; support modes (minimal/batch/tdd) and iteration limits.
+- [x] CodeReviewExecutor: implement finding categories, thresholds (blocker/major), loop control; emit `CodeReviewResult`.
+- [x] ReleaseExecutor: draft PR body, update labels, ensure DoD passed; do not auto-merge.
+- [x] Deliverable: Executors wired into workflow, respecting gate outputs and iteration limits.
 
 ## Workstream 6: Labeling, Modes, and State Sync
 - Map labels from concept to runtime (`ready-for-agent`, stage labels, gate result labels, review labels).

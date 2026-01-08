@@ -20,7 +20,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var workflow = WorkflowFactory.BuildGraph(context.Config.Workflow, context.Config.Labels, stage);
+        var workflow = WorkflowFactory.BuildGraph(context, stage);
         var input = new WorkflowInput(
             context.WorkItem,
             BuildProjectContext(context.Config),

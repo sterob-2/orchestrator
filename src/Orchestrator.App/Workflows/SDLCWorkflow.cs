@@ -10,9 +10,9 @@ internal static class SDLCWorkflow
     /// <summary>
     /// Creates a single-stage workflow for the requested stage.
     /// </summary>
-    public static Workflow BuildStageWorkflow(WorkflowStage stage, WorkflowConfig workflowConfig, LabelConfig labels)
+    public static Workflow BuildStageWorkflow(WorkflowStage stage, WorkContext workContext)
     {
-        return WorkflowFactory.Build(stage, workflowConfig, labels);
+        return WorkflowFactory.Build(stage, workContext);
     }
 
     /// <summary>
