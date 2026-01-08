@@ -106,7 +106,17 @@ internal sealed class FileWorkflowMetricsStore : IWorkflowMetricsStore
             results.Reverse();
             return results;
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
+            return Array.Empty<WorkflowRunMetrics>();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
+            return Array.Empty<WorkflowRunMetrics>();
+        }
+        catch (JsonException ex)
         {
             Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
             return Array.Empty<WorkflowRunMetrics>();
