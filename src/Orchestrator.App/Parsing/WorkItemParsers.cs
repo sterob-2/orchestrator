@@ -100,7 +100,7 @@ internal static class WorkItemParsers
         var inFiles = false;
         foreach (var line in lines.Select(raw => raw.Trim()))
         {
-            if (line.StartsWith("## Files", StringComparison.OrdinalIgnoreCase))
+            if (IsFilesHeader(line))
             {
                 inFiles = true;
                 continue;
@@ -111,25 +111,12 @@ internal static class WorkItemParsers
                 continue;
             }
 
-            if (line.StartsWith("## ", StringComparison.OrdinalIgnoreCase))
+            if (IsSectionHeader(line))
             {
                 break;
             }
 
-            if (!line.StartsWith("- "))
-            {
-                continue;
-            }
-
-            var item = line[2..].Trim();
-            if (item.Length == 0)
-            {
-                continue;
-            }
-
-            var splitIndex = item.IndexOfAny(new[] { ' ', '(' });
-            var path = splitIndex >= 0 ? item[..splitIndex] : item;
-            if (!string.IsNullOrWhiteSpace(path))
+            if (TryParseFileItem(line, out var path))
             {
                 results.Add(path);
             }
@@ -187,5 +174,28 @@ internal static class WorkItemParsers
         }
 
         return null;
+    }
+
+    private static bool IsFilesHeader(string line)
+    {
+        return line.StartsWith("## Files", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSectionHeader(string line)
+    {
+        return line.StartsWith("## ", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryParseFileItem(string line, out string path)
+    {
+        path = string.Empty;
+        if (!line.StartsWith("- ")) return false;
+
+        var item = line[2..].Trim();
+        if (item.Length == 0) return false;
+
+        var splitIndex = item.IndexOfAny(new[] { ' ', '(' });
+        path = splitIndex >= 0 ? item[..splitIndex] : item;
+        return !string.IsNullOrWhiteSpace(path);
     }
 }

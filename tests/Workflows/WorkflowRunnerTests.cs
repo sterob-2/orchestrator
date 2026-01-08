@@ -23,7 +23,7 @@ public class WorkflowRunnerTests
         var labelSync = new LabelSyncHandler(github.Object, config.Labels);
         var humanInLoop = new HumanInLoopHandler(github.Object, config.Labels);
         var checkpoints = new InMemoryWorkflowCheckpointStore();
-        var runner = new WorkflowRunner(labelSync, humanInLoop, checkpoints);
+        var runner = new WorkflowRunner(labelSync, humanInLoop);
 
         var output = await runner.RunAsync(context, WorkflowStage.Dev, CancellationToken.None);
 

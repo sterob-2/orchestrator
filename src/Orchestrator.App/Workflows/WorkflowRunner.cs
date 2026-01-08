@@ -4,16 +4,13 @@ internal sealed class WorkflowRunner : IWorkflowRunner
 {
     private readonly LabelSyncHandler _labelSync;
     private readonly HumanInLoopHandler _humanInLoop;
-    private readonly IWorkflowCheckpointStore _checkpointStore;
 
     public WorkflowRunner(
         LabelSyncHandler labelSync,
-        HumanInLoopHandler humanInLoop,
-        IWorkflowCheckpointStore checkpointStore)
+        HumanInLoopHandler humanInLoop)
     {
         _labelSync = labelSync;
         _humanInLoop = humanInLoop;
-        _checkpointStore = checkpointStore;
     }
 
     public async Task<WorkflowOutput?> RunAsync(WorkContext context, WorkflowStage stage, CancellationToken cancellationToken)

@@ -65,7 +65,7 @@ internal static class Program
         var checkpoints = new Workflows.InMemoryWorkflowCheckpointStore();
         var labelSync = new Workflows.LabelSyncHandler(services.GitHub, cfg.Labels);
         var humanInLoop = new Workflows.HumanInLoopHandler(services.GitHub, cfg.Labels);
-        var runner = new Workflows.WorkflowRunner(labelSync, humanInLoop, checkpoints);
+        var runner = new Workflows.WorkflowRunner(labelSync, humanInLoop);
         var watcher = new Watcher.GitHubIssueWatcher(
             cfg,
             services.GitHub,
