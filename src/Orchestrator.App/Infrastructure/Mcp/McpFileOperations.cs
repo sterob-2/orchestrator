@@ -79,7 +79,7 @@ public sealed class McpFileOperations
     public async Task DeleteAsync(string path)
     {
         var stamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
-        var destination = Path.Combine(".orchestrator-trash", stamp, path).Replace('\\', '/');
+        var destination = Path.Join(".orchestrator-trash", stamp, path).Replace('\\', '/');
         var destinationDir = Path.GetDirectoryName(destination)?.Replace('\\', '/');
         if (!string.IsNullOrWhiteSpace(destinationDir))
         {
