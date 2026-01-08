@@ -63,10 +63,10 @@ This plan breaks the v3.1 concept into parallelizable workstreams. Each workstre
 - [x] Deliverable: Parsing utilities with unit tests covering happy paths and failure diagnostics.
 
 ## Workstream 9: Testing and Quality Gates
-- Build unit tests for Core models/config, parsers, gates, label sync, and executor control flow (stubbed LLM/GitHub).
-- Add integration tests for workflow happy path and gate failure loops using in-memory adapters.
-- Align CI to run unit/integration suites; placeholder SonarQube and GitHub checks API clients for DoD validation.
-- Deliverable: Green CI with coverage on new modules; documented test matrix mapping to DoD/Spec Gate rules.
+- [x] Build unit tests for Core models/config, parsers, gates, label sync, and executor control flow (stubbed LLM/GitHub).
+- [x] Add integration tests for workflow happy path and gate failure loops using in-memory adapters.
+- [x] Align CI to run unit/integration suites; placeholder SonarQube and GitHub checks API clients for DoD validation.
+- [x] Deliverable: Green CI with coverage on new modules; documented test matrix mapping to DoD/Spec Gate rules.
 
 ## Workstream 10: Migration and Cleanup
 - Remove legacy agents (Planner/TechLead/Dev/etc.) and any related utilities once workflow executors are in place; no feature flags or fallback paths.
