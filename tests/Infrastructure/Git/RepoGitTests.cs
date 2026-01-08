@@ -96,10 +96,14 @@ public class RepoGitTests
         var repoGit = new RepoGit(config, gitRoot);
 
         string? originalRemoteUrl;
+        string? originalUserName;
+        string? originalUserEmail;
         using (var repo = new Repository(gitRoot))
         {
             var origin = repo.Network.Remotes["origin"];
             originalRemoteUrl = origin?.Url;
+            originalUserName = repo.Config.Get<string>("user.name")?.Value;
+            originalUserEmail = repo.Config.Get<string>("user.email")?.Value;
         }
 
         repoGit.EnsureConfigured();
@@ -117,6 +121,24 @@ public class RepoGitTests
         finally
         {
             using var repo = new Repository(gitRoot);
+            if (string.IsNullOrWhiteSpace(originalUserName))
+            {
+                repo.Config.Unset("user.name");
+            }
+            else
+            {
+                repo.Config.Set("user.name", originalUserName);
+            }
+
+            if (string.IsNullOrWhiteSpace(originalUserEmail))
+            {
+                repo.Config.Unset("user.email");
+            }
+            else
+            {
+                repo.Config.Set("user.email", originalUserEmail);
+            }
+
             var origin = repo.Network.Remotes["origin"];
             if (origin != null)
             {
