@@ -69,6 +69,10 @@ internal sealed class FileWorkflowMetricsStore : IWorkflowMetricsStore
         {
             Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
         }
+        catch (InvalidOperationException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
+        }
         catch (JsonException ex)
         {
             Logger.WriteLine($"[Metrics] Failed to write metrics: {ex.Message}");
@@ -119,6 +123,11 @@ internal sealed class FileWorkflowMetricsStore : IWorkflowMetricsStore
             return results;
         }
         catch (UnauthorizedAccessException ex)
+        {
+            Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
+            return Array.Empty<WorkflowRunMetrics>();
+        }
+        catch (InvalidOperationException ex)
         {
             Logger.WriteLine($"[Metrics] Failed to read metrics: {ex.Message}");
             return Array.Empty<WorkflowRunMetrics>();
