@@ -535,7 +535,7 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
                 continue;
             }
 
-            var content = WorkContext.Workspace.ReadAllText(file);
+            var content = FileOperationHelper.ReadAllTextAsync(WorkContext, file).GetAwaiter().GetResult();
             summaryLines.Add($"{file}:\n{content}");
         }
 
