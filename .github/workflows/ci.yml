@@ -8,7 +8,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
   pull-requests: write
   packages: write
   security-events: write
@@ -26,6 +25,8 @@ jobs:
     name: Build, Test & Quality Gate
     runs-on: [self-hosted]
     if: github.event.repository.fork == false
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout code
@@ -131,6 +132,8 @@ jobs:
   docker-build:
     name: Build Docker Image
     runs-on: [self-hosted]
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout code
@@ -162,6 +165,8 @@ jobs:
   docker-lint:
     name: Lint Dockerfile
     runs-on: [self-hosted]
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout code
@@ -176,6 +181,8 @@ jobs:
   security-codeql:
     name: CodeQL Security Analysis
     runs-on: [self-hosted]
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout code
@@ -198,6 +205,8 @@ jobs:
   security-secrets:
     name: Secret Scanning
     runs-on: [self-hosted]
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout code
@@ -213,6 +222,8 @@ jobs:
   code-quality:
     name: Code Quality Analysis
     runs-on: [self-hosted]
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout code
@@ -236,6 +247,8 @@ jobs:
   dependency-scan:
     name: Dependency Vulnerability Scan
     runs-on: [self-hosted]
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout code
@@ -258,6 +271,8 @@ jobs:
     runs-on: [self-hosted]
     needs: [build-and-test, code-quality]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout code
@@ -278,6 +293,8 @@ jobs:
     runs-on: [self-hosted]
     needs: [docker-build, docker-lint, build-and-test]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout code
