@@ -52,9 +52,11 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
+            // Expected when cancellation is requested during shutdown.
         }
         catch (ObjectDisposedException)
         {
+            // Expected if the listener is disposed during shutdown.
         }
         finally
         {

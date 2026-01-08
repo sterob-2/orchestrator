@@ -48,6 +48,7 @@ internal sealed class GitHubIssueWatcher
 
                 while (_scanSignals.Reader.TryRead(out _))
                 {
+                    // Drain any additional pending scan signals; coalesce multiple triggers.
                 }
 
                 await RunOnceAsync(cancellationToken);
