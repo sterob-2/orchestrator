@@ -390,11 +390,7 @@ internal sealed class DevExecutor : WorkflowStageExecutor
                     changedFiles.Add(entry.Path);
                     break;
                 case TouchOperation.Delete:
-                    var fullPath = WorkContext.Workspace.ResolvePath(entry.Path);
-                    if (System.IO.File.Exists(fullPath))
-                    {
-                        System.IO.File.Delete(fullPath);
-                    }
+                    await FileOperationHelper.DeleteAsync(WorkContext, entry.Path);
                     changedFiles.Add(entry.Path);
                     break;
             }

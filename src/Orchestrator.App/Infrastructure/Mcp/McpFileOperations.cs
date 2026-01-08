@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Orchestrator.App.Infrastructure.Mcp;
@@ -70,6 +71,29 @@ public sealed class McpFileOperations
             // Treat expected operational failures (e.g., not found) as "file does not exist"
             return false;
         }
+    }
+
+    /// <summary>
+    /// Moves a file to a trash folder to emulate deletion when MCP delete is unavailable.
+    /// </summary>
+    public async Task DeleteAsync(string path)
+    {
+        var stamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+        var destination = Path.Combine(".orchestrator-trash", stamp, path).Replace('\\', '/');
+        var destinationDir = Path.GetDirectoryName(destination)?.Replace('\\', '/');
+        if (!string.IsNullOrWhiteSpace(destinationDir))
+        {
+            await _mcpManager.CallToolAsync("create_directory", new Dictionary<string, object?>
+            {
+                ["path"] = destinationDir
+            });
+        }
+
+        await _mcpManager.CallToolAsync("move_file", new Dictionary<string, object?>
+        {
+            ["source"] = path,
+            ["destination"] = destination
+        });
     }
 
     /// <summary>
