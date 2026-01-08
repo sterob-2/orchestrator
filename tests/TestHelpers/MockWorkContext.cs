@@ -61,8 +61,6 @@ internal static class MockWorkContext
             RepoName: "test-repo",
             Workflow: new WorkflowConfig(
                 DefaultBaseBranch: "main",
-                PollIntervalSeconds: 120,
-                FastPollIntervalSeconds: 30,
                 MaxRefinementIterations: 3,
                 MaxTechLeadIterations: 3,
                 MaxDevIterations: 3,
@@ -91,6 +89,10 @@ internal static class MockWorkContext
                 CodeReviewChangesRequestedLabel: "code-review-changes-requested",
                 ResetLabel: "agent:reset"
             ),
+            WebhookListenHost: "localhost",
+            WebhookPort: 5005,
+            WebhookPath: "/webhook",
+            WebhookSecret: "test-secret",
             ProjectStatusInProgress: "In Progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "test-owner",

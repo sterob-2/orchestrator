@@ -10,9 +10,9 @@ internal static class SDLCWorkflow
     /// <summary>
     /// Creates a single-stage workflow for the requested stage.
     /// </summary>
-    public static Workflow BuildStageWorkflow(WorkflowStage stage)
+    public static Workflow BuildStageWorkflow(WorkflowStage stage, WorkflowConfig workflowConfig, LabelConfig labels)
     {
-        return WorkflowFactory.Build(stage);
+        return WorkflowFactory.Build(stage, workflowConfig, labels);
     }
 
     /// <summary>
@@ -20,7 +20,8 @@ internal static class SDLCWorkflow
     /// </summary>
     public static async Task<WorkflowOutput?> RunWorkflowAsync(
         Workflow workflow,
-        WorkflowInput input)
+        WorkflowInput input,
+        Func<WorkflowOutput, Task>? onOutput = null)
     {
         WorkflowOutput? finalOutput = null;
 
@@ -39,6 +40,10 @@ internal static class SDLCWorkflow
                     if (completedEvt.Data is WorkflowOutput output)
                     {
                         finalOutput = output;
+                        if (onOutput != null)
+                        {
+                            await onOutput(output);
+                        }
                         Console.WriteLine($"   Success: {output.Success}");
                         Console.WriteLine($"   Notes: {output.Notes}");
                         if (output.NextStage is not null)

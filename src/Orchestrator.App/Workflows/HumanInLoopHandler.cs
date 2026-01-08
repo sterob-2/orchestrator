@@ -13,7 +13,7 @@ internal sealed class HumanInLoopHandler
 
     public async Task ApplyAsync(WorkItem item, WorkflowOutput output)
     {
-        if (output.Success)
+        if (output.Success || output.NextStage is not null)
         {
             return;
         }

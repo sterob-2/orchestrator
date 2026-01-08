@@ -92,8 +92,6 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 
 # Orchestrator Configuration
 WORK_ITEM_LABEL=orchestrator:work-item
-POLL_INTERVAL_SECONDS=300
-FAST_POLL_INTERVAL_SECONDS=30
 
 ```
 

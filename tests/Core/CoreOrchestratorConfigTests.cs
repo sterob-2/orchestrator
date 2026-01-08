@@ -25,8 +25,6 @@ public class CoreOrchestratorConfigTests
         "REPO_OWNER",
         "REPO_NAME",
         "DEFAULT_BASE_BRANCH",
-        "POLL_INTERVAL_SECONDS",
-        "FAST_POLL_INTERVAL_SECONDS",
         "MAX_REFINEMENT_ITERATIONS",
         "MAX_TECHLEAD_ITERATIONS",
         "MAX_DEV_ITERATIONS",
@@ -52,6 +50,10 @@ public class CoreOrchestratorConfigTests
         "CODE_REVIEW_APPROVED_LABEL",
         "CODE_REVIEW_CHANGES_REQUESTED_LABEL",
         "RESET_LABEL",
+        "WEBHOOK_LISTEN_HOST",
+        "WEBHOOK_PORT",
+        "WEBHOOK_PATH",
+        "WEBHOOK_SECRET",
         "PROJECT_STATUS_IN_PROGRESS",
         "PROJECT_STATUS_IN_REVIEW",
         "PROJECT_OWNER",
@@ -79,8 +81,6 @@ public class CoreOrchestratorConfigTests
             ["REPO_OWNER"] = "owner",
             ["REPO_NAME"] = "repo",
             ["DEFAULT_BASE_BRANCH"] = "develop",
-            ["POLL_INTERVAL_SECONDS"] = "45",
-            ["FAST_POLL_INTERVAL_SECONDS"] = "12",
             ["MAX_REFINEMENT_ITERATIONS"] = "2",
             ["MAX_TECHLEAD_ITERATIONS"] = "4",
             ["MAX_DEV_ITERATIONS"] = "5",
@@ -106,6 +106,10 @@ public class CoreOrchestratorConfigTests
             ["CODE_REVIEW_APPROVED_LABEL"] = "code-review-approved",
             ["CODE_REVIEW_CHANGES_REQUESTED_LABEL"] = "code-review-changes-requested",
             ["RESET_LABEL"] = "reset",
+            ["WEBHOOK_LISTEN_HOST"] = "127.0.0.1",
+            ["WEBHOOK_PORT"] = "7001",
+            ["WEBHOOK_PATH"] = "/hook",
+            ["WEBHOOK_SECRET"] = "secret",
             ["PROJECT_STATUS_IN_PROGRESS"] = "In Progress",
             ["PROJECT_STATUS_IN_REVIEW"] = "In Review",
             ["PROJECT_OWNER"] = "proj-owner",
@@ -132,8 +136,6 @@ public class CoreOrchestratorConfigTests
             RepoName: "repo",
             Workflow: new CoreConfig.WorkflowConfig(
                 DefaultBaseBranch: "develop",
-                PollIntervalSeconds: 45,
-                FastPollIntervalSeconds: 12,
                 MaxRefinementIterations: 2,
                 MaxTechLeadIterations: 4,
                 MaxDevIterations: 5,
@@ -162,6 +164,10 @@ public class CoreOrchestratorConfigTests
                 CodeReviewChangesRequestedLabel: "code-review-changes-requested",
                 ResetLabel: "reset"
             ),
+            WebhookListenHost: "127.0.0.1",
+            WebhookPort: 7001,
+            WebhookPath: "/hook",
+            WebhookSecret: "secret",
             ProjectStatusInProgress: "In Progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "proj-owner",
@@ -196,8 +202,6 @@ public class CoreOrchestratorConfigTests
             RepoName: "",
             Workflow: new CoreConfig.WorkflowConfig(
                 DefaultBaseBranch: "main",
-                PollIntervalSeconds: 120,
-                FastPollIntervalSeconds: 30,
                 MaxRefinementIterations: 3,
                 MaxTechLeadIterations: 3,
                 MaxDevIterations: 3,
@@ -226,6 +230,10 @@ public class CoreOrchestratorConfigTests
                 CodeReviewChangesRequestedLabel: "code-review-changes-requested",
                 ResetLabel: "agent:reset"
             ),
+            WebhookListenHost: "localhost",
+            WebhookPort: 5005,
+            WebhookPath: "/webhook",
+            WebhookSecret: "",
             ProjectStatusInProgress: "In progress",
             ProjectStatusInReview: "In Review",
             ProjectOwner: "",
@@ -244,8 +252,6 @@ public class CoreOrchestratorConfigTests
     {
         using var scope = new EnvScope(new Dictionary<string, string?>
         {
-            ["POLL_INTERVAL_SECONDS"] = "abc",
-            ["FAST_POLL_INTERVAL_SECONDS"] = "nope",
             ["MAX_REFINEMENT_ITERATIONS"] = "invalid",
             ["MAX_TECHLEAD_ITERATIONS"] = "invalid",
             ["MAX_DEV_ITERATIONS"] = "invalid",
@@ -256,8 +262,6 @@ public class CoreOrchestratorConfigTests
 
         var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
 
-        Assert.Equal(120, actual.Workflow.PollIntervalSeconds);
-        Assert.Equal(30, actual.Workflow.FastPollIntervalSeconds);
         Assert.Equal(3, actual.Workflow.MaxRefinementIterations);
         Assert.Equal(3, actual.Workflow.MaxTechLeadIterations);
         Assert.Equal(3, actual.Workflow.MaxDevIterations);

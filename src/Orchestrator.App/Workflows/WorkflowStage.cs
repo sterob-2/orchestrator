@@ -2,6 +2,7 @@ namespace Orchestrator.App.Workflows;
 
 internal enum WorkflowStage
 {
+    ContextBuilder,
     Refinement,
     DoR,
     TechLead,

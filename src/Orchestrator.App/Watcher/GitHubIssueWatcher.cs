@@ -1,3 +1,5 @@
+using System.Threading.Channels;
+
 namespace Orchestrator.App.Watcher;
 
 internal sealed class GitHubIssueWatcher
@@ -7,33 +9,49 @@ internal sealed class GitHubIssueWatcher
     private readonly IWorkflowRunner _runner;
     private readonly Func<WorkItem, WorkContext> _contextFactory;
     private readonly IWorkflowCheckpointStore _checkpointStore;
-    private readonly Func<TimeSpan, CancellationToken, Task> _delay;
+    private readonly Channel<bool> _scanSignals;
 
     public GitHubIssueWatcher(
         OrchestratorConfig config,
         IGitHubClient github,
         IWorkflowRunner runner,
         Func<WorkItem, WorkContext> contextFactory,
-        IWorkflowCheckpointStore checkpointStore,
-        Func<TimeSpan, CancellationToken, Task>? delay = null)
+        IWorkflowCheckpointStore checkpointStore)
     {
         _config = config;
         _github = github;
         _runner = runner;
         _contextFactory = contextFactory;
         _checkpointStore = checkpointStore;
-        _delay = delay ?? Task.Delay;
+        _scanSignals = Channel.CreateUnbounded<bool>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false
+        });
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
-        WorkItem? lastWorkItem = null;
+        if (cancellationToken.IsCancellationRequested)
+        {
+            Logger.WriteLine("Orchestrator stopped");
+            return;
+        }
+
+        RequestScan();
 
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                lastWorkItem = await RunOnceAsync(cancellationToken);
+                await _scanSignals.Reader.ReadAsync(cancellationToken);
+
+                while (_scanSignals.Reader.TryRead(out _))
+                {
+                    // Drain any additional pending scan signals; coalesce multiple triggers.
+                }
+
+                await RunOnceAsync(cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -47,24 +65,14 @@ internal sealed class GitHubIssueWatcher
             {
                 Logger.WriteLine(ex.ToString());
             }
-
-            if (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
-
-            try
-            {
-                var interval = ComputePollIntervalSeconds(_config, lastWorkItem);
-                await _delay(TimeSpan.FromSeconds(interval), cancellationToken);
-            }
-            catch (TaskCanceledException)
-            {
-                break;
-            }
         }
 
         Logger.WriteLine("Orchestrator stopped");
+    }
+
+    public void RequestScan()
+    {
+        _scanSignals.Writer.TryWrite(true);
     }
 
     internal async Task<WorkItem?> RunOnceAsync(CancellationToken cancellationToken)
@@ -152,31 +160,6 @@ internal sealed class GitHubIssueWatcher
         await _github.AddLabelsAsync(item.Number, _config.Labels.WorkItemLabel);
     }
 
-    private static int ComputePollIntervalSeconds(OrchestratorConfig cfg, WorkItem? workItem)
-    {
-        if (workItem == null)
-        {
-            return cfg.Workflow.PollIntervalSeconds;
-        }
-
-        if (HasAnyLabel(
-            workItem,
-            cfg.Labels.PlannerLabel,
-            cfg.Labels.DorLabel,
-            cfg.Labels.TechLeadLabel,
-            cfg.Labels.SpecGateLabel,
-            cfg.Labels.DevLabel,
-            cfg.Labels.TestLabel,
-            cfg.Labels.ReleaseLabel,
-            cfg.Labels.CodeReviewNeededLabel,
-            cfg.Labels.CodeReviewChangesRequestedLabel))
-        {
-            return cfg.Workflow.FastPollIntervalSeconds;
-        }
-
-        return cfg.Workflow.PollIntervalSeconds;
-    }
-
     private static bool HasLabel(WorkItem item, string label)
     {
         return item.Labels.Contains(label, StringComparer.OrdinalIgnoreCase);
@@ -189,7 +172,12 @@ internal sealed class GitHubIssueWatcher
 
     private WorkflowStage? GetStageFromLabels(WorkItem item)
     {
-        if (HasLabel(item, _config.Labels.WorkItemLabel) || HasLabel(item, _config.Labels.PlannerLabel))
+        if (HasLabel(item, _config.Labels.WorkItemLabel))
+        {
+            return WorkflowStage.ContextBuilder;
+        }
+
+        if (HasLabel(item, _config.Labels.PlannerLabel))
         {
             return WorkflowStage.Refinement;
         }

@@ -233,8 +233,7 @@ public Workflow Build()
     var dodGate = new DodGateExecutor(_services);
     var release = new ReleaseExecutor(_services);
 
-    return new WorkflowBuilder()
-        .SetStartExecutor(contextBuilder)
+    return new WorkflowBuilder(contextBuilder)
         
         // Context → Refinement
         .AddEdge(contextBuilder, refinement)
@@ -261,10 +260,13 @@ public Workflow Build()
         .AddEdge(dodGate, dev, r => r is GateResult g && !g.Passed)
         
         // Release → Ende
-        .WithCheckpointing(_checkpointStore)
         .Build();
 }
 ```
+
+**Hinweis (MS AF API):** Checkpointing wird über `Checkpointed<Workflow>` + `ICheckpointManager` (z.B. InMemory/Json/FileSystem Stores) gelöst,
+statt über einen `WithCheckpointing(...)`-Builder-Call. Output-Events pro Executor entstehen via `YieldOutputAsync(...)`.
+`RequestHaltAsync()` beendet den Lauf nach dem aktuellen SuperStep (Human-in-the-Loop).
 
 ---
 

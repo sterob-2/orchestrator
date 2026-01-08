@@ -13,15 +13,14 @@ internal sealed class LabelSyncHandler
 
     public async Task ApplyAsync(WorkItem item, WorkflowOutput output)
     {
-        if (!output.Success)
-        {
-            return;
-        }
-
         if (output.NextStage is null)
         {
-            await ResetStageLabelsAsync(item.Number);
-            await _github.AddLabelsAsync(item.Number, _labels.DoneLabel);
+            if (output.Success)
+            {
+                await ResetStageLabelsAsync(item.Number);
+                await _github.AddLabelsAsync(item.Number, _labels.DoneLabel);
+            }
+
             return;
         }
 
