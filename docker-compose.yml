@@ -6,8 +6,8 @@ services:
     env_file:
       - .env
     volumes:
-      # Mount workspace directory
-      - /mnt/c/Users/robin/repos/conjunction:/workspace
+      # Mount workspace directory (relative to docker-compose.yml)
+      - ./workspace:/workspace
       # Mount Docker socket to allow spawning MCP server containers
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
