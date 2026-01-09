@@ -80,7 +80,7 @@ internal static class Program
                 services.Llm,
                 Mcp: mcpManager),
             checkpoints);
-        var webhook = new Watcher.GitHubWebhookListener(cfg, watcher.RequestScan);
+        var webhook = new Watcher.GitHubWebhookListener(cfg, watcher.RequestScan, preferHttps: false);
         try
         {
             var webhookTask = (!cts.IsCancellationRequested && cfg.WebhookPort > 0)
