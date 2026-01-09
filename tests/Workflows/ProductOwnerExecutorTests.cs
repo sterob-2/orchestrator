@@ -40,9 +40,9 @@ public class ProductOwnerExecutorTests
             Attempt: 0);
 
         var workflowContext = new Mock<IWorkflowContext>();
-        workflowContext.Setup(c => c.ReadOrInitStateAsync<string>(WorkflowStateKeys.QuestionClassificationResult, It.IsAny<Func<string>>(), default, It.IsAny<CancellationToken>()))
+        workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.QuestionClassificationResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(classificationResult);
-        workflowContext.Setup(c => c.ReadOrInitStateAsync<string>(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), default, It.IsAny<CancellationToken>()))
+        workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(refinementResult);
         workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(ValueTask.CompletedTask);
@@ -82,7 +82,11 @@ public class ProductOwnerExecutorTests
             Attempt: 0);
 
         var workflowContext = new Mock<IWorkflowContext>();
-        workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.QuestionClassificationResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
+        workflowContext.Setup(c => c.ReadOrInitStateAsync<string>(
+            WorkflowStateKeys.QuestionClassificationResult,
+            It.IsAny<Func<string>>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()))
             .ReturnsAsync(string.Empty);
         workflowContext.Setup(c => c.SendMessageAsync(It.IsAny<object>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(ValueTask.CompletedTask);

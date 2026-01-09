@@ -432,7 +432,8 @@ public class GitHubIssueWatcherTests
             .Callback(() =>
             {
                 // Cancel after second delay is computed (after first scan completes)
-                if (delayDurations.Count >= 2) cts.Cancel();
+                if (delayDurations.Count >= 2)
+                    cts.Cancel();
             });
 
         var checkpoints = new InMemoryWorkflowCheckpointStore();
@@ -487,7 +488,8 @@ public class GitHubIssueWatcherTests
             .Callback(() =>
             {
                 // Cancel after second delay is computed (after first scan completes)
-                if (delayDurations.Count >= 2) cts.Cancel();
+                if (delayDurations.Count >= 2)
+                    cts.Cancel();
             });
 
         var checkpoints = new InMemoryWorkflowCheckpointStore();
@@ -639,7 +641,8 @@ public class GitHubIssueWatcherTests
             .Callback(() =>
             {
                 runCount++;
-                if (runCount >= 1) cts.Cancel();
+                if (runCount >= 1)
+                    cts.Cancel();
             });
 
         var checkpoints = new InMemoryWorkflowCheckpointStore();

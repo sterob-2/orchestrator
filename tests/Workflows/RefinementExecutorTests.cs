@@ -347,7 +347,7 @@ public class RefinementExecutorTests
         // LLM should receive the answer as a synthetic comment
         string? capturedUser = null;
         llm.Setup(l => l.GetUpdatedFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Callback<string, string, string>((_, user, _) => capturedUser = user)
+            .Callback<string, string, string>((model, system, user) => capturedUser = user)
             .ReturnsAsync("{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[],\"complexitySignals\":[],\"complexitySummary\":\"low\"}");
 
         var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
@@ -376,8 +376,13 @@ public class RefinementExecutorTests
 
         Assert.True(output.Success);
         Assert.NotNull(capturedUser);
-        Assert.Contains("Use React framework", capturedUser);
-        Assert.Contains("orchestrator-bot", capturedUser);
+
+        // The answer should have been incorporated as a synthetic comment
+        var hasAnswer = capturedUser.Contains("Use React framework");
+        var hasBot = capturedUser.Contains("orchestrator-bot");
+
+        Assert.True(hasAnswer, $"Expected 'Use React framework' in prompt. Got: {capturedUser.Substring(0, Math.Min(1000, capturedUser.Length))}");
+        Assert.True(hasBot, "Expected 'orchestrator-bot' in prompt");
         Assert.False(workContext.State.ContainsKey(WorkflowStateKeys.CurrentQuestionAnswer)); // Should be cleared
     }
 }
