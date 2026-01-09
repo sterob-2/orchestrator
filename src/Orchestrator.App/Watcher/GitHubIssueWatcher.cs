@@ -46,6 +46,10 @@ internal sealed class GitHubIssueWatcher
             ? $"Watcher started. Polling enabled (idle: {_config.Workflow.PollIntervalSeconds}s, fast: {_config.Workflow.FastPollIntervalSeconds}s), webhook triggers supported."
             : "Watcher started. Polling disabled, waiting for webhook triggers only.");
 
+        Logger.WriteLine($"[Watcher] Watching for label: '{_config.Labels.WorkItemLabel}' (and workflow stage labels)");
+        Logger.WriteLine($"[Watcher] Repository: {_config.RepoOwner}/{_config.RepoName}");
+
+
         RequestScan(); // Initial scan
         WorkItem? lastWorkItem = null;
 
@@ -141,10 +145,16 @@ internal sealed class GitHubIssueWatcher
     private async Task<WorkItem?> GetNextWorkItemAsync()
     {
         var items = await _github.GetOpenWorkItemsAsync();
+        Logger.WriteLine($"[Watcher] Fetched {items.Count} open issue(s) from GitHub");
+
         foreach (var item in items)
         {
+            var labelsStr = string.Join(", ", item.Labels);
+            Logger.WriteLine($"[Watcher] Checking issue #{item.Number}: '{item.Title}' (labels: {labelsStr})");
+
             if (HasLabel(item, _config.Labels.DoneLabel) || HasLabel(item, _config.Labels.BlockedLabel))
             {
+                Logger.WriteLine($"[Watcher]   -> Skipped: Issue is done or blocked");
                 continue;
             }
 
@@ -162,8 +172,11 @@ internal sealed class GitHubIssueWatcher
                 _config.Labels.CodeReviewChangesRequestedLabel,
                 _config.Labels.ResetLabel))
             {
+                Logger.WriteLine($"[Watcher]   -> Selected: Issue has matching workflow label");
                 return item;
             }
+
+            Logger.WriteLine($"[Watcher]   -> Skipped: No matching workflow labels (looking for: {_config.Labels.WorkItemLabel}, {_config.Labels.PlannerLabel}, ...)");
         }
 
         return null;

@@ -15,8 +15,16 @@ public class WorkflowRunnerTests
             .Returns(Task.CompletedTask);
         github.Setup(g => g.AddLabelsAsync(It.IsAny<int>(), It.IsAny<string[]>()))
             .Returns(Task.CompletedTask);
+        github.Setup(g => g.GetIssueCommentsAsync(It.IsAny<int>()))
+            .Returns(Task.FromResult<IReadOnlyList<IssueComment>>(Array.Empty<IssueComment>()));
         var workspace = new Mock<IRepoWorkspace>(MockBehavior.Strict);
+        workspace.Setup(w => w.Exists(It.IsAny<string>())).Returns(false);
+        workspace.Setup(w => w.WriteAllText(It.IsAny<string>(), It.IsAny<string>()));
+        workspace.Setup(w => w.ReadOrTemplate(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, string>>()))
+            .Returns(string.Empty);
         var repo = new Mock<IRepoGit>(MockBehavior.Strict);
+        repo.Setup(r => r.EnsureBranch(It.IsAny<string>(), It.IsAny<string>()));
+        repo.Setup(r => r.CommitAndPush(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string[]>())).Returns(false);
         var llm = new Mock<ILlmClient>(MockBehavior.Strict);
         var context = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
 

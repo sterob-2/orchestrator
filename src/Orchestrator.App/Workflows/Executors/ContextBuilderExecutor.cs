@@ -1,3 +1,4 @@
+using Microsoft.Agents.AI.Workflows;
 using Orchestrator.App.Core.Configuration;
 using Orchestrator.App.Core.Models;
 
@@ -16,10 +17,45 @@ internal sealed class ContextBuilderExecutor : WorkflowStageExecutor
     }
 
     protected override WorkflowStage Stage => WorkflowStage.ContextBuilder;
-    protected override string Notes => "Context builder placeholder executed.";
+    protected override string Notes => "Branch created and ready for work.";
+
+    protected override async ValueTask<(bool Success, string Notes)> ExecuteAsync(
+        WorkflowInput input,
+        IWorkflowContext context,
+        CancellationToken cancellationToken)
+    {
+        var workItem = input.WorkItem;
+        var branchName = $"issue-{workItem.Number}";
+
+        Logger.Info($"[ContextBuilder] Creating branch '{branchName}' for issue #{workItem.Number}");
+
+        try
+        {
+            // Ensure branch exists and is checked out
+            WorkContext.Repo.EnsureBranch(branchName, WorkContext.Config.Workflow.DefaultBaseBranch);
+            Logger.Info($"[ContextBuilder] Branch '{branchName}' created and checked out");
+
+            return (true, $"Branch '{branchName}' ready for work.");
+        }
+        catch (LibGit2Sharp.LibGit2SharpException ex)
+        {
+            Logger.Error($"[ContextBuilder] Git error creating branch: {ex.Message}");
+            return (false, $"Failed to create branch: {ex.Message}");
+        }
+        catch (System.IO.IOException ex)
+        {
+            Logger.Error($"[ContextBuilder] IO error creating branch: {ex.Message}");
+            return (false, $"Failed to create branch: {ex.Message}");
+        }
+    }
 
     protected override WorkflowStage? DetermineNextStage(bool success, WorkflowInput input)
     {
+        if (!success)
+        {
+            return null; // Stop workflow if branch creation failed
+        }
+
         if (_startOverride is not null)
         {
             return _startOverride;
