@@ -3,13 +3,13 @@
 STATUS: DRAFT
 UPDATED: {{UPDATED_AT_UTC}}
 
-## Ziel
-Beschreibe das Ziel in 2-3 Saetzen.
+## Goal
+Describe the goal in 2-3 sentences.
 
-## Nicht-Ziele
+## Non-Goals
 - ...
 
-## Komponenten
+## Components
 - ...
 
 ## Touch List
@@ -22,7 +22,7 @@ Beschreibe das Ziel in 2-3 Saetzen.
 // Interface stubs or signatures
 ```
 
-## Szenarien
+## Scenarios
 Scenario: Example
 Given ...
 When ...
@@ -38,11 +38,11 @@ Given ...
 When ...
 Then ...
 
-## Sequenz
+## Sequence
 1. ...
 2. ...
 
-## Testmatrix
+## Test Matrix
 | Test | Files | Notes |
 | --- | --- | --- |
 | Unit | tests/ExampleTests.cs | ... |

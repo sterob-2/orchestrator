@@ -274,14 +274,14 @@ internal sealed class TechLeadExecutor : WorkflowStageExecutor
         "# Spec: Issue {{ISSUE_NUMBER}} - {{ISSUE_TITLE}}\n\n" +
         "STATUS: DRAFT\n" +
         "UPDATED: {{UPDATED_AT_UTC}}\n\n" +
-        "## Ziel\n...\n\n" +
-        "## Nicht-Ziele\n- ...\n\n" +
-        "## Komponenten\n- ...\n\n" +
+        "## Goal\n...\n\n" +
+        "## Non-Goals\n- ...\n\n" +
+        "## Components\n- ...\n\n" +
         "## Touch List\n| Operation | Path | Notes |\n| --- | --- | --- |\n| Modify | src/Example.cs | ... |\n\n" +
         "## Interfaces\n```csharp\n```\n\n" +
-        "## Szenarien\nScenario: ...\nGiven ...\nWhen ...\nThen ...\n\n" +
+        "## Scenarios\nScenario: ...\nGiven ...\nWhen ...\nThen ...\n\n" +
         "Scenario: ...\nGiven ...\nWhen ...\nThen ...\n\n" +
         "Scenario: ...\nGiven ...\nWhen ...\nThen ...\n\n" +
-        "## Sequenz\n1. ...\n2. ...\n\n" +
-        "## Testmatrix\n| Test | Files | Notes |\n| --- | --- | --- |\n| Unit | tests/ExampleTests.cs | ... |\n";
+        "## Sequence\n1. ...\n2. ...\n\n" +
+        "## Test Matrix\n| Test | Files | Notes |\n| --- | --- | --- |\n| Unit | tests/ExampleTests.cs | ... |\n";
 }
