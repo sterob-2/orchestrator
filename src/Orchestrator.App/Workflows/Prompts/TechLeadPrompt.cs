@@ -31,48 +31,6 @@ internal static class TechLeadPrompt
 
     private static string RenderPlaybook(Playbook playbook)
     {
-        if (playbook.AllowedFrameworks.Count == 0 &&
-            playbook.AllowedPatterns.Count == 0 &&
-            playbook.ForbiddenFrameworks.Count == 0 &&
-            playbook.ForbiddenPatterns.Count == 0)
-        {
-            return "None";
-        }
-
-        var builder = new StringBuilder();
-        if (playbook.AllowedFrameworks.Count > 0)
-        {
-            builder.AppendLine("- Allowed Frameworks:");
-            foreach (var framework in playbook.AllowedFrameworks)
-            {
-                builder.AppendLine($"  - {framework.Name} ({framework.Id})");
-            }
-        }
-        if (playbook.ForbiddenFrameworks.Count > 0)
-        {
-            builder.AppendLine("- Forbidden Frameworks:");
-            foreach (var framework in playbook.ForbiddenFrameworks)
-            {
-                builder.AppendLine($"  - {framework.Name}");
-            }
-        }
-        if (playbook.AllowedPatterns.Count > 0)
-        {
-            builder.AppendLine("- Allowed Patterns:");
-            foreach (var pattern in playbook.AllowedPatterns)
-            {
-                builder.AppendLine($"  - {pattern.Name} ({pattern.Id})");
-            }
-        }
-        if (playbook.ForbiddenPatterns.Count > 0)
-        {
-            builder.AppendLine("- Forbidden Patterns:");
-            foreach (var pattern in playbook.ForbiddenPatterns)
-            {
-                builder.AppendLine($"  - {pattern.Name} ({pattern.Id})");
-            }
-        }
-
-        return builder.ToString().TrimEnd();
+        return PromptBuilders.RenderPlaybook(playbook);
     }
 }

@@ -238,10 +238,7 @@ internal sealed class TechLeadExecutor : WorkflowStageExecutor
                      "Return JSON only.";
 
         var builder = new System.Text.StringBuilder();
-        builder.AppendLine("Issue Context:");
-        builder.AppendLine($"Title: {workItem.Title}");
-        builder.AppendLine($"Body: {workItem.Body}");
-        builder.AppendLine();
+        PromptBuilders.AppendIssueContext(builder, workItem);
 
         if (!string.IsNullOrWhiteSpace(existingSpec))
         {
@@ -250,32 +247,7 @@ internal sealed class TechLeadExecutor : WorkflowStageExecutor
             builder.AppendLine();
         }
 
-        builder.AppendLine("Playbook Constraints:");
-        if (playbook.AllowedFrameworks.Count > 0)
-        {
-            builder.AppendLine("Allowed Frameworks:");
-            foreach (var framework in playbook.AllowedFrameworks)
-            {
-                builder.AppendLine($"- {framework.Name} ({framework.Id}) version {framework.Version}");
-            }
-        }
-        if (playbook.AllowedPatterns.Count > 0)
-        {
-            builder.AppendLine("Allowed Patterns:");
-            foreach (var pattern in playbook.AllowedPatterns)
-            {
-                builder.AppendLine($"- {pattern.Name} ({pattern.Id}): {pattern.Reference}");
-            }
-        }
-        if (playbook.ForbiddenPatterns.Count > 0)
-        {
-            builder.AppendLine("Forbidden Patterns:");
-            foreach (var pattern in playbook.ForbiddenPatterns)
-            {
-                builder.AppendLine($"- {pattern}");
-            }
-        }
-        builder.AppendLine();
+        PromptBuilders.AppendPlaybookConstraints(builder, playbook);
 
         builder.AppendLine("Technical Question:");
         builder.AppendLine(question);

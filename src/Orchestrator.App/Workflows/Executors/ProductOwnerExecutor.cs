@@ -116,20 +116,9 @@ internal sealed class ProductOwnerExecutor : WorkflowStageExecutor
                      "Return JSON only.";
 
         var builder = new StringBuilder();
-        builder.AppendLine("Issue Context:");
-        builder.AppendLine($"Title: {workItem.Title}");
-        builder.AppendLine();
+        PromptBuilders.AppendIssueContext(builder, workItem, refinement, includeBody: false);
         builder.AppendLine("Original Requirements:");
         builder.AppendLine(workItem.Body);
-        builder.AppendLine();
-        builder.AppendLine("Clarified Story:");
-        builder.AppendLine(refinement.ClarifiedStory);
-        builder.AppendLine();
-        builder.AppendLine("Acceptance Criteria:");
-        foreach (var criterion in refinement.AcceptanceCriteria)
-        {
-            builder.AppendLine($"- {criterion}");
-        }
         builder.AppendLine();
 
         if (!string.IsNullOrWhiteSpace(existingSpec))

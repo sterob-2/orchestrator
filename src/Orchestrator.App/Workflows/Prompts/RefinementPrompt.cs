@@ -98,29 +98,6 @@ internal static class RefinementPrompt
 
     private static string RenderPlaybook(Playbook playbook)
     {
-        if (playbook.AllowedFrameworks.Count == 0 && playbook.AllowedPatterns.Count == 0)
-        {
-            return "None";
-        }
-
-        var builder = new StringBuilder();
-        if (playbook.AllowedFrameworks.Count > 0)
-        {
-            builder.AppendLine("- Allowed Frameworks:");
-            foreach (var framework in playbook.AllowedFrameworks)
-            {
-                builder.AppendLine($"  - {framework.Name} ({framework.Id})");
-            }
-        }
-        if (playbook.AllowedPatterns.Count > 0)
-        {
-            builder.AppendLine("- Allowed Patterns:");
-            foreach (var pattern in playbook.AllowedPatterns)
-            {
-                builder.AppendLine($"  - {pattern.Name} ({pattern.Id})");
-            }
-        }
-
-        return builder.ToString().TrimEnd();
+        return PromptBuilders.RenderPlaybook(playbook);
     }
 }

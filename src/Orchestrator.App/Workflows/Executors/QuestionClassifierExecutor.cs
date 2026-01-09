@@ -122,19 +122,7 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
                      "Return JSON only.";
 
         var builder = new StringBuilder();
-        builder.AppendLine("Issue Context:");
-        builder.AppendLine($"Title: {workItem.Title}");
-        builder.AppendLine($"Body: {workItem.Body}");
-        builder.AppendLine();
-        builder.AppendLine("Clarified Story:");
-        builder.AppendLine(refinement.ClarifiedStory);
-        builder.AppendLine();
-        builder.AppendLine("Acceptance Criteria:");
-        foreach (var criterion in refinement.AcceptanceCriteria)
-        {
-            builder.AppendLine($"- {criterion}");
-        }
-        builder.AppendLine();
+        PromptBuilders.AppendIssueContext(builder, workItem, refinement);
         builder.AppendLine("Question to Classify:");
         builder.AppendLine(question);
         builder.AppendLine();
