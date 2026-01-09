@@ -20,6 +20,15 @@ internal sealed class TechLeadExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
+        // Check if we're in Q&A mode (answering a technical question) or spec generation mode
+        var isQuestionAnswerMode = await IsQuestionAnswerModeAsync(context, cancellationToken);
+
+        if (isQuestionAnswerMode)
+        {
+            return await AnswerTechnicalQuestionAsync(input, context, cancellationToken);
+        }
+
+        // Normal spec generation mode
         var playbook = await LoadPlaybookAsync();
         var template = WorkContext.Workspace.ReadOrTemplate(
             WorkflowPaths.SpecTemplatePath,
@@ -112,6 +121,182 @@ internal sealed class TechLeadExecutor : WorkflowStageExecutor
 
         return content.Contains(value, StringComparison.OrdinalIgnoreCase);
     }
+
+    protected override WorkflowStage? DetermineNextStage(bool success, WorkflowInput input)
+    {
+        if (!success)
+        {
+            return null;
+        }
+
+        // If we just answered a question, go back to Refinement
+        if (WorkContext.State.ContainsKey(WorkflowStateKeys.CurrentQuestionAnswer))
+        {
+            return WorkflowStage.Refinement;
+        }
+
+        // Normal flow: spec generation → SpecGate
+        return WorkflowStage.SpecGate;
+    }
+
+    private async Task<bool> IsQuestionAnswerModeAsync(IWorkflowContext context, CancellationToken cancellationToken)
+    {
+        var classificationJson = await context.ReadOrInitStateAsync(
+            WorkflowStateKeys.QuestionClassificationResult,
+            () => string.Empty,
+            cancellationToken: cancellationToken);
+
+        if (string.IsNullOrEmpty(classificationJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.QuestionClassificationResult, out var fallback))
+        {
+            classificationJson = fallback;
+        }
+
+        if (string.IsNullOrEmpty(classificationJson))
+        {
+            return false;
+        }
+
+        if (!WorkflowJson.TryDeserialize(classificationJson, out QuestionClassificationResult? result) || result is null)
+        {
+            return false;
+        }
+
+        return result.Classification.Type == QuestionType.Technical;
+    }
+
+    private async ValueTask<(bool Success, string Notes)> AnswerTechnicalQuestionAsync(
+        WorkflowInput input,
+        IWorkflowContext context,
+        CancellationToken cancellationToken)
+    {
+        Logger.Info($"[TechLead] Q&A mode: Answering technical question for issue #{input.WorkItem.Number}");
+
+        // Get the question
+        var classificationJson = await context.ReadOrInitStateAsync(
+            WorkflowStateKeys.QuestionClassificationResult,
+            () => string.Empty,
+            cancellationToken: cancellationToken);
+
+        if (string.IsNullOrEmpty(classificationJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.QuestionClassificationResult, out var fallback))
+        {
+            classificationJson = fallback;
+        }
+
+        if (!WorkflowJson.TryDeserialize(classificationJson, out QuestionClassificationResult? classificationResult) || classificationResult is null)
+        {
+            Logger.Warning($"[TechLead] No classification result found");
+            return (false, "TechLead Q&A failed: missing classification.");
+        }
+
+        var question = classificationResult.Classification.Question;
+        Logger.Info($"[TechLead] Answering: {question}");
+
+        // Get playbook and existing spec for context
+        var playbook = await LoadPlaybookAsync();
+        var existingSpec = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.SpecPath(input.WorkItem.Number));
+
+        // Build Q&A prompt
+        var (systemPrompt, userPrompt) = BuildTechnicalQuestionPrompt(question, input.WorkItem, playbook, existingSpec);
+
+        // Call LLM
+        Logger.Debug($"[TechLead] Calling LLM for answer");
+        var response = await CallLlmAsync(
+            WorkContext.Config.TechLeadModel,
+            systemPrompt,
+            userPrompt,
+            cancellationToken);
+
+        Logger.Debug($"[TechLead] LLM response: {response}");
+
+        // Parse answer
+        if (!WorkflowJson.TryDeserialize(response, out TechnicalAnswer? result) || result is null)
+        {
+            Logger.Warning($"[TechLead] Failed to parse LLM response");
+            return (false, "TechLead Q&A failed: could not parse answer.");
+        }
+
+        Logger.Info($"[TechLead] Answer generated");
+        Logger.Debug($"[TechLead] Answer: {result.Answer}");
+
+        // Store answer for Refinement to use
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.CurrentQuestionAnswer, result.Answer, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.CurrentQuestionAnswer] = result.Answer;
+
+        return (true, "Technical question answered.");
+    }
+
+    private static (string System, string User) BuildTechnicalQuestionPrompt(
+        string question,
+        WorkItem workItem,
+        Playbook playbook,
+        string? existingSpec)
+    {
+        var system = "You are a Technical Lead in an SDLC workflow. " +
+                     "Answer technical questions about implementation, architecture, patterns, and frameworks. " +
+                     "Base your answers on best practices, playbook constraints, and existing specifications. " +
+                     "If you cannot answer confidently, say so explicitly. " +
+                     "Return JSON only.";
+
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine("Issue Context:");
+        builder.AppendLine($"Title: {workItem.Title}");
+        builder.AppendLine($"Body: {workItem.Body}");
+        builder.AppendLine();
+
+        if (!string.IsNullOrWhiteSpace(existingSpec))
+        {
+            builder.AppendLine("Existing Specification:");
+            builder.AppendLine(existingSpec);
+            builder.AppendLine();
+        }
+
+        builder.AppendLine("Playbook Constraints:");
+        if (playbook.AllowedFrameworks.Count > 0)
+        {
+            builder.AppendLine("Allowed Frameworks:");
+            foreach (var framework in playbook.AllowedFrameworks)
+            {
+                builder.AppendLine($"- {framework.Name} ({framework.Id}) version {framework.Version}");
+            }
+        }
+        if (playbook.AllowedPatterns.Count > 0)
+        {
+            builder.AppendLine("Allowed Patterns:");
+            foreach (var pattern in playbook.AllowedPatterns)
+            {
+                builder.AppendLine($"- {pattern.Name} ({pattern.Id}): {pattern.Reference}");
+            }
+        }
+        if (playbook.ForbiddenPatterns.Count > 0)
+        {
+            builder.AppendLine("Forbidden Patterns:");
+            foreach (var pattern in playbook.ForbiddenPatterns)
+            {
+                builder.AppendLine($"- {pattern}");
+            }
+        }
+        builder.AppendLine();
+
+        builder.AppendLine("Technical Question:");
+        builder.AppendLine(question);
+        builder.AppendLine();
+        builder.AppendLine("Guidelines:");
+        builder.AppendLine("- Answer based on best practices, playbook constraints, and existing spec");
+        builder.AppendLine("- Focus on implementation details, architecture, patterns, frameworks");
+        builder.AppendLine("- Be specific and actionable");
+        builder.AppendLine("- If the answer is not clear, state 'CANNOT_ANSWER' in reasoning");
+        builder.AppendLine();
+        builder.AppendLine("Return JSON:");
+        builder.AppendLine("{");
+        builder.AppendLine("  \"question\": string (repeat the question),");
+        builder.AppendLine("  \"answer\": string (your answer to the question),");
+        builder.AppendLine("  \"reasoning\": string (brief explanation or 'CANNOT_ANSWER' if unsure)");
+        builder.AppendLine("}");
+
+        return (system, builder.ToString());
+    }
+
+    private sealed record TechnicalAnswer(string Question, string Answer, string Reasoning);
 
     private const string DefaultSpecTemplate =
         "# Spec: Issue {{ISSUE_NUMBER}} - {{ISSUE_TITLE}}\n\n" +
