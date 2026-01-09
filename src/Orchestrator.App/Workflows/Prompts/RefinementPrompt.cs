@@ -10,7 +10,8 @@ internal static class RefinementPrompt
         Playbook playbook,
         string? existingSpec,
         string? previousRefinement = null,
-        IReadOnlyList<IssueComment>? comments = null)
+        IReadOnlyList<IssueComment>? comments = null,
+        IReadOnlyList<AnsweredQuestion>? answeredQuestions = null)
     {
         var system = "You are an SDLC refinement assistant. " +
                      "Do not invent requirements. " +
@@ -22,6 +23,19 @@ internal static class RefinementPrompt
 
         var builder = new StringBuilder();
         PromptBuilders.AppendIssueTitleAndBody(builder, item);
+
+        // Show answered questions history
+        if (answeredQuestions != null && answeredQuestions.Count > 0)
+        {
+            builder.AppendLine("Previously Answered Questions (DO NOT re-ask these):");
+            builder.AppendLine();
+            foreach (var aq in answeredQuestions)
+            {
+                builder.AppendLine($"**Question #{aq.QuestionNumber}:** {aq.Question}");
+                builder.AppendLine($"**Answer (from {aq.AnsweredBy}):** {aq.Answer}");
+                builder.AppendLine();
+            }
+        }
 
         // Include previous refinement to avoid re-asking same questions
         if (!string.IsNullOrWhiteSpace(previousRefinement))
@@ -74,7 +88,8 @@ internal static class RefinementPrompt
         builder.AppendLine("  \"acceptanceCriteria\": [string],");
         builder.AppendLine("  \"openQuestions\": [string],");
         builder.AppendLine("  \"complexitySignals\": [string],");
-        builder.AppendLine("  \"complexitySummary\": string");
+        builder.AppendLine("  \"complexitySummary\": string,");
+        builder.AppendLine("  \"answeredQuestions\": [{ \"questionNumber\": int, \"question\": string, \"answer\": string, \"answeredBy\": string }] (optional)");
         builder.AppendLine("}");
 
         return (system, builder.ToString());

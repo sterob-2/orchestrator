@@ -94,6 +94,17 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         var previousRefinement = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.RefinementPath(workItem.Number));
         Logger.Debug($"[Refinement] Previous refinement found: {previousRefinement != null}");
 
+        // Load previous refinement result to get answered questions history
+        var previousAnsweredQuestions = new List<AnsweredQuestion>();
+        if (WorkContext.State.TryGetValue(WorkflowStateKeys.RefinementResult, out var prevRefinementJson))
+        {
+            if (WorkflowJson.TryDeserialize(prevRefinementJson, out RefinementResult? prevResult) && prevResult?.AnsweredQuestions != null)
+            {
+                previousAnsweredQuestions.AddRange(prevResult.AnsweredQuestions);
+                Logger.Debug($"[Refinement] Loaded {previousAnsweredQuestions.Count} previously answered question(s)");
+            }
+        }
+
         // Read issue comments to get answers
         var comments = (await WorkContext.GitHub.GetIssueCommentsAsync(workItem.Number))?.ToList() ?? new List<IssueComment>();
         Logger.Debug($"[Refinement] Fetched {comments.Count} issue comment(s)");
@@ -112,14 +123,37 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
                 answerSource = "TechnicalAdvisor";
             }
 
+            // Get the question number that was answered
+            var questionNumber = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestionNumber, out var qNum) && int.TryParse(qNum, out var qNumInt)
+                ? qNumInt
+                : 0;
+
+            var answeredQuestion = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestion, out var question)
+                ? question
+                : "unknown question";
+
             Logger.Info($"[Refinement] Incorporating answer from {answerSource}");
+            Logger.Info($"[Refinement] Question #{questionNumber}: {answeredQuestion.Substring(0, Math.Min(80, answeredQuestion.Length))}...");
             Logger.Info($"[Refinement] Answer preview: {answer.Substring(0, Math.Min(100, answer.Length))}...");
             Logger.Debug($"[Refinement] Full answer: {answer}");
+
+            // Add to answered questions history
+            if (questionNumber > 0)
+            {
+                var answeredQuestionEntry = new AnsweredQuestion(
+                    QuestionNumber: questionNumber,
+                    Question: answeredQuestion,
+                    Answer: answer,
+                    AnsweredBy: answerSource
+                );
+                previousAnsweredQuestions.Add(answeredQuestionEntry);
+                Logger.Debug($"[Refinement] Added answered question to history (total: {previousAnsweredQuestions.Count})");
+            }
 
             // Add answer as synthetic comment for the LLM to process
             var syntheticComment = new IssueComment(
                 Author: "orchestrator-bot",
-                Body: $"**Answer from automated question routing:**\n\n{answer}"
+                Body: $"**Answer to Question #{questionNumber}:**\n\n{answer}\n\n**IMPORTANT: Question #{questionNumber} has been answered. Remove it from the openQuestions list.**"
             );
             comments.Add(syntheticComment);
 
@@ -136,7 +170,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         Logger.Debug($"[Refinement] Playbook loaded: {playbookContent.Length} chars");
 
         var playbook = new PlaybookParser().Parse(playbookContent);
-        var prompt = RefinementPrompt.Build(workItem, playbook, existingSpec, previousRefinement, comments);
+        var prompt = RefinementPrompt.Build(workItem, playbook, existingSpec, previousRefinement, comments, previousAnsweredQuestions);
 
         Logger.Debug($"[Refinement] Calling LLM with model: {WorkContext.Config.TechLeadModel}");
         var response = await CallLlmAsync(
@@ -154,7 +188,10 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         }
 
         Logger.Debug($"[Refinement] Successfully parsed refinement result");
-        return result;
+
+        // Preserve answered questions history in the result
+        var resultWithHistory = result with { AnsweredQuestions = previousAnsweredQuestions };
+        return resultWithHistory;
     }
 
     private async Task WriteRefinementFileAsync(WorkItem workItem, RefinementResult refinement, string filePath)
@@ -168,6 +205,11 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
 
         RefinementMarkdownBuilder.AppendClarifiedStory(content, refinement.ClarifiedStory);
         RefinementMarkdownBuilder.AppendAcceptanceCriteria(content, refinement.AcceptanceCriteria);
+
+        if (refinement.AnsweredQuestions != null && refinement.AnsweredQuestions.Count > 0)
+        {
+            RefinementMarkdownBuilder.AppendAnsweredQuestions(content, refinement.AnsweredQuestions);
+        }
 
         if (refinement.OpenQuestions.Count > 0)
         {

@@ -39,10 +39,31 @@ internal static class RefinementMarkdownBuilder
 
     public static void AppendOpenQuestions(StringBuilder content, IReadOnlyList<string> questions)
     {
-        foreach (var question in questions)
+        for (int i = 0; i < questions.Count; i++)
         {
-            content.AppendLine($"- [ ] {question}");
+            var questionNumber = i + 1;
+            content.AppendLine($"- [ ] **Question #{questionNumber}:** {questions[i]}");
         }
         content.AppendLine();
+    }
+
+    public static void AppendAnsweredQuestions(StringBuilder content, IReadOnlyList<AnsweredQuestion> answeredQuestions)
+    {
+        if (answeredQuestions.Count == 0)
+        {
+            return;
+        }
+
+        content.AppendLine($"## Answered Questions ({answeredQuestions.Count})");
+        content.AppendLine();
+        foreach (var aq in answeredQuestions)
+        {
+            content.AppendLine($"### Question #{aq.QuestionNumber}");
+            content.AppendLine($"**Question:** {aq.Question}");
+            content.AppendLine();
+            content.AppendLine($"**Answer (from {aq.AnsweredBy}):**");
+            content.AppendLine(aq.Answer);
+            content.AppendLine();
+        }
     }
 }
