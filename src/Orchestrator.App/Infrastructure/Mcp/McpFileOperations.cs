@@ -29,21 +29,94 @@ public sealed class McpFileOperations
         };
 
         var result = await _mcpManager.CallToolAsync("read_file", args);
+
+        // MCP servers often return error messages as text instead of throwing exceptions
+        if (IsErrorMessage(result))
+        {
+            throw new FileNotFoundException($"File not found or inaccessible: {path}", path);
+        }
+
         return result;
     }
 
     /// <summary>
+    /// Checks if the MCP response is an error message.
+    /// </summary>
+    private static bool IsErrorMessage(string response)
+    {
+        if (string.IsNullOrWhiteSpace(response))
+        {
+            return false;
+        }
+
+        var errorPatterns = new[]
+        {
+            "does not exist",
+            "not found",
+            "no such file",
+            "error:",
+            "failed to",
+            "cannot access",
+            "permission denied"
+        };
+
+        return errorPatterns.Any(pattern =>
+            response.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// Writes content to a file using MCP write_file tool.
+    /// Creates parent directories if they don't exist.
     /// </summary>
     public async Task WriteAllTextAsync(string path, string content)
     {
+        // Ensure parent directory exists
+        var directory = Path.GetDirectoryName(path)?.Replace('\\', '/');
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            await EnsureDirectoryExistsAsync(directory);
+        }
+
         var args = new Dictionary<string, object?>
         {
             ["path"] = path,
             ["content"] = content
         };
 
-        await _mcpManager.CallToolAsync("write_file", args);
+        var result = await _mcpManager.CallToolAsync("write_file", args);
+
+        // Check if write operation failed
+        if (IsErrorMessage(result))
+        {
+            throw new IOException($"Failed to write file: {path}. Error: {result}");
+        }
+    }
+
+    /// <summary>
+    /// Ensures a directory exists, creating it if necessary.
+    /// </summary>
+    private async Task EnsureDirectoryExistsAsync(string path)
+    {
+        try
+        {
+            var args = new Dictionary<string, object?>
+            {
+                ["path"] = path
+            };
+
+            var result = await _mcpManager.CallToolAsync("create_directory", args);
+
+            // create_directory might succeed silently or return a message
+            // Only throw if it's a real error (not "already exists")
+            if (IsErrorMessage(result) && !result.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new IOException($"Failed to create directory: {path}. Error: {result}");
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Tool not available or directory already exists - ignore
+        }
     }
 
     /// <summary>
