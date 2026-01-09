@@ -20,15 +20,10 @@ internal sealed class DorExecutor : WorkflowStageExecutor
     {
         Logger.Info($"[DoR] Evaluating DoR gate for issue #{input.WorkItem.Number}");
 
-        var refinementJson = await context.ReadOrInitStateAsync(
+        var refinementJson = await ReadStateWithFallbackAsync(
+            context,
             WorkflowStateKeys.RefinementResult,
-            () => string.Empty,
-            cancellationToken: cancellationToken);
-
-        if (string.IsNullOrEmpty(refinementJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.RefinementResult, out var fallbackJson))
-        {
-            refinementJson = fallbackJson;
-        }
+            cancellationToken);
 
         if (!WorkflowJson.TryDeserialize(refinementJson, out RefinementResult? refinement) || refinement is null)
         {

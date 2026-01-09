@@ -141,15 +141,10 @@ internal sealed class TechLeadExecutor : WorkflowStageExecutor
 
     private async Task<bool> IsQuestionAnswerModeAsync(IWorkflowContext context, CancellationToken cancellationToken)
     {
-        var classificationJson = await context.ReadOrInitStateAsync(
+        var classificationJson = await ReadStateWithFallbackAsync(
+            context,
             WorkflowStateKeys.QuestionClassificationResult,
-            () => string.Empty,
-            cancellationToken: cancellationToken);
-
-        if (string.IsNullOrEmpty(classificationJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.QuestionClassificationResult, out var fallback))
-        {
-            classificationJson = fallback;
-        }
+            cancellationToken);
 
         if (string.IsNullOrEmpty(classificationJson))
         {
@@ -172,15 +167,10 @@ internal sealed class TechLeadExecutor : WorkflowStageExecutor
         Logger.Info($"[TechLead] Q&A mode: Answering technical question for issue #{input.WorkItem.Number}");
 
         // Get the question
-        var classificationJson = await context.ReadOrInitStateAsync(
+        var classificationJson = await ReadStateWithFallbackAsync(
+            context,
             WorkflowStateKeys.QuestionClassificationResult,
-            () => string.Empty,
-            cancellationToken: cancellationToken);
-
-        if (string.IsNullOrEmpty(classificationJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.QuestionClassificationResult, out var fallback))
-        {
-            classificationJson = fallback;
-        }
+            cancellationToken);
 
         if (!WorkflowJson.TryDeserialize(classificationJson, out QuestionClassificationResult? classificationResult) || classificationResult is null)
         {

@@ -22,15 +22,10 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
-        var devJson = await context.ReadOrInitStateAsync(
+        var devJson = await ReadStateWithFallbackAsync(
+            context,
             WorkflowStateKeys.DevResult,
-            () => string.Empty,
-            cancellationToken: cancellationToken);
-
-        if (string.IsNullOrEmpty(devJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.DevResult, out var fallbackDevJson))
-        {
-            devJson = fallbackDevJson;
-        }
+            cancellationToken);
 
         if (!WorkflowJson.TryDeserialize(devJson, out DevResult? devResult) || devResult is null)
         {

@@ -24,24 +24,10 @@ internal sealed class DodExecutor : WorkflowStageExecutor
         var specContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, specPath) ?? "";
         var parsedSpec = new SpecParser().Parse(specContent);
 
-        var devJson = await context.ReadOrInitStateAsync(
-            WorkflowStateKeys.DevResult,
-            () => string.Empty,
-            cancellationToken: cancellationToken);
-        if (string.IsNullOrEmpty(devJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.DevResult, out var fallbackDevJson))
-        {
-            devJson = fallbackDevJson;
-        }
+        var devJson = await ReadStateWithFallbackAsync(context, WorkflowStateKeys.DevResult, cancellationToken);
         WorkflowJson.TryDeserialize(devJson, out DevResult? devResult);
 
-        var codeReviewJson = await context.ReadOrInitStateAsync(
-            WorkflowStateKeys.CodeReviewResult,
-            () => string.Empty,
-            cancellationToken: cancellationToken);
-        if (string.IsNullOrEmpty(codeReviewJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.CodeReviewResult, out var fallbackReviewJson))
-        {
-            codeReviewJson = fallbackReviewJson;
-        }
+        var codeReviewJson = await ReadStateWithFallbackAsync(context, WorkflowStateKeys.CodeReviewResult, cancellationToken);
         WorkflowJson.TryDeserialize(codeReviewJson, out CodeReviewResult? codeReviewResult);
 
         var changedFiles = devResult?.ChangedFiles ?? Array.Empty<string>();
