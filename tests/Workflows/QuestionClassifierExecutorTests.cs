@@ -52,7 +52,7 @@ public class QuestionClassifierExecutorTests
         Assert.True(output.Success);
         Assert.NotNull(storedClassification);
         Assert.Contains("Technical", storedClassification);
-        Assert.Equal(WorkflowStage.TechLead, output.NextStage);
+        Assert.Equal(WorkflowStage.TechnicalAdvisor, output.NextStage);
     }
 
     [Fact]

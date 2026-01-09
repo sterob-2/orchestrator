@@ -6,6 +6,7 @@ internal static class WorkflowStateKeys
     public const string DorGateResult = "dor_result";
     public const string QuestionClassificationResult = "question_classification_result";
     public const string ProductOwnerResult = "product_owner_result";
+    public const string TechnicalAdvisorResult = "technical_advisor_result";
     public const string SpecGateResult = "specgate_result";
     public const string TechLeadResult = "techlead_result";
     public const string DevResult = "dev_result";

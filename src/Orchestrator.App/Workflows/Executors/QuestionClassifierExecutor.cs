@@ -103,7 +103,7 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
         // Route based on question type
         return result.Classification.Type switch
         {
-            QuestionType.Technical => WorkflowStage.TechLead,
+            QuestionType.Technical => WorkflowStage.TechnicalAdvisor,
             QuestionType.Product => WorkflowStage.ProductOwner,
             QuestionType.Ambiguous => null, // Block - needs human intervention
             _ => null

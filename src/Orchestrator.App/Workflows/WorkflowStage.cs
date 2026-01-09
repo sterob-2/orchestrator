@@ -6,6 +6,7 @@ internal enum WorkflowStage
     Refinement,
     QuestionClassifier,
     ProductOwner,
+    TechnicalAdvisor,
     DoR,
     TechLead,
     SpecGate,

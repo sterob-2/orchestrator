@@ -7,7 +7,7 @@ public enum QuestionType
 {
     /// <summary>
     /// Technical question about implementation, architecture, patterns, frameworks
-    /// Should be routed to TechLead executor
+    /// Should be routed to TechnicalAdvisor executor
     /// </summary>
     Technical,
 
