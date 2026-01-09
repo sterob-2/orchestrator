@@ -60,7 +60,7 @@ internal sealed class GitHubIssueWatcher
                 Task signalTask = _scanSignals.Reader.ReadAsync(cancellationToken).AsTask();
                 Task delayTask = pollingEnabled
                     ? _delay(TimeSpan.FromSeconds(pollInterval), cancellationToken)
-                    : Task.Delay(Timeout.Infinite, cancellationToken); // Never complete if polling disabled
+                    : _delay(Timeout.InfiniteTimeSpan, cancellationToken); // Never complete if polling disabled
 
                 var completedTask = await Task.WhenAny(signalTask, delayTask);
 
