@@ -44,9 +44,14 @@ internal sealed class DorExecutor : WorkflowStageExecutor
             Logger.Info($"[DoR] Gate failed with {result.Failures.Count} failure(s): {string.Join(", ", result.Failures)}");
             WorkContext.Metrics?.RecordGateFailures(result.Failures);
 
-            // Post refinement details to GitHub when DoR fails
-            Logger.Debug($"[DoR] Posting refinement details to GitHub");
-            await PostRefinementToGitHubAsync(input.WorkItem, refinement, result);
+            // Write DoR result to file
+            var dorPath = WorkflowPaths.DorResultPath(input.WorkItem.Number);
+            Logger.Debug($"[DoR] Writing DoR result to {dorPath}");
+            await WriteDorResultFileAsync(input.WorkItem, refinement, result, dorPath);
+            Logger.Info($"[DoR] Wrote DoR result to {dorPath}");
+
+            // Post simple pointer comment to GitHub
+            await PostDorFailurePointerAsync(input.WorkItem, dorPath, result);
         }
         else
         {
@@ -63,64 +68,75 @@ internal sealed class DorExecutor : WorkflowStageExecutor
         return (result.Passed, notes);
     }
 
-    private async Task PostRefinementToGitHubAsync(WorkItem workItem, RefinementResult refinement, GateResult gateResult)
+    private async Task WriteDorResultFileAsync(WorkItem workItem, RefinementResult refinement, GateResult gateResult, string filePath)
     {
-        var commentBuilder = new System.Text.StringBuilder();
-        commentBuilder.AppendLine("## 🚧 Definition of Ready (DoR) Gate Failed");
-        commentBuilder.AppendLine();
-        commentBuilder.AppendLine("The DoR gate evaluation has failed. Please review and address the following issues:");
-        commentBuilder.AppendLine();
+        var content = new System.Text.StringBuilder();
+        content.AppendLine($"# DoR Result: Issue #{workItem.Number} - {workItem.Title}");
+        content.AppendLine();
+        content.AppendLine($"**Status**: {(gateResult.Passed ? "✅ PASSED" : "❌ FAILED")}");
+        content.AppendLine($"**Evaluated**: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+        content.AppendLine();
 
-        // List failures
-        commentBuilder.AppendLine("### ❌ Failures");
-        foreach (var failure in gateResult.Failures)
+        if (!gateResult.Passed)
         {
-            commentBuilder.AppendLine($"- {failure}");
+            content.AppendLine("## Failures");
+            content.AppendLine();
+            foreach (var failure in gateResult.Failures)
+            {
+                content.AppendLine($"- {failure}");
+            }
+            content.AppendLine();
         }
-        commentBuilder.AppendLine();
 
-        // Show open questions if they exist
         if (refinement.OpenQuestions.Count > 0)
         {
-            commentBuilder.AppendLine("### ❓ Open Questions");
-            commentBuilder.AppendLine("The following questions need to be answered before work can proceed:");
-            commentBuilder.AppendLine();
+            content.AppendLine($"## Open Questions ({refinement.OpenQuestions.Count})");
+            content.AppendLine();
+            content.AppendLine("*These questions must be answered before the DoR gate can pass.*");
+            content.AppendLine();
             foreach (var question in refinement.OpenQuestions)
             {
-                commentBuilder.AppendLine($"- {question}");
+                content.AppendLine($"- [ ] {question}");
             }
-            commentBuilder.AppendLine();
+            content.AppendLine();
         }
 
-        // Show clarified story if available
         if (!string.IsNullOrWhiteSpace(refinement.ClarifiedStory))
         {
-            commentBuilder.AppendLine("### 📝 Clarified Story");
-            commentBuilder.AppendLine(refinement.ClarifiedStory);
-            commentBuilder.AppendLine();
+            content.AppendLine("## Clarified Story");
+            content.AppendLine();
+            content.AppendLine(refinement.ClarifiedStory);
+            content.AppendLine();
         }
 
-        // Show acceptance criteria
         if (refinement.AcceptanceCriteria.Count > 0)
         {
-            commentBuilder.AppendLine("### ✅ Acceptance Criteria");
+            content.AppendLine($"## Acceptance Criteria ({refinement.AcceptanceCriteria.Count})");
+            content.AppendLine();
             foreach (var criterion in refinement.AcceptanceCriteria)
             {
-                commentBuilder.AppendLine($"- {criterion}");
+                content.AppendLine($"- {criterion}");
             }
-            commentBuilder.AppendLine();
+            content.AppendLine();
         }
 
-        commentBuilder.AppendLine("---");
-        commentBuilder.AppendLine("*Once the above issues are resolved, remove the `blocked` label and add the `dor` label to re-evaluate.*");
+        content.AppendLine("---");
+        content.AppendLine("*See also: [Refinement Output](../refinement/issue-" + workItem.Number + ".md)*");
 
-        var comment = commentBuilder.ToString();
-        Logger.Debug($"[DoR] Comment length: {comment.Length} chars");
+        await FileOperationHelper.WriteAllTextAsync(WorkContext, filePath, content.ToString());
+    }
+
+    private async Task PostDorFailurePointerAsync(WorkItem workItem, string dorFilePath, GateResult gateResult)
+    {
+        var comment = $"## 🚧 DoR Gate Failed\n\n" +
+                     $"The Definition of Ready gate has {gateResult.Failures.Count} failure(s).\n\n" +
+                     $"**Details**: See [`{dorFilePath}`](../../blob/issue-{workItem.Number}/{dorFilePath})\n\n" +
+                     $"*Once issues are resolved, remove the `blocked` label and add the `dor` label to re-evaluate.*";
 
         try
         {
             await WorkContext.GitHub.CommentOnWorkItemAsync(workItem.Number, comment);
-            Logger.Info($"[DoR] Posted refinement details to GitHub issue #{workItem.Number}");
+            Logger.Info($"[DoR] Posted DoR failure pointer to GitHub issue #{workItem.Number}");
         }
         catch (Exception ex)
         {

@@ -34,6 +34,12 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             await context.QueueStateUpdateAsync(WorkflowStateKeys.RefinementResult, serialized, cancellationToken);
             WorkContext.State[WorkflowStateKeys.RefinementResult] = serialized;
 
+            // Write refinement output to file
+            var refinementPath = WorkflowPaths.RefinementPath(input.WorkItem.Number);
+            Logger.Debug($"[Refinement] Writing refinement output to {refinementPath}");
+            await WriteRefinementFileAsync(input.WorkItem, refinement, refinementPath);
+            Logger.Info($"[Refinement] Wrote refinement output to {refinementPath}");
+
             var summary = $"Refinement captured ({refinement.AcceptanceCriteria.Count} criteria, {refinement.OpenQuestions.Count} open questions).";
             return (true, summary);
         }
@@ -78,5 +84,49 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
 
         Logger.Debug($"[Refinement] Successfully parsed refinement result");
         return result;
+    }
+
+    private async Task WriteRefinementFileAsync(WorkItem workItem, RefinementResult refinement, string filePath)
+    {
+        var content = new System.Text.StringBuilder();
+        content.AppendLine($"# Refinement: Issue #{workItem.Number} - {workItem.Title}");
+        content.AppendLine();
+        content.AppendLine($"**Status**: Refinement Complete");
+        content.AppendLine($"**Generated**: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+        content.AppendLine();
+
+        if (!string.IsNullOrWhiteSpace(refinement.ClarifiedStory))
+        {
+            content.AppendLine("## Clarified Story");
+            content.AppendLine();
+            content.AppendLine(refinement.ClarifiedStory);
+            content.AppendLine();
+        }
+
+        if (refinement.AcceptanceCriteria.Count > 0)
+        {
+            content.AppendLine($"## Acceptance Criteria ({refinement.AcceptanceCriteria.Count})");
+            content.AppendLine();
+            foreach (var criterion in refinement.AcceptanceCriteria)
+            {
+                content.AppendLine($"- {criterion}");
+            }
+            content.AppendLine();
+        }
+
+        if (refinement.OpenQuestions.Count > 0)
+        {
+            content.AppendLine($"## Open Questions ({refinement.OpenQuestions.Count})");
+            content.AppendLine();
+            content.AppendLine("*Answer these questions by adding comments to the GitHub issue, then re-trigger refinement.*");
+            content.AppendLine();
+            foreach (var question in refinement.OpenQuestions)
+            {
+                content.AppendLine($"- [ ] {question}");
+            }
+            content.AppendLine();
+        }
+
+        await FileOperationHelper.WriteAllTextAsync(WorkContext, filePath, content.ToString());
     }
 }
