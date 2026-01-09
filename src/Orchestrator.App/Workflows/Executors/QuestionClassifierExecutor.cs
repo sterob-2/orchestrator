@@ -40,9 +40,10 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
             return (false, "Question classification failed: no open questions.");
         }
 
-        // Get first question
-        var question = refinement.OpenQuestions[0];
-        Logger.Info($"[QuestionClassifier] Classifying: {question}");
+        // Get first question (index 0)
+        var questionIndex = 0;
+        var question = refinement.OpenQuestions[questionIndex];
+        Logger.Info($"[QuestionClassifier] Classifying question #{questionIndex + 1}: {question}");
 
         // Build prompt for classification
         var (systemPrompt, userPrompt) = BuildClassificationPrompt(question, input.WorkItem, refinement);
@@ -73,11 +74,15 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
         await context.QueueStateUpdateAsync(WorkflowStateKeys.QuestionClassificationResult, serialized, cancellationToken);
         WorkContext.State[WorkflowStateKeys.QuestionClassificationResult] = serialized;
 
-        // Store the question itself for tracking
+        // Store the question and its index for tracking
         await context.QueueStateUpdateAsync(WorkflowStateKeys.LastProcessedQuestion, question, cancellationToken);
         WorkContext.State[WorkflowStateKeys.LastProcessedQuestion] = question;
 
-        return (true, $"Question classified as {classification.Type}.");
+        var questionNumber = (questionIndex + 1).ToString();
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.LastProcessedQuestionNumber, questionNumber, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.LastProcessedQuestionNumber] = questionNumber;
+
+        return (true, $"Question #{questionNumber} classified as {classification.Type}.");
     }
 
     protected override WorkflowStage? DetermineNextStage(bool success, WorkflowInput input)

@@ -16,6 +16,7 @@ internal static class WorkflowStateKeys
 
     // Question tracking state
     public const string LastProcessedQuestion = "last_processed_question";
+    public const string LastProcessedQuestionNumber = "last_processed_question_number";
     public const string QuestionAttemptCount = "question_attempt_count";
     public const string CurrentQuestionAnswer = "current_question_answer";
 }
