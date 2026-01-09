@@ -6,7 +6,7 @@ using Orchestrator.App.Utilities;
 
 namespace Orchestrator.App.Workflows.Executors;
 
-internal sealed class DodExecutor : WorkflowStageExecutor
+internal sealed class DodExecutor : GateExecutor<DodGateInput>
 {
     public DodExecutor(WorkContext workContext, WorkflowConfig workflowConfig) : base("DoD", workContext, workflowConfig)
     {
@@ -15,7 +15,7 @@ internal sealed class DodExecutor : WorkflowStageExecutor
     protected override WorkflowStage Stage => WorkflowStage.DoD;
     protected override string Notes => "DoD gate evaluated.";
 
-    protected override async ValueTask<(bool Success, string Notes)> ExecuteAsync(
+    protected override async Task<GateInputResult<DodGateInput>> LoadGateInputAsync(
         WorkflowInput input,
         IWorkflowContext context,
         CancellationToken cancellationToken)
@@ -58,19 +58,21 @@ internal sealed class DodExecutor : WorkflowStageExecutor
             NoFixmes: noFixmes,
             SpecComplete: TemplateUtil.IsStatusComplete(specContent));
 
-        var result = DodGateValidator.Evaluate(dodInput);
-        if (!result.Passed && result.Failures.Count > 0)
-        {
-            WorkContext.Metrics?.RecordGateFailures(result.Failures);
-        }
-        var serializedResult = WorkflowJson.Serialize(result);
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.DodGateResult, serializedResult, cancellationToken);
-        WorkContext.State[WorkflowStateKeys.DodGateResult] = serializedResult;
+        return GateInputResult<DodGateInput>.Ok(dodInput);
+    }
 
-        var notes = result.Passed
+    protected override GateResult EvaluateGate(DodGateInput gateInput, WorkflowInput workflowInput)
+    {
+        return DodGateValidator.Evaluate(gateInput);
+    }
+
+    protected override string GetResultStateKey() => WorkflowStateKeys.DodGateResult;
+
+    protected override string BuildResultNotes(GateResult result)
+    {
+        return result.Passed
             ? "DoD gate passed."
             : $"DoD gate failed: {string.Join(" ", result.Failures)}";
-        return (result.Passed, notes);
     }
 
     private (bool NoTodos, bool NoFixmes) ScanForMarkers(IReadOnlyList<string> files)

@@ -6,7 +6,7 @@ using Orchestrator.App.Utilities;
 
 namespace Orchestrator.App.Workflows.Executors;
 
-internal sealed class SpecGateExecutor : WorkflowStageExecutor
+internal sealed class SpecGateExecutor : GateExecutor<(ParsedSpec ParsedSpec, Playbook Playbook, string SpecPath, string SpecContent)>
 {
     public SpecGateExecutor(WorkContext workContext, WorkflowConfig workflowConfig) : base("SpecGate", workContext, workflowConfig)
     {
@@ -15,7 +15,7 @@ internal sealed class SpecGateExecutor : WorkflowStageExecutor
     protected override WorkflowStage Stage => WorkflowStage.SpecGate;
     protected override string Notes => "Spec gate evaluated.";
 
-    protected override async ValueTask<(bool Success, string Notes)> ExecuteAsync(
+    protected override async Task<GateInputResult<(ParsedSpec ParsedSpec, Playbook Playbook, string SpecPath, string SpecContent)>> LoadGateInputAsync(
         WorkflowInput input,
         IWorkflowContext context,
         CancellationToken cancellationToken)
@@ -24,34 +24,42 @@ internal sealed class SpecGateExecutor : WorkflowStageExecutor
         var specContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, specPath);
         if (string.IsNullOrWhiteSpace(specContent))
         {
-            return (false, $"Spec gate failed: missing spec at {specPath}.");
+            return GateInputResult<(ParsedSpec, Playbook, string, string)>.Fail($"Spec gate failed: missing spec at {specPath}.");
         }
 
         var playbookContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.PlaybookPath) ?? "";
         var playbook = new PlaybookParser().Parse(playbookContent);
         var parsedSpec = new SpecParser().Parse(specContent);
-        var result = SpecGateValidator.Evaluate(parsedSpec, playbook, WorkContext.Workspace);
-        if (!result.Passed && result.Failures.Count > 0)
-        {
-            WorkContext.Metrics?.RecordGateFailures(result.Failures);
-        }
 
-        if (result.Passed)
-        {
-            var updatedSpec = TemplateUtil.UpdateStatus(specContent, "COMPLETE");
-            if (!string.Equals(updatedSpec, specContent, StringComparison.Ordinal))
-            {
-                await FileOperationHelper.WriteAllTextAsync(WorkContext, specPath, updatedSpec);
-            }
-        }
+        return GateInputResult<(ParsedSpec, Playbook, string, string)>.Ok((parsedSpec, playbook, specPath, specContent));
+    }
 
-        var serializedResult = WorkflowJson.Serialize(result);
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.SpecGateResult, serializedResult, cancellationToken);
-        WorkContext.State[WorkflowStateKeys.SpecGateResult] = serializedResult;
+    protected override GateResult EvaluateGate(
+        (ParsedSpec ParsedSpec, Playbook Playbook, string SpecPath, string SpecContent) gateInput,
+        WorkflowInput workflowInput)
+    {
+        return SpecGateValidator.Evaluate(gateInput.ParsedSpec, gateInput.Playbook, WorkContext.Workspace);
+    }
 
-        var notes = result.Passed
+    protected override string GetResultStateKey() => WorkflowStateKeys.SpecGateResult;
+
+    protected override string BuildResultNotes(GateResult result)
+    {
+        return result.Passed
             ? "Spec gate passed."
             : $"Spec gate failed: {string.Join(" ", result.Failures)}";
-        return (result.Passed, notes);
+    }
+
+    protected override async Task HandleGateSuccessAsync(
+        WorkflowInput input,
+        (ParsedSpec ParsedSpec, Playbook Playbook, string SpecPath, string SpecContent) gateInput,
+        GateResult result,
+        CancellationToken cancellationToken)
+    {
+        var updatedSpec = TemplateUtil.UpdateStatus(gateInput.SpecContent, "COMPLETE");
+        if (!string.Equals(updatedSpec, gateInput.SpecContent, StringComparison.Ordinal))
+        {
+            await FileOperationHelper.WriteAllTextAsync(WorkContext, gateInput.SpecPath, updatedSpec);
+        }
     }
 }

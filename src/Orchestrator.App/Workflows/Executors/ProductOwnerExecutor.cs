@@ -5,7 +5,7 @@ using Orchestrator.App.Core.Models;
 
 namespace Orchestrator.App.Workflows.Executors;
 
-internal sealed class ProductOwnerExecutor : WorkflowStageExecutor
+internal sealed class ProductOwnerExecutor : LlmQuestionAnswerExecutor<ProductOwnerResult>
 {
     public ProductOwnerExecutor(WorkContext workContext, WorkflowConfig workflowConfig)
         : base("ProductOwner", workContext, workflowConfig)
@@ -15,7 +15,7 @@ internal sealed class ProductOwnerExecutor : WorkflowStageExecutor
     protected override WorkflowStage Stage => WorkflowStage.ProductOwner;
     protected override string Notes => "Product question answered.";
 
-    protected override async ValueTask<(bool Success, string Notes)> ExecuteAsync(
+    protected override async Task<(string? Question, string? FailureMessage)> GetQuestionAsync(
         WorkflowInput input,
         IWorkflowContext context,
         CancellationToken cancellationToken)
@@ -31,60 +31,54 @@ internal sealed class ProductOwnerExecutor : WorkflowStageExecutor
         if (!WorkflowJson.TryDeserialize(classificationJson, out QuestionClassificationResult? classificationResult) || classificationResult is null)
         {
             Logger.Warning($"[ProductOwner] No classification result found");
-            return (false, "Product owner failed: missing classification.");
+            return (null, "Product owner failed: missing classification.");
         }
 
         var question = classificationResult.Classification.Question;
         Logger.Info($"[ProductOwner] Answering: {question}");
+        return (question, null);
+    }
 
-        // Get refinement for context
-        var refinementJson = await ReadStateWithFallbackAsync(
-            context,
-            WorkflowStateKeys.RefinementResult,
-            cancellationToken);
-
-        if (!WorkflowJson.TryDeserialize(refinementJson, out RefinementResult? refinement) || refinement is null)
-        {
-            Logger.Warning($"[ProductOwner] No refinement result found");
-            return (false, "Product owner failed: missing refinement.");
-        }
+    protected override (string System, string User) BuildPrompt(string question, WorkflowInput input)
+    {
+        // Get refinement for context (already in state from previous stages)
+        var refinementJson = WorkContext.State.GetValueOrDefault(WorkflowStateKeys.RefinementResult, string.Empty);
+        WorkflowJson.TryDeserialize(refinementJson, out RefinementResult? refinement);
 
         // Check for existing spec
-        var existingSpec = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.SpecPath(input.WorkItem.Number));
+        var existingSpec = FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.SpecPath(input.WorkItem.Number))
+            .GetAwaiter().GetResult();
 
-        // Build prompt
-        var (systemPrompt, userPrompt) = BuildProductOwnerPrompt(question, input.WorkItem, refinement, existingSpec);
+        return BuildProductOwnerPrompt(question, input.WorkItem, refinement!, existingSpec);
+    }
 
-        // Call LLM
-        Logger.Debug($"[ProductOwner] Calling LLM for answer");
-        var response = await CallLlmAsync(
-            WorkContext.Config.TechLeadModel,
-            systemPrompt,
-            userPrompt,
-            cancellationToken);
+    protected override string GetLlmModel() => WorkContext.Config.TechLeadModel;
 
-        Logger.Debug($"[ProductOwner] LLM response: {response}");
+    protected override bool TryParseAnswer(string? response, out ProductOwnerResult? answer)
+    {
+        return WorkflowJson.TryDeserialize(response, out answer);
+    }
 
-        // Parse answer
-        if (!WorkflowJson.TryDeserialize(response, out ProductOwnerResult? result) || result is null)
-        {
-            Logger.Warning($"[ProductOwner] Failed to parse LLM response");
-            return (false, "Product owner failed: could not parse answer.");
-        }
-
-        Logger.Info($"[ProductOwner] Answer generated");
-        Logger.Debug($"[ProductOwner] Answer: {result.Answer}");
+    protected override async Task StoreAnswerAsync(
+        ProductOwnerResult answer,
+        IWorkflowContext context,
+        CancellationToken cancellationToken)
+    {
+        Logger.Debug($"[ProductOwner] Answer: {answer.Answer}");
 
         // Store result
-        var serialized = WorkflowJson.Serialize(result);
+        var serialized = WorkflowJson.Serialize(answer);
         await context.QueueStateUpdateAsync(WorkflowStateKeys.ProductOwnerResult, serialized, cancellationToken);
         WorkContext.State[WorkflowStateKeys.ProductOwnerResult] = serialized;
 
         // Store answer for Refinement to use
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.CurrentQuestionAnswer, result.Answer, cancellationToken);
-        WorkContext.State[WorkflowStateKeys.CurrentQuestionAnswer] = result.Answer;
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.CurrentQuestionAnswer, answer.Answer, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.CurrentQuestionAnswer] = answer.Answer;
+    }
 
-        return (true, "Product question answered.");
+    protected override string BuildSuccessNotes(ProductOwnerResult answer)
+    {
+        return "Product question answered.";
     }
 
     protected override WorkflowStage? DetermineNextStage(bool success, WorkflowInput input)

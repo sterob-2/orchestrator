@@ -4,7 +4,7 @@ using Orchestrator.App.Core.Models;
 
 namespace Orchestrator.App.Workflows.Executors;
 
-internal sealed class DorExecutor : WorkflowStageExecutor
+internal sealed class DorExecutor : GateExecutor<(RefinementResult Refinement, WorkItem WorkItem)>
 {
     public DorExecutor(WorkContext workContext, WorkflowConfig workflowConfig) : base("DoR", workContext, workflowConfig)
     {
@@ -13,7 +13,7 @@ internal sealed class DorExecutor : WorkflowStageExecutor
     protected override WorkflowStage Stage => WorkflowStage.DoR;
     protected override string Notes => "DoR gate evaluated.";
 
-    protected override async ValueTask<(bool Success, string Notes)> ExecuteAsync(
+    protected override async Task<GateInputResult<(RefinementResult Refinement, WorkItem WorkItem)>> LoadGateInputAsync(
         WorkflowInput input,
         IWorkflowContext context,
         CancellationToken cancellationToken)
@@ -28,68 +28,60 @@ internal sealed class DorExecutor : WorkflowStageExecutor
         if (!WorkflowJson.TryDeserialize(refinementJson, out RefinementResult? refinement) || refinement is null)
         {
             Logger.Warning($"[DoR] No refinement result found in workflow state");
-            return (false, "DoR gate failed: missing refinement output.");
+            return GateInputResult<(RefinementResult, WorkItem)>.Fail("DoR gate failed: missing refinement output.");
         }
 
         Logger.Debug($"[DoR] Validating refinement: {refinement.AcceptanceCriteria.Count} criteria, {refinement.OpenQuestions.Count} questions");
+        return GateInputResult<(RefinementResult, WorkItem)>.Ok((refinement, input.WorkItem));
+    }
 
-        var result = DorGateValidator.Evaluate(input.WorkItem, refinement, WorkContext.Config.Labels);
+    protected override GateResult EvaluateGate(
+        (RefinementResult Refinement, WorkItem WorkItem) gateInput,
+        WorkflowInput workflowInput)
+    {
+        var result = DorGateValidator.Evaluate(gateInput.WorkItem, gateInput.Refinement, WorkContext.Config.Labels);
+
         if (!result.Passed && result.Failures.Count > 0)
         {
             Logger.Info($"[DoR] Gate failed with {result.Failures.Count} failure(s): {string.Join(", ", result.Failures)}");
-            WorkContext.Metrics?.RecordGateFailures(result.Failures);
-
-            // Write DoR result to file
-            var dorPath = WorkflowPaths.DorResultPath(input.WorkItem.Number);
-            Logger.Debug($"[DoR] Writing DoR result to {dorPath}");
-            await WriteDorResultFileAsync(input.WorkItem, refinement, result, dorPath);
-            Logger.Info($"[DoR] Wrote DoR result to {dorPath}");
-
-            // Commit the DoR result file (best effort - don't fail workflow if git fails)
-            try
-            {
-                var branchName = $"issue-{input.WorkItem.Number}";
-                var commitMessage = $"dor: DoR gate failed for issue #{input.WorkItem.Number}\n\n" +
-                                   $"Failures:\n" +
-                                   string.Join("\n", result.Failures.Select(f => $"- {f}"));
-
-                Logger.Debug($"[DoR] Committing {dorPath} to branch '{branchName}'");
-                var committed = WorkContext.Repo.CommitAndPush(branchName, commitMessage, new[] { dorPath });
-
-                if (committed)
-                {
-                    Logger.Info($"[DoR] Committed and pushed DoR result to branch '{branchName}'");
-                }
-                else
-                {
-                    Logger.Warning($"[DoR] No changes to commit (file unchanged)");
-                }
-            }
-            catch (LibGit2Sharp.LibGit2SharpException ex)
-            {
-                Logger.Warning($"[DoR] Git commit failed (continuing anyway): {ex.Message}");
-            }
-            catch (InvalidOperationException ex)
-            {
-                Logger.Warning($"[DoR] Git commit failed (continuing anyway): {ex.Message}");
-            }
-
-            // Post simple pointer comment to GitHub
-            await PostDorFailurePointerAsync(input.WorkItem, dorPath, result);
         }
         else
         {
             Logger.Info($"[DoR] Gate passed");
         }
 
-        var notes = result.Passed
+        return result;
+    }
+
+    protected override string GetResultStateKey() => WorkflowStateKeys.DorGateResult;
+
+    protected override string BuildResultNotes(GateResult result)
+    {
+        return result.Passed
             ? "DoR gate passed."
             : $"DoR gate failed: {string.Join(" ", result.Failures)}";
+    }
 
-        var serializedResult = WorkflowJson.Serialize(result);
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.DorGateResult, serializedResult, cancellationToken);
-        WorkContext.State[WorkflowStateKeys.DorGateResult] = serializedResult;
-        return (result.Passed, notes);
+    protected override async Task HandleGateFailureAsync(
+        WorkflowInput input,
+        (RefinementResult Refinement, WorkItem WorkItem) gateInput,
+        GateResult result,
+        CancellationToken cancellationToken)
+    {
+        // Write DoR result to file
+        var dorPath = WorkflowPaths.DorResultPath(input.WorkItem.Number);
+        Logger.Debug($"[DoR] Writing DoR result to {dorPath}");
+        await WriteDorResultFileAsync(input.WorkItem, gateInput.Refinement, result, dorPath);
+        Logger.Info($"[DoR] Wrote DoR result to {dorPath}");
+
+        // Commit the DoR result file
+        var commitMessage = $"dor: DoR gate failed for issue #{input.WorkItem.Number}\n\n" +
+                           $"Failures:\n" +
+                           string.Join("\n", result.Failures.Select(f => $"- {f}"));
+        await TryCommitAndPushAsync(input.WorkItem, dorPath, commitMessage);
+
+        // Post simple pointer comment to GitHub
+        await PostDorFailurePointerAsync(input.WorkItem, dorPath, result);
     }
 
     private async Task WriteDorResultFileAsync(WorkItem workItem, RefinementResult refinement, GateResult gateResult, string filePath)
