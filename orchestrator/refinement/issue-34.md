@@ -1,11 +1,11 @@
 # Refinement: Issue #34 - [FEATURE] SonarQube MCP Server Integration
 
 **Status**: Refinement Complete
-**Generated**: 2026-01-09 14:04:37 UTC
+**Generated**: 2026-01-09 14:05:08 UTC
 
 ## Clarified Story
 
-Integrate a SonarQube MCP Server as a sibling Docker container managed by McpClientManager so the Orchestrator can query SonarQube metrics during SDLC workflows. Add SONAR_HOST_URL and SONAR_TOKEN to Orchestrator configuration, expose Sonar-related MCP tools (e.g., sonarqube_get_new_issues, sonarqube_get_quality_gate_status) via the MCP server handshake, and update CodeReviewExecutor and DodExecutor so: CodeReviewExecutor can detect when Sonar analysis exists for a branch/PR and include Sonar findings (clearly labeled as static analysis) in the review summary; DodExecutor can programmatically query Quality Gate status and configured metrics (e.g., coverage) and fail the DoD gate when configured thresholds or statuses are violated. Ensure secrets are handled securely, add tests (unit/integration) for the new flows, and document required CI behavior (SonarScanner must run on orchestrator-created branches). Implementation must follow allowed frameworks and patterns (NET 8, xUnit, Clean Architecture, Repository Pattern).
+Integrate a SonarQube MCP Server as a sibling Docker container managed by McpClientManager so the Orchestrator can query SonarQube metrics during SDLC workflows. Add SONAR_HOST_URL and SONAR_TOKEN to OrchestratorConfig (read from env, not logged). Expose Sonar-related MCP tools (minimum: sonarqube_get_new_issues and sonarqube_get_quality_gate_status or agreed equivalents) via the MCP handshake and ensure the Orchestrator can invoke them programmatically and parse responses. Update CodeReviewExecutor to detect when Sonar analysis exists for a PR/branch, invoke the new-issues tool when available, and include Sonar findings in the review output clearly labeled as static analysis. Update DodExecutor to invoke the quality-gate-status tool, fail the DoD when returned status is in a configurable fail list (default include ERROR and WARN as proposed), and enforce configured metric thresholds (default coverage threshold = 80%) independently if the quality gate is too loose. Ensure secrets are handled securely (SONAR_TOKEN never logged or persisted in plaintext), add unit and integration tests, document required CI behavior (SonarScanner must run on orchestrator-created branches), and define behavior for network/TLS failures (surface clear errors and treat Sonar data as unavailable, with configurable retry behavior). Implementation must follow allowed frameworks and patterns (.NET 8, xUnit, Clean Architecture, Repository Pattern).
 
 ## Acceptance Criteria (11)
 
@@ -37,7 +37,7 @@ Refinement will read your comment, incorporate answers, and stop re-asking those
 - [ ] What exact statuses should cause DodExecutor to fail by default? The plan suggests ERROR and WARN — confirm default fail set and whether WARN should be a fail by default or optional.
 - [ ] Should metric thresholds (e.g., coverage 80%) be global defaults, per-project configuration, or overridable in the DoD configuration? Where will those overrides be stored/read from?
 - [ ] How should the Sonar MCP container be networked relative to SonarHost (host network vs bridge) and will TLS certificate validation or proxy settings need to be supported? Provide networking constraints or expectations.
-- [ ] Where should SonarScanner execution live? The plan states CI pipeline must run the SonarScanner on branches created by Orchestrator — confirm that Orchestrator will not run scanners itself and that CI configuration is an external prerequisite.
+- [ ] Where should SonarScanner execution live? The plan states CI pipeline must run the SonarScanner on branches created by the Orchestrator — confirm that Orchestrator will not run scanners itself and that CI configuration is an external prerequisite.
 - [ ] What are the expected retry and timeout policies for MCP handshake and tool invocations (e.g., number of retries, backoff, timeouts)?
 - [ ] Do we need to support multiple Sonar instances (per-organization) or just a single SONAR_HOST_URL/SONAR_TOKEN pair? If multiple, how should credentials/configuration be specified?
 - [ ] What level of test coverage is required for integration tests (e.g., smoke test only vs full scenario with sample project analysis)? Is using a mocked MCP server acceptable for CI, or must CI include a real Sonar instance?
