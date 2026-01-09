@@ -286,7 +286,8 @@ public class GitHubIssueWatcherTests
 
         watcher.CompleteScanChannel();
 
-        watcher.RequestScan();
+        var exception = Record.Exception(() => watcher.RequestScan());
+        Assert.Null(exception);
     }
 
     private sealed class TestRunner : IWorkflowRunner
