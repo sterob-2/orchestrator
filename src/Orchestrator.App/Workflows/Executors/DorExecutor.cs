@@ -123,31 +123,11 @@ internal sealed class DorExecutor : WorkflowStageExecutor
             content.AppendLine();
             content.AppendLine("*These questions must be answered before the DoR gate can pass.*");
             content.AppendLine();
-            foreach (var question in refinement.OpenQuestions)
-            {
-                content.AppendLine($"- [ ] {question}");
-            }
-            content.AppendLine();
+            RefinementMarkdownBuilder.AppendOpenQuestions(content, refinement.OpenQuestions);
         }
 
-        if (!string.IsNullOrWhiteSpace(refinement.ClarifiedStory))
-        {
-            content.AppendLine("## Clarified Story");
-            content.AppendLine();
-            content.AppendLine(refinement.ClarifiedStory);
-            content.AppendLine();
-        }
-
-        if (refinement.AcceptanceCriteria.Count > 0)
-        {
-            content.AppendLine($"## Acceptance Criteria ({refinement.AcceptanceCriteria.Count})");
-            content.AppendLine();
-            foreach (var criterion in refinement.AcceptanceCriteria)
-            {
-                content.AppendLine($"- {criterion}");
-            }
-            content.AppendLine();
-        }
+        RefinementMarkdownBuilder.AppendClarifiedStory(content, refinement.ClarifiedStory);
+        RefinementMarkdownBuilder.AppendAcceptanceCriteria(content, refinement.AcceptanceCriteria);
 
         content.AppendLine("---");
         content.AppendLine("*See also: [Refinement Output](../refinement/issue-" + workItem.Number + ".md)*");

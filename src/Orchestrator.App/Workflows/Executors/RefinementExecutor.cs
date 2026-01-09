@@ -132,24 +132,8 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         content.AppendLine($"**Generated**: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
         content.AppendLine();
 
-        if (!string.IsNullOrWhiteSpace(refinement.ClarifiedStory))
-        {
-            content.AppendLine("## Clarified Story");
-            content.AppendLine();
-            content.AppendLine(refinement.ClarifiedStory);
-            content.AppendLine();
-        }
-
-        if (refinement.AcceptanceCriteria.Count > 0)
-        {
-            content.AppendLine($"## Acceptance Criteria ({refinement.AcceptanceCriteria.Count})");
-            content.AppendLine();
-            foreach (var criterion in refinement.AcceptanceCriteria)
-            {
-                content.AppendLine($"- {criterion}");
-            }
-            content.AppendLine();
-        }
+        RefinementMarkdownBuilder.AppendClarifiedStory(content, refinement.ClarifiedStory);
+        RefinementMarkdownBuilder.AppendAcceptanceCriteria(content, refinement.AcceptanceCriteria);
 
         if (refinement.OpenQuestions.Count > 0)
         {
@@ -162,11 +146,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             content.AppendLine();
             content.AppendLine("Refinement will read your comment, incorporate answers, and stop re-asking those questions.");
             content.AppendLine();
-            foreach (var question in refinement.OpenQuestions)
-            {
-                content.AppendLine($"- [ ] {question}");
-            }
-            content.AppendLine();
+            RefinementMarkdownBuilder.AppendOpenQuestions(content, refinement.OpenQuestions);
         }
 
         await FileOperationHelper.WriteAllTextAsync(WorkContext, filePath, content.ToString());
