@@ -40,22 +40,29 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             await WriteRefinementFileAsync(input.WorkItem, refinement, refinementPath);
             Logger.Info($"[Refinement] Wrote refinement output to {refinementPath}");
 
-            // Commit the refinement file
-            var branchName = $"issue-{input.WorkItem.Number}";
-            var commitMessage = $"refine: Update refinement for issue #{input.WorkItem.Number}\n\n" +
-                               $"- {refinement.AcceptanceCriteria.Count} acceptance criteria\n" +
-                               $"- {refinement.OpenQuestions.Count} open questions";
-
-            Logger.Debug($"[Refinement] Committing {refinementPath} to branch '{branchName}'");
-            var committed = WorkContext.Repo.CommitAndPush(branchName, commitMessage, new[] { refinementPath });
-
-            if (committed)
+            // Commit the refinement file (best effort - don't fail workflow if git fails)
+            try
             {
-                Logger.Info($"[Refinement] Committed and pushed refinement to branch '{branchName}'");
+                var branchName = $"issue-{input.WorkItem.Number}";
+                var commitMessage = $"refine: Update refinement for issue #{input.WorkItem.Number}\n\n" +
+                                   $"- {refinement.AcceptanceCriteria.Count} acceptance criteria\n" +
+                                   $"- {refinement.OpenQuestions.Count} open questions";
+
+                Logger.Debug($"[Refinement] Committing {refinementPath} to branch '{branchName}'");
+                var committed = WorkContext.Repo.CommitAndPush(branchName, commitMessage, new[] { refinementPath });
+
+                if (committed)
+                {
+                    Logger.Info($"[Refinement] Committed and pushed refinement to branch '{branchName}'");
+                }
+                else
+                {
+                    Logger.Warning($"[Refinement] No changes to commit (file unchanged)");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Logger.Warning($"[Refinement] No changes to commit (file unchanged)");
+                Logger.Warning($"[Refinement] Git commit failed (continuing anyway): {ex.Message}");
             }
 
             var summary = $"Refinement captured ({refinement.AcceptanceCriteria.Count} criteria, {refinement.OpenQuestions.Count} open questions).";
@@ -85,13 +92,13 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
 
         // Read issue comments to get answers
         var comments = await WorkContext.GitHub.GetIssueCommentsAsync(workItem.Number);
-        Logger.Debug($"[Refinement] Fetched {comments.Count} issue comment(s)");
+        Logger.Debug($"[Refinement] Fetched {comments?.Count ?? 0} issue comment(s)");
 
         var playbookContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.PlaybookPath) ?? "";
         Logger.Debug($"[Refinement] Playbook loaded: {playbookContent.Length} chars");
 
         var playbook = new PlaybookParser().Parse(playbookContent);
-        var prompt = RefinementPrompt.Build(workItem, playbook, existingSpec, previousRefinement, comments);
+        var prompt = RefinementPrompt.Build(workItem, playbook, existingSpec, previousRefinement, comments ?? Array.Empty<IssueComment>());
 
         Logger.Debug($"[Refinement] Calling LLM with model: {WorkContext.Config.TechLeadModel}");
         var response = await CallLlmAsync(
