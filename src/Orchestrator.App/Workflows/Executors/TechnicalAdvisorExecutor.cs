@@ -99,12 +99,7 @@ internal sealed class TechnicalAdvisorExecutor : LlmQuestionAnswerExecutor<Techn
         builder.AppendLine("- Be specific and actionable");
         builder.AppendLine("- If the answer is not clear, state 'CANNOT_ANSWER' in reasoning");
         builder.AppendLine();
-        builder.AppendLine("Return JSON:");
-        builder.AppendLine("{");
-        builder.AppendLine("  \"question\": string (repeat the question),");
-        builder.AppendLine("  \"answer\": string (your answer to the question),");
-        builder.AppendLine("  \"reasoning\": string (brief explanation or 'CANNOT_ANSWER' if unsure)");
-        builder.AppendLine("}");
+        PromptBuilders.AppendQuestionAnswerSchema(builder);
 
         return (system, builder.ToString());
     }
