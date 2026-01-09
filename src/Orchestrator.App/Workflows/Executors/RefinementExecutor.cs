@@ -41,6 +41,10 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         var workItem = input.WorkItem;
         var existingSpec = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.SpecPath(workItem.Number));
         Logger.Debug($"[Refinement] Existing spec found: {existingSpec != null}");
+        if (existingSpec != null)
+        {
+            Logger.Debug($"[Refinement] Spec content length: {existingSpec.Length} chars, first 100 chars: {existingSpec.Substring(0, Math.Min(100, existingSpec.Length))}");
+        }
 
         var playbookContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.PlaybookPath) ?? "";
         Logger.Debug($"[Refinement] Playbook loaded: {playbookContent.Length} chars");
