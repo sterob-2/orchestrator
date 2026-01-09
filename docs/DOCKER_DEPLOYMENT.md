@@ -13,7 +13,7 @@ This guide explains how the Orchestrator runs in Docker with MCP (Model Context 
 │  │  ┌─────────────────────────────────────────────┐  │ │
 │  │  │  .NET Application                           │  │ │
 │  │  │  - McpClientManager                         │  │ │
-│  │  │  - Agents                                   │  │ │
+│  │  │  - Workflow executors                       │  │ │
 │  │  │  - Workflows                                │  │ │
 │  │  └─────────────────────────────────────────────┘  │ │
 │  │                    │                              │ │
@@ -91,7 +91,10 @@ OPENAI_API_KEY=sk-yourOpenAIKeyHere
 OPENAI_BASE_URL=https://api.openai.com/v1
 
 # Orchestrator Configuration
-WORK_ITEM_LABEL=orchestrator:work-item
+WORK_ITEM_LABEL=ready-for-agents
+WEBHOOK_LISTEN_HOST=0.0.0.0
+WEBHOOK_PORT=5005
+WEBHOOK_PATH=/webhook
 
 ```
 
@@ -115,28 +118,23 @@ docker-compose down
 
 ### Build Stage
 ```dockerfile
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 COPY ./src/Orchestrator.App/ ./Orchestrator.App/
 RUN dotnet publish ./Orchestrator.App/Orchestrator.App.csproj -c Release -o /out
 ```
 
-- Uses .NET 10.0 SDK to build the application
+- Uses .NET 8.0 SDK to build the application
 - Publishes a release build
 
 ### Runtime Stage
 ```dockerfile
-FROM mcr.microsoft.com/dotnet/runtime:10.0
+FROM mcr.microsoft.com/dotnet/runtime:8.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
     ca-certificates \
-    curl \
+    docker.io \
+    git \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Docker CLI for spawning MCP server containers
-RUN curl -fsSL https://get.docker.com -o get-docker.sh && \
-    sh get-docker.sh && \
-    rm get-docker.sh
 
 WORKDIR /app
 COPY --from=build /out ./
@@ -144,8 +142,7 @@ ENTRYPOINT ["dotnet", "Orchestrator.App.dll"]
 ```
 
 - Uses smaller .NET runtime image
-- Installs Git (for repository operations)
-- **Installs Docker CLI** (for spawning MCP server containers)
+- Installs Git and Docker CLI for MCP server containers
 - Copies compiled application from build stage
 
 ## docker-compose.yml Breakdown

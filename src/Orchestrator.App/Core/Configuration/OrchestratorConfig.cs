@@ -22,12 +22,9 @@ public sealed record OrchestratorConfig(
     int WebhookPort,
     string WebhookPath,
     string WebhookSecret,
-    string ProjectStatusInProgress,
-    string ProjectStatusInReview,
     string ProjectOwner,
     string ProjectOwnerType,
-    int? ProjectNumber,
-    string ProjectStatusDone
+    int? ProjectNumber
 )
 {
     public static OrchestratorConfig FromEnvironment()
@@ -71,8 +68,6 @@ public sealed record OrchestratorConfig(
             UserReviewRequiredLabel: Get("USER_REVIEW_REQUIRED_LABEL", "user-review-required"),
             ReviewNeededLabel: Get("REVIEW_NEEDED_LABEL", "agent:review-needed"),
             ReviewedLabel: Get("REVIEWED_LABEL", "agent:reviewed"),
-            SpecQuestionsLabel: Get("SPEC_QUESTIONS_LABEL", "spec-questions"),
-            SpecClarifiedLabel: Get("SPEC_CLARIFIED_LABEL", "spec-clarified"),
             CodeReviewNeededLabel: Get("CODE_REVIEW_NEEDED_LABEL", "code-review-needed"),
             CodeReviewApprovedLabel: Get("CODE_REVIEW_APPROVED_LABEL", "code-review-approved"),
             CodeReviewChangesRequestedLabel: Get("CODE_REVIEW_CHANGES_REQUESTED_LABEL", "code-review-changes-requested"),
@@ -108,12 +103,9 @@ public sealed record OrchestratorConfig(
             WebhookPort: GetInt("WEBHOOK_PORT", 5005),
             WebhookPath: Get("WEBHOOK_PATH", "/webhook"),
             WebhookSecret: Get("WEBHOOK_SECRET"),
-            ProjectStatusInProgress: Get("PROJECT_STATUS_IN_PROGRESS", "In progress"),
-            ProjectStatusInReview: Get("PROJECT_STATUS_IN_REVIEW", "In Review"),
             ProjectOwner: Get("PROJECT_OWNER"),
             ProjectOwnerType: Get("PROJECT_OWNER_TYPE", "user"),
-            ProjectNumber: GetNullableInt("PROJECT_NUMBER"),
-            ProjectStatusDone: Get("PROJECT_STATUS_DONE", "Done")
+            ProjectNumber: GetNullableInt("PROJECT_NUMBER")
         );
     }
 }

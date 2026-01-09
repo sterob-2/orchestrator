@@ -60,8 +60,6 @@ public class McpTestFixture : IAsyncLifetime
                 UserReviewRequiredLabel: "user-review-required",
                 ReviewNeededLabel: "agent:review-needed",
                 ReviewedLabel: "agent:reviewed",
-                SpecQuestionsLabel: "spec-questions",
-                SpecClarifiedLabel: "spec-clarified",
                 CodeReviewNeededLabel: "code-review-needed",
                 CodeReviewApprovedLabel: "code-review-approved",
                 CodeReviewChangesRequestedLabel: "code-review-changes-requested",
@@ -71,12 +69,9 @@ public class McpTestFixture : IAsyncLifetime
             WebhookPort: 5005,
             WebhookPath: "/webhook",
             WebhookSecret: "",
-            ProjectStatusInProgress: "In Progress",
-            ProjectStatusInReview: "In Review",
             ProjectOwner: "test-owner",
             ProjectOwnerType: "user",
-            ProjectNumber: 1,
-            ProjectStatusDone: "Done"
+            ProjectNumber: 1
         );
 
         _manager = new McpClientManager();

@@ -83,8 +83,6 @@ internal static class MockWorkContext
                 UserReviewRequiredLabel: "user-review-required",
                 ReviewNeededLabel: "agent:review-needed",
                 ReviewedLabel: "agent:reviewed",
-                SpecQuestionsLabel: "spec-questions",
-                SpecClarifiedLabel: "spec-clarified",
                 CodeReviewNeededLabel: "code-review-needed",
                 CodeReviewApprovedLabel: "code-review-approved",
                 CodeReviewChangesRequestedLabel: "code-review-changes-requested",
@@ -94,12 +92,9 @@ internal static class MockWorkContext
             WebhookPort: 5005,
             WebhookPath: "/webhook",
             WebhookSecret: "test-secret",
-            ProjectStatusInProgress: "In Progress",
-            ProjectStatusInReview: "In Review",
             ProjectOwner: "test-owner",
             ProjectOwnerType: "user",
-            ProjectNumber: 1,
-            ProjectStatusDone: "Done"
+            ProjectNumber: 1
         );
     }
 

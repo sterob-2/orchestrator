@@ -44,8 +44,6 @@ public class CoreOrchestratorConfigTests
         "USER_REVIEW_REQUIRED_LABEL",
         "REVIEW_NEEDED_LABEL",
         "REVIEWED_LABEL",
-        "SPEC_QUESTIONS_LABEL",
-        "SPEC_CLARIFIED_LABEL",
         "CODE_REVIEW_NEEDED_LABEL",
         "CODE_REVIEW_APPROVED_LABEL",
         "CODE_REVIEW_CHANGES_REQUESTED_LABEL",
@@ -54,12 +52,9 @@ public class CoreOrchestratorConfigTests
         "WEBHOOK_PORT",
         "WEBHOOK_PATH",
         "WEBHOOK_SECRET",
-        "PROJECT_STATUS_IN_PROGRESS",
-        "PROJECT_STATUS_IN_REVIEW",
         "PROJECT_OWNER",
         "PROJECT_OWNER_TYPE",
-        "PROJECT_NUMBER",
-        "PROJECT_STATUS_DONE"
+        "PROJECT_NUMBER"
     };
 
     [Fact]
@@ -100,8 +95,6 @@ public class CoreOrchestratorConfigTests
             ["USER_REVIEW_REQUIRED_LABEL"] = "user-review",
             ["REVIEW_NEEDED_LABEL"] = "review-needed",
             ["REVIEWED_LABEL"] = "reviewed",
-            ["SPEC_QUESTIONS_LABEL"] = "spec-questions",
-            ["SPEC_CLARIFIED_LABEL"] = "spec-clarified",
             ["CODE_REVIEW_NEEDED_LABEL"] = "code-review-needed",
             ["CODE_REVIEW_APPROVED_LABEL"] = "code-review-approved",
             ["CODE_REVIEW_CHANGES_REQUESTED_LABEL"] = "code-review-changes-requested",
@@ -110,12 +103,9 @@ public class CoreOrchestratorConfigTests
             ["WEBHOOK_PORT"] = "7001",
             ["WEBHOOK_PATH"] = "/hook",
             ["WEBHOOK_SECRET"] = "secret",
-            ["PROJECT_STATUS_IN_PROGRESS"] = "In Progress",
-            ["PROJECT_STATUS_IN_REVIEW"] = "In Review",
             ["PROJECT_OWNER"] = "proj-owner",
             ["PROJECT_OWNER_TYPE"] = "org",
-            ["PROJECT_NUMBER"] = "42",
-            ["PROJECT_STATUS_DONE"] = "Done"
+            ["PROJECT_NUMBER"] = "42"
         };
 
         using var scope = new EnvScope(values);
@@ -157,8 +147,6 @@ public class CoreOrchestratorConfigTests
                 UserReviewRequiredLabel: "user-review",
                 ReviewNeededLabel: "review-needed",
                 ReviewedLabel: "reviewed",
-                SpecQuestionsLabel: "spec-questions",
-                SpecClarifiedLabel: "spec-clarified",
                 CodeReviewNeededLabel: "code-review-needed",
                 CodeReviewApprovedLabel: "code-review-approved",
                 CodeReviewChangesRequestedLabel: "code-review-changes-requested",
@@ -168,12 +156,9 @@ public class CoreOrchestratorConfigTests
             WebhookPort: 7001,
             WebhookPath: "/hook",
             WebhookSecret: "secret",
-            ProjectStatusInProgress: "In Progress",
-            ProjectStatusInReview: "In Review",
             ProjectOwner: "proj-owner",
             ProjectOwnerType: "org",
-            ProjectNumber: 42,
-            ProjectStatusDone: "Done"
+            ProjectNumber: 42
         );
 
         var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
@@ -223,8 +208,6 @@ public class CoreOrchestratorConfigTests
                 UserReviewRequiredLabel: "user-review-required",
                 ReviewNeededLabel: "agent:review-needed",
                 ReviewedLabel: "agent:reviewed",
-                SpecQuestionsLabel: "spec-questions",
-                SpecClarifiedLabel: "spec-clarified",
                 CodeReviewNeededLabel: "code-review-needed",
                 CodeReviewApprovedLabel: "code-review-approved",
                 CodeReviewChangesRequestedLabel: "code-review-changes-requested",
@@ -234,12 +217,9 @@ public class CoreOrchestratorConfigTests
             WebhookPort: 5005,
             WebhookPath: "/webhook",
             WebhookSecret: "",
-            ProjectStatusInProgress: "In progress",
-            ProjectStatusInReview: "In Review",
             ProjectOwner: "",
             ProjectOwnerType: "user",
-            ProjectNumber: null,
-            ProjectStatusDone: "Done"
+            ProjectNumber: null
         );
 
         var actual = CoreConfig.OrchestratorConfig.FromEnvironment();

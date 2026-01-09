@@ -17,8 +17,6 @@ public sealed record LabelConfig(
     string UserReviewRequiredLabel,
     string ReviewNeededLabel,
     string ReviewedLabel,
-    string SpecQuestionsLabel,
-    string SpecClarifiedLabel,
     string CodeReviewNeededLabel,
     string CodeReviewApprovedLabel,
     string CodeReviewChangesRequestedLabel,
