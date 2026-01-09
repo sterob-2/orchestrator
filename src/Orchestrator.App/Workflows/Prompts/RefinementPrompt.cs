@@ -5,11 +5,18 @@ namespace Orchestrator.App.Workflows;
 
 internal static class RefinementPrompt
 {
-    public static (string System, string User) Build(WorkItem item, Playbook playbook, string? existingSpec)
+    public static (string System, string User) Build(
+        WorkItem item,
+        Playbook playbook,
+        string? existingSpec,
+        string? previousRefinement = null,
+        IReadOnlyList<IssueComment>? comments = null)
     {
         var system = "You are an SDLC refinement assistant. " +
                      "Do not invent requirements. " +
-                     "Clarify ambiguity and produce structured JSON only.";
+                     "Clarify ambiguity and produce structured JSON only. " +
+                     "If previous refinement questions exist and issue comments contain answers, incorporate those answers and do NOT re-ask those questions. " +
+                     "Only ask new questions or questions that remain unanswered.";
 
         var builder = new StringBuilder();
         builder.AppendLine("Issue Title:");
@@ -18,6 +25,27 @@ internal static class RefinementPrompt
         builder.AppendLine("Issue Body:");
         builder.AppendLine(item.Body);
         builder.AppendLine();
+
+        // Include previous refinement to avoid re-asking same questions
+        if (!string.IsNullOrWhiteSpace(previousRefinement))
+        {
+            builder.AppendLine("Previous Refinement (contains questions previously asked):");
+            builder.AppendLine(previousRefinement);
+            builder.AppendLine();
+        }
+
+        // Include issue comments where answers might be
+        if (comments != null && comments.Count > 0)
+        {
+            builder.AppendLine("Issue Comments (may contain answers to questions):");
+            foreach (var comment in comments)
+            {
+                builder.AppendLine($"--- Comment by {comment.Author} ---");
+                builder.AppendLine(comment.Body);
+                builder.AppendLine();
+            }
+        }
+
         builder.AppendLine("Playbook Constraints:");
         builder.AppendLine(RenderPlaybook(playbook));
         builder.AppendLine();

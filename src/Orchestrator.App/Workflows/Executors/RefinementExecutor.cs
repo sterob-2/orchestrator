@@ -61,11 +61,19 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             Logger.Debug($"[Refinement] Spec content length: {existingSpec.Length} chars, first 100 chars: {existingSpec.Substring(0, Math.Min(100, existingSpec.Length))}");
         }
 
+        // Read previous refinement to see what questions were asked
+        var previousRefinement = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.RefinementPath(workItem.Number));
+        Logger.Debug($"[Refinement] Previous refinement found: {previousRefinement != null}");
+
+        // Read issue comments to get answers
+        var comments = await WorkContext.GitHub.GetIssueCommentsAsync(workItem.Number);
+        Logger.Debug($"[Refinement] Fetched {comments.Count} issue comment(s)");
+
         var playbookContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.PlaybookPath) ?? "";
         Logger.Debug($"[Refinement] Playbook loaded: {playbookContent.Length} chars");
 
         var playbook = new PlaybookParser().Parse(playbookContent);
-        var prompt = RefinementPrompt.Build(workItem, playbook, existingSpec);
+        var prompt = RefinementPrompt.Build(workItem, playbook, existingSpec, previousRefinement, comments);
 
         Logger.Debug($"[Refinement] Calling LLM with model: {WorkContext.Config.TechLeadModel}");
         var response = await CallLlmAsync(
@@ -118,7 +126,12 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         {
             content.AppendLine($"## Open Questions ({refinement.OpenQuestions.Count})");
             content.AppendLine();
-            content.AppendLine("*Answer these questions by adding comments to the GitHub issue, then re-trigger refinement.*");
+            content.AppendLine("**How to answer:**");
+            content.AppendLine("1. Add a comment to the GitHub issue with your answers");
+            content.AppendLine("2. Remove `blocked` and `user-review-required` labels");
+            content.AppendLine("3. Add the `dor` label to re-trigger refinement");
+            content.AppendLine();
+            content.AppendLine("Refinement will read your comment, incorporate answers, and stop re-asking those questions.");
             content.AppendLine();
             foreach (var question in refinement.OpenQuestions)
             {
