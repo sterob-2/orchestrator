@@ -11,12 +11,7 @@ internal static class TechLeadPrompt
                      "Do not add requirements. Output markdown only.";
 
         var builder = new StringBuilder();
-        builder.AppendLine("Issue Title:");
-        builder.AppendLine(item.Title);
-        builder.AppendLine();
-        builder.AppendLine("Issue Body:");
-        builder.AppendLine(item.Body);
-        builder.AppendLine();
+        PromptBuilders.AppendIssueTitleAndBody(builder, item);
         builder.AppendLine("Playbook Constraints:");
         builder.AppendLine(RenderPlaybook(playbook));
         builder.AppendLine();

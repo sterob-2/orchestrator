@@ -21,12 +21,7 @@ internal static class RefinementPrompt
                      "Only ask new questions or questions that remain unanswered.";
 
         var builder = new StringBuilder();
-        builder.AppendLine("Issue Title:");
-        builder.AppendLine(item.Title);
-        builder.AppendLine();
-        builder.AppendLine("Issue Body:");
-        builder.AppendLine(item.Body);
-        builder.AppendLine();
+        PromptBuilders.AppendIssueTitleAndBody(builder, item);
 
         // Include previous refinement to avoid re-asking same questions
         if (!string.IsNullOrWhiteSpace(previousRefinement))

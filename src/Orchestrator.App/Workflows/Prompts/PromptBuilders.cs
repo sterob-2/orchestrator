@@ -9,6 +9,19 @@ namespace Orchestrator.App.Workflows;
 internal static class PromptBuilders
 {
     /// <summary>
+    /// Appends issue title and body in standard format
+    /// </summary>
+    public static void AppendIssueTitleAndBody(StringBuilder builder, WorkItem workItem)
+    {
+        builder.AppendLine("Issue Title:");
+        builder.AppendLine(workItem.Title);
+        builder.AppendLine();
+        builder.AppendLine("Issue Body:");
+        builder.AppendLine(workItem.Body);
+        builder.AppendLine();
+    }
+
+    /// <summary>
     /// Appends standard issue context including title, body, clarified story, and acceptance criteria
     /// </summary>
     public static void AppendIssueContext(

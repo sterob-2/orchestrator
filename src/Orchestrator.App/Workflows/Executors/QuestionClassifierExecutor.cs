@@ -23,15 +23,10 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
         Logger.Info($"[QuestionClassifier] Classifying question for issue #{input.WorkItem.Number}");
 
         // Get refinement result
-        var refinementJson = await context.ReadOrInitStateAsync(
+        var refinementJson = await ReadStateWithFallbackAsync(
+            context,
             WorkflowStateKeys.RefinementResult,
-            () => string.Empty,
-            cancellationToken: cancellationToken);
-
-        if (string.IsNullOrEmpty(refinementJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.RefinementResult, out var fallbackJson))
-        {
-            refinementJson = fallbackJson;
-        }
+            cancellationToken);
 
         if (!WorkflowJson.TryDeserialize(refinementJson, out RefinementResult? refinement) || refinement is null)
         {

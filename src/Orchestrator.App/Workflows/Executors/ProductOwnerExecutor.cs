@@ -23,15 +23,10 @@ internal sealed class ProductOwnerExecutor : WorkflowStageExecutor
         Logger.Info($"[ProductOwner] Answering product question for issue #{input.WorkItem.Number}");
 
         // Get classification to know which question to answer
-        var classificationJson = await context.ReadOrInitStateAsync(
+        var classificationJson = await ReadStateWithFallbackAsync(
+            context,
             WorkflowStateKeys.QuestionClassificationResult,
-            () => string.Empty,
-            cancellationToken: cancellationToken);
-
-        if (string.IsNullOrEmpty(classificationJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.QuestionClassificationResult, out var fallbackJson))
-        {
-            classificationJson = fallbackJson;
-        }
+            cancellationToken);
 
         if (!WorkflowJson.TryDeserialize(classificationJson, out QuestionClassificationResult? classificationResult) || classificationResult is null)
         {
@@ -43,15 +38,10 @@ internal sealed class ProductOwnerExecutor : WorkflowStageExecutor
         Logger.Info($"[ProductOwner] Answering: {question}");
 
         // Get refinement for context
-        var refinementJson = await context.ReadOrInitStateAsync(
+        var refinementJson = await ReadStateWithFallbackAsync(
+            context,
             WorkflowStateKeys.RefinementResult,
-            () => string.Empty,
-            cancellationToken: cancellationToken);
-
-        if (string.IsNullOrEmpty(refinementJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.RefinementResult, out var refinementFallback))
-        {
-            refinementJson = refinementFallback;
-        }
+            cancellationToken);
 
         if (!WorkflowJson.TryDeserialize(refinementJson, out RefinementResult? refinement) || refinement is null)
         {
