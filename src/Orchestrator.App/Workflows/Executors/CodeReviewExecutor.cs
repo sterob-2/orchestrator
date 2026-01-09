@@ -166,8 +166,31 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
 
     private string BuildReviewMarkdown(CodeReviewResult result)
     {
-        // Try to load template, fallback to hardcoded if not found
-        string content;
+        var content = LoadReviewTemplate();
+        content = ApplyDecisionStatus(content, result);
+
+        var findingsSection = BuildFindingsSection(result);
+        var summarySection = BuildSummarySection(result);
+
+        content = System.Text.RegularExpressions.Regex.Replace(
+            content,
+            @"## Findings\s*\n- None",
+            findingsSection.TrimEnd(),
+            System.Text.RegularExpressions.RegexOptions.Multiline,
+            TimeSpan.FromSeconds(1));
+
+        content = System.Text.RegularExpressions.Regex.Replace(
+            content,
+            @"## Summary\s*\n- Review notes here\.",
+            summarySection.TrimEnd(),
+            System.Text.RegularExpressions.RegexOptions.Multiline,
+            TimeSpan.FromSeconds(1));
+
+        return content;
+    }
+
+    private string LoadReviewTemplate()
+    {
         try
         {
             if (WorkContext.Workspace.Exists(WorkflowPaths.ReviewTemplatePath))
@@ -179,70 +202,63 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
 
                 if (!string.IsNullOrWhiteSpace(template))
                 {
-                    content = template;
+                    return template;
                 }
-                else
-                {
-                    // Template file exists but is empty or ReadOrTemplate returned null - use fallback
-                    content = ApplyTokensToTemplate(DefaultReviewTemplate);
-                }
-            }
-            else
-            {
-                // Use hardcoded template and manually replace tokens
-                content = ApplyTokensToTemplate(DefaultReviewTemplate);
             }
         }
         catch
         {
-            // Any error reading template - use fallback
-            content = ApplyTokensToTemplate(DefaultReviewTemplate);
+            // Fall through to default template
         }
 
-        // Replace decision status
+        return ApplyTokensToTemplate(DefaultReviewTemplate);
+    }
+
+    private static string ApplyDecisionStatus(string content, CodeReviewResult result)
+    {
         var decision = result.Approved ? "APPROVED" : "CHANGES_REQUESTED";
         content = content.Replace("APPROVED | CHANGES_REQUESTED", decision);
         content = content.Replace("STATUS: PENDING", $"STATUS: {decision}");
+        return content;
+    }
 
-        // Build findings section
-        var findingsSection = new System.Text.StringBuilder();
-        findingsSection.AppendLine("## Findings");
+    private static string BuildFindingsSection(CodeReviewResult result)
+    {
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine("## Findings");
+
         if (result.Findings.Count == 0)
         {
-            findingsSection.AppendLine("- None");
+            builder.AppendLine("- None");
+            return builder.ToString();
         }
-        else
+
+        foreach (var finding in result.Findings)
         {
-            foreach (var finding in result.Findings)
-            {
-                var location = string.IsNullOrWhiteSpace(finding.File)
-                    ? ""
-                    : $" ({finding.File}{(finding.Line.HasValue ? $":{finding.Line}" : "")})";
-                findingsSection.AppendLine($"- [{finding.Severity}] {finding.Category}: {finding.Message}{location}");
-            }
+            var location = FormatFindingLocation(finding);
+            builder.AppendLine($"- [{finding.Severity}] {finding.Category}: {finding.Message}{location}");
         }
 
-        // Build summary section
-        var summarySection = new System.Text.StringBuilder();
-        summarySection.AppendLine("## Summary");
-        summarySection.AppendLine(result.Summary);
+        return builder.ToString();
+    }
 
-        // Replace sections in template
-        content = System.Text.RegularExpressions.Regex.Replace(
-            content,
-            @"## Findings\s*\n- None",
-            findingsSection.ToString().TrimEnd(),
-            System.Text.RegularExpressions.RegexOptions.Multiline,
-            TimeSpan.FromSeconds(1));
+    private static string FormatFindingLocation(ReviewFinding finding)
+    {
+        if (string.IsNullOrWhiteSpace(finding.File))
+        {
+            return "";
+        }
 
-        content = System.Text.RegularExpressions.Regex.Replace(
-            content,
-            @"## Summary\s*\n- Review notes here\.",
-            summarySection.ToString().TrimEnd(),
-            System.Text.RegularExpressions.RegexOptions.Multiline,
-            TimeSpan.FromSeconds(1));
+        var lineInfo = finding.Line.HasValue ? $":{finding.Line}" : "";
+        return $" ({finding.File}{lineInfo})";
+    }
 
-        return content;
+    private static string BuildSummarySection(CodeReviewResult result)
+    {
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine("## Summary");
+        builder.AppendLine(result.Summary);
+        return builder.ToString();
     }
 
     private string ApplyTokensToTemplate(string template)
