@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Orchestrator.App.Workflows;
 
@@ -6,7 +7,8 @@ internal static class WorkflowJson
 {
     private static readonly JsonSerializerOptions Options = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: true) }
     };
 
     public static string Serialize<T>(T value)

@@ -19,6 +19,9 @@ internal static class WorkflowFactory
         var labels = workContext.Config.Labels;
         var contextBuilder = new ContextBuilderExecutor(workContext, workflowConfig, labels, startOverride);
         var refinement = new RefinementExecutor(workContext, workflowConfig);
+        var questionClassifier = new QuestionClassifierExecutor(workContext, workflowConfig);
+        var productOwner = new ProductOwnerExecutor(workContext, workflowConfig);
+        var technicalAdvisor = new TechnicalAdvisorExecutor(workContext, workflowConfig);
         var dorGate = new DorExecutor(workContext, workflowConfig);
         var techLead = new TechLeadExecutor(workContext, workflowConfig);
         var specGate = new SpecGateExecutor(workContext, workflowConfig);
@@ -30,6 +33,9 @@ internal static class WorkflowFactory
         var builder = new WorkflowBuilder(contextBuilder)
             .WithOutputFrom(contextBuilder)
             .WithOutputFrom(refinement)
+            .WithOutputFrom(questionClassifier)
+            .WithOutputFrom(productOwner)
+            .WithOutputFrom(technicalAdvisor)
             .WithOutputFrom(dorGate)
             .WithOutputFrom(techLead)
             .WithOutputFrom(specGate)
@@ -46,6 +52,11 @@ internal static class WorkflowFactory
             .AddEdge(contextBuilder, dodGate)
             .AddEdge(contextBuilder, release)
             .AddEdge(refinement, dorGate)
+            .AddEdge(refinement, questionClassifier)
+            .AddEdge(questionClassifier, technicalAdvisor)
+            .AddEdge(questionClassifier, productOwner)
+            .AddEdge(productOwner, refinement)
+            .AddEdge(technicalAdvisor, refinement)
             .AddEdge(dorGate, techLead)
             .AddEdge(dorGate, refinement)
             .AddEdge(techLead, specGate)
@@ -70,6 +81,9 @@ internal static class WorkflowFactory
         {
             WorkflowStage.ContextBuilder => new ContextBuilderExecutor(workContext, workflowConfig, labels, null),
             WorkflowStage.Refinement => new RefinementExecutor(workContext, workflowConfig),
+            WorkflowStage.QuestionClassifier => new QuestionClassifierExecutor(workContext, workflowConfig),
+            WorkflowStage.ProductOwner => new ProductOwnerExecutor(workContext, workflowConfig),
+            WorkflowStage.TechnicalAdvisor => new TechnicalAdvisorExecutor(workContext, workflowConfig),
             WorkflowStage.DoR => new DorExecutor(workContext, workflowConfig),
             WorkflowStage.TechLead => new TechLeadExecutor(workContext, workflowConfig),
             WorkflowStage.SpecGate => new SpecGateExecutor(workContext, workflowConfig),

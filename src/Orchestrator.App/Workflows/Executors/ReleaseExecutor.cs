@@ -20,15 +20,10 @@ internal sealed class ReleaseExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
-        var dodJson = await context.ReadOrInitStateAsync(
+        var dodJson = await ReadStateWithFallbackAsync(
+            context,
             WorkflowStateKeys.DodGateResult,
-            () => string.Empty,
-            cancellationToken: cancellationToken);
-
-        if (string.IsNullOrEmpty(dodJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.DodGateResult, out var fallbackDodJson))
-        {
-            dodJson = fallbackDodJson;
-        }
+            cancellationToken);
 
         if (!WorkflowJson.TryDeserialize(dodJson, out GateResult? dodResult) || dodResult is null || !dodResult.Passed)
         {

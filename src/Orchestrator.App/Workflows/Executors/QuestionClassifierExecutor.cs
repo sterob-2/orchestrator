@@ -1,0 +1,129 @@
+using System.Text;
+using Microsoft.Agents.AI.Workflows;
+using Orchestrator.App.Core.Configuration;
+using Orchestrator.App.Core.Models;
+
+namespace Orchestrator.App.Workflows.Executors;
+
+internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
+{
+    public QuestionClassifierExecutor(WorkContext workContext, WorkflowConfig workflowConfig)
+        : base("QuestionClassifier", workContext, workflowConfig)
+    {
+    }
+
+    protected override WorkflowStage Stage => WorkflowStage.QuestionClassifier;
+    protected override string Notes => "Question classified.";
+
+    protected override async ValueTask<(bool Success, string Notes)> ExecuteAsync(
+        WorkflowInput input,
+        IWorkflowContext context,
+        CancellationToken cancellationToken)
+    {
+        Logger.Info($"[QuestionClassifier] Classifying question for issue #{input.WorkItem.Number}");
+
+        // Get refinement result
+        var refinementJson = await ReadStateWithFallbackAsync(
+            context,
+            WorkflowStateKeys.RefinementResult,
+            cancellationToken);
+
+        if (!WorkflowJson.TryDeserialize(refinementJson, out RefinementResult? refinement) || refinement is null)
+        {
+            Logger.Warning($"[QuestionClassifier] No refinement result found");
+            return (false, "Question classification failed: missing refinement output.");
+        }
+
+        if (refinement.OpenQuestions.Count == 0)
+        {
+            Logger.Warning($"[QuestionClassifier] No open questions to classify");
+            return (false, "Question classification failed: no open questions.");
+        }
+
+        // Get first question
+        var question = refinement.OpenQuestions[0];
+        Logger.Info($"[QuestionClassifier] Classifying: {question}");
+
+        // Build prompt for classification
+        var (systemPrompt, userPrompt) = BuildClassificationPrompt(question, input.WorkItem, refinement);
+
+        // Call LLM
+        Logger.Debug($"[QuestionClassifier] Calling LLM for classification");
+        var response = await CallLlmAsync(
+            WorkContext.Config.TechLeadModel,
+            systemPrompt,
+            userPrompt,
+            cancellationToken);
+
+        Logger.Debug($"[QuestionClassifier] LLM response: {response}");
+
+        // Parse classification
+        if (!WorkflowJson.TryDeserialize(response, out QuestionClassification? classification) || classification is null)
+        {
+            Logger.Warning($"[QuestionClassifier] Failed to parse LLM response, defaulting to Ambiguous");
+            classification = new QuestionClassification(question, QuestionType.Ambiguous, "Failed to parse LLM response");
+        }
+
+        Logger.Info($"[QuestionClassifier] Question classified as: {classification.Type}");
+        Logger.Debug($"[QuestionClassifier] Reasoning: {classification.Reasoning}");
+
+        // Store classification result
+        var result = new QuestionClassificationResult(classification);
+        var serialized = WorkflowJson.Serialize(result);
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.QuestionClassificationResult, serialized, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.QuestionClassificationResult] = serialized;
+
+        // Store the question itself for tracking
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.LastProcessedQuestion, question, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.LastProcessedQuestion] = question;
+
+        return (true, $"Question classified as {classification.Type}.");
+    }
+
+    protected override WorkflowStage? DetermineNextStage(bool success, WorkflowInput input)
+    {
+        if (!success)
+        {
+            return null;
+        }
+
+        // Get classification from state
+        if (!WorkContext.State.TryGetValue(WorkflowStateKeys.QuestionClassificationResult, out var classificationJson))
+        {
+            Logger.Warning($"[QuestionClassifier] No classification result in state");
+            return null;
+        }
+
+        if (!WorkflowJson.TryDeserialize(classificationJson, out QuestionClassificationResult? result) || result is null)
+        {
+            Logger.Warning($"[QuestionClassifier] Failed to deserialize classification result");
+            return null;
+        }
+
+        // Route based on question type
+        return result.Classification.Type switch
+        {
+            QuestionType.Technical => WorkflowStage.TechnicalAdvisor,
+            QuestionType.Product => WorkflowStage.ProductOwner,
+            QuestionType.Ambiguous => null, // Block - needs human intervention
+            _ => null
+        };
+    }
+
+    private static (string System, string User) BuildClassificationPrompt(string question, WorkItem workItem, RefinementResult refinement)
+    {
+        var system = "You are a question classifier for an SDLC workflow. " +
+                     "Classify questions as Technical, Product, or Ambiguous. " +
+                     "Return JSON only.";
+
+        var builder = new StringBuilder();
+        PromptBuilders.AppendIssueContext(builder, workItem, refinement);
+        builder.AppendLine("Question to Classify:");
+        builder.AppendLine(question);
+        builder.AppendLine();
+        PromptBuilders.AppendClassificationGuidelines(builder);
+        PromptBuilders.AppendQuestionClassificationSchema(builder);
+
+        return (system, builder.ToString());
+    }
+}

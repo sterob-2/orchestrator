@@ -4,6 +4,9 @@ internal enum WorkflowStage
 {
     ContextBuilder,
     Refinement,
+    QuestionClassifier,
+    ProductOwner,
+    TechnicalAdvisor,
     DoR,
     TechLead,
     SpecGate,

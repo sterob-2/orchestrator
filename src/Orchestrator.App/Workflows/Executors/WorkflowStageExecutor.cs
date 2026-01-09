@@ -99,6 +99,27 @@ internal abstract class WorkflowStageExecutor : Executor<WorkflowInput, Workflow
         return response;
     }
 
+    /// <summary>
+    /// Reads state with automatic fallback to WorkContext.State if workflow context returns empty
+    /// </summary>
+    protected async Task<string> ReadStateWithFallbackAsync(
+        IWorkflowContext context,
+        string stateKey,
+        CancellationToken cancellationToken)
+    {
+        var value = await context.ReadOrInitStateAsync(
+            stateKey,
+            () => string.Empty,
+            cancellationToken: cancellationToken);
+
+        if (string.IsNullOrEmpty(value) && WorkContext.State.TryGetValue(stateKey, out var fallbackValue))
+        {
+            value = fallbackValue;
+        }
+
+        return value;
+    }
+
     private static int MaxIterationsForStage(WorkflowConfig config, WorkflowStage stage)
     {
         return stage switch

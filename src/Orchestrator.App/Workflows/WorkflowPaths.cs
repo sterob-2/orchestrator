@@ -4,9 +4,7 @@ internal static class WorkflowPaths
 {
     public const string PlaybookPath = "docs/architecture-playbook.yaml";
     public const string SpecTemplatePath = "docs/templates/spec.md";
-    public const string PlanTemplatePath = "docs/templates/plan.md";
     public const string ReviewTemplatePath = "docs/templates/review.md";
-    public const string QuestionsTemplatePath = "docs/templates/questions.md";
     public const string MetricsPath = "orchestrator/metrics/workflow-metrics.jsonl";
 
     public static string SpecPath(int issueNumber) => $"orchestrator/specs/issue-{issueNumber}.md";

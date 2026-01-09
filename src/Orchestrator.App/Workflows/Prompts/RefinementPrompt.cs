@@ -15,16 +15,13 @@ internal static class RefinementPrompt
         var system = "You are an SDLC refinement assistant. " +
                      "Do not invent requirements. " +
                      "Clarify ambiguity and produce structured JSON only. " +
+                     "CRITICAL: All acceptance criteria MUST be testable using BDD format (Given/When/Then) or keywords (should, must, verify, ensure). " +
+                     "Write at least 3 specific, verifiable acceptance criteria. " +
                      "If previous refinement questions exist and issue comments contain answers, incorporate those answers and do NOT re-ask those questions. " +
                      "Only ask new questions or questions that remain unanswered.";
 
         var builder = new StringBuilder();
-        builder.AppendLine("Issue Title:");
-        builder.AppendLine(item.Title);
-        builder.AppendLine();
-        builder.AppendLine("Issue Body:");
-        builder.AppendLine(item.Body);
-        builder.AppendLine();
+        PromptBuilders.AppendIssueTitleAndBody(builder, item);
 
         // Include previous refinement to avoid re-asking same questions
         if (!string.IsNullOrWhiteSpace(previousRefinement))
@@ -52,6 +49,25 @@ internal static class RefinementPrompt
         builder.AppendLine("Existing Spec (if any):");
         builder.AppendLine(string.IsNullOrWhiteSpace(existingSpec) ? "None" : existingSpec);
         builder.AppendLine();
+        builder.AppendLine("IMPORTANT - Acceptance Criteria Requirements:");
+        builder.AppendLine("- You MUST write at least 3 testable acceptance criteria");
+        builder.AppendLine("- Each criterion MUST use BDD format or testable keywords");
+        builder.AppendLine("- BDD format: 'Given [context], when [action], then [outcome]'");
+        builder.AppendLine("- Testable keywords: 'should', 'must', 'verify', 'ensure', 'given', 'when', 'then'");
+        builder.AppendLine("- Each criterion must be specific, verifiable, and testable");
+        builder.AppendLine();
+        builder.AppendLine("Examples of VALID acceptance criteria:");
+        builder.AppendLine("  ✓ 'Given a user is logged in, when they click logout, then they should be redirected to the login page'");
+        builder.AppendLine("  ✓ 'The system must validate email format before saving'");
+        builder.AppendLine("  ✓ 'Should display error message when required fields are empty'");
+        builder.AppendLine("  ✓ 'Given invalid credentials, when user attempts login, then access must be denied'");
+        builder.AppendLine("  ✓ 'The API must return 401 status code for unauthorized requests'");
+        builder.AppendLine();
+        builder.AppendLine("Examples of INVALID acceptance criteria (will be rejected):");
+        builder.AppendLine("  ✗ 'User can log out' (not testable - no verification criteria)");
+        builder.AppendLine("  ✗ 'Good error handling' (vague, not verifiable)");
+        builder.AppendLine("  ✗ 'Works correctly' (not specific)");
+        builder.AppendLine();
         builder.AppendLine("Return JSON with fields:");
         builder.AppendLine("{");
         builder.AppendLine("  \"clarifiedStory\": string,");
@@ -77,29 +93,6 @@ internal static class RefinementPrompt
 
     private static string RenderPlaybook(Playbook playbook)
     {
-        if (playbook.AllowedFrameworks.Count == 0 && playbook.AllowedPatterns.Count == 0)
-        {
-            return "None";
-        }
-
-        var builder = new StringBuilder();
-        if (playbook.AllowedFrameworks.Count > 0)
-        {
-            builder.AppendLine("- Allowed Frameworks:");
-            foreach (var framework in playbook.AllowedFrameworks)
-            {
-                builder.AppendLine($"  - {framework.Name} ({framework.Id})");
-            }
-        }
-        if (playbook.AllowedPatterns.Count > 0)
-        {
-            builder.AppendLine("- Allowed Patterns:");
-            foreach (var pattern in playbook.AllowedPatterns)
-            {
-                builder.AppendLine($"  - {pattern.Name} ({pattern.Id})");
-            }
-        }
-
-        return builder.ToString().TrimEnd();
+        return PromptBuilders.RenderPlaybook(playbook);
     }
 }

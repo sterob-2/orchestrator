@@ -18,6 +18,34 @@ public class RefinementPromptTests
         Assert.Contains("Test Title", user);
         Assert.Contains("Test Body", user);
         Assert.Contains("Return JSON", user);
+        Assert.Contains("Acceptance Criteria Requirements", user);
+    }
+
+    [Fact]
+    public void Build_IncludesBddFormatRequirements()
+    {
+        var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
+        var playbook = new Playbook();
+
+        var (system, user) = RefinementPrompt.Build(workItem, playbook, null);
+
+        // System prompt should emphasize testable criteria
+        Assert.Contains("CRITICAL", system);
+        Assert.Contains("testable", system, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("BDD format", system);
+
+        // User prompt should have detailed requirements
+        Assert.Contains("IMPORTANT - Acceptance Criteria Requirements", user);
+        Assert.Contains("MUST write at least 3 testable acceptance criteria", user);
+        Assert.Contains("BDD format:", user);
+        Assert.Contains("Given [context], when [action], then [outcome]", user);
+        Assert.Contains("'should', 'must', 'verify', 'ensure'", user);
+
+        // Should have examples
+        Assert.Contains("Examples of VALID acceptance criteria", user);
+        Assert.Contains("Examples of INVALID acceptance criteria", user);
+        Assert.Contains("Given a user is logged in", user);
+        Assert.Contains("not testable", user);
     }
 
     [Fact]

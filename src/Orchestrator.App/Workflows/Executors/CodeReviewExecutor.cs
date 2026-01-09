@@ -6,7 +6,7 @@ using Orchestrator.App.Utilities;
 
 namespace Orchestrator.App.Workflows.Executors;
 
-internal sealed class CodeReviewExecutor : WorkflowStageExecutor
+internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
 {
     private bool _forceHumanReview;
 
@@ -22,15 +22,10 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
-        var devJson = await context.ReadOrInitStateAsync(
+        var devJson = await ReadStateWithFallbackAsync(
+            context,
             WorkflowStateKeys.DevResult,
-            () => string.Empty,
-            cancellationToken: cancellationToken);
-
-        if (string.IsNullOrEmpty(devJson) && WorkContext.State.TryGetValue(WorkflowStateKeys.DevResult, out var fallbackDevJson))
-        {
-            devJson = fallbackDevJson;
-        }
+            cancellationToken);
 
         if (!WorkflowJson.TryDeserialize(devJson, out DevResult? devResult) || devResult is null)
         {
@@ -169,33 +164,117 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
         }
     }
 
-    private static string BuildReviewMarkdown(CodeReviewResult result)
+    private string BuildReviewMarkdown(CodeReviewResult result)
+    {
+        var content = LoadReviewTemplate();
+        content = ApplyDecisionStatus(content, result);
+
+        var findingsSection = BuildFindingsSection(result);
+        var summarySection = BuildSummarySection(result);
+
+        content = FindingsSectionRegex().Replace(content, findingsSection.TrimEnd());
+        content = SummarySectionRegex().Replace(content, summarySection.TrimEnd());
+
+        return content;
+    }
+
+    private string LoadReviewTemplate()
+    {
+        try
+        {
+            if (WorkContext.Workspace.Exists(WorkflowPaths.ReviewTemplatePath))
+            {
+                var template = WorkContext.Workspace.ReadOrTemplate(
+                    WorkflowPaths.ReviewTemplatePath,
+                    WorkflowPaths.ReviewTemplatePath,
+                    TemplateUtil.BuildTokens(WorkContext));
+
+                if (!string.IsNullOrWhiteSpace(template))
+                {
+                    return template;
+                }
+            }
+        }
+        catch
+        {
+            // Fall through to default template
+        }
+
+        return ApplyTokensToTemplate(DefaultReviewTemplate);
+    }
+
+    private static string ApplyDecisionStatus(string content, CodeReviewResult result)
+    {
+        var decision = result.Approved ? "APPROVED" : "CHANGES_REQUESTED";
+        content = content.Replace("APPROVED | CHANGES_REQUESTED", decision);
+        content = content.Replace("STATUS: PENDING", $"STATUS: {decision}");
+        return content;
+    }
+
+    private static string BuildFindingsSection(CodeReviewResult result)
     {
         var builder = new System.Text.StringBuilder();
-        builder.AppendLine($"# Code Review");
-        builder.AppendLine();
-        builder.AppendLine($"STATUS: {(result.Approved ? "APPROVED" : "CHANGES_REQUESTED")}");
-        builder.AppendLine($"UPDATED: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
-        builder.AppendLine();
-        builder.AppendLine("## Summary");
-        builder.AppendLine(result.Summary);
-        builder.AppendLine();
         builder.AppendLine("## Findings");
+
         if (result.Findings.Count == 0)
         {
             builder.AppendLine("- None");
+            return builder.ToString();
         }
-        else
+
+        foreach (var finding in result.Findings)
         {
-            foreach (var finding in result.Findings)
-            {
-                var location = string.IsNullOrWhiteSpace(finding.File)
-                    ? ""
-                    : $" ({finding.File}{(finding.Line.HasValue ? $":{finding.Line}" : "")})";
-                builder.AppendLine($"- [{finding.Severity}] {finding.Category}: {finding.Message}{location}");
-            }
+            var location = FormatFindingLocation(finding);
+            builder.AppendLine($"- [{finding.Severity}] {finding.Category}: {finding.Message}{location}");
         }
 
         return builder.ToString();
     }
+
+    private static string FormatFindingLocation(ReviewFinding finding)
+    {
+        if (string.IsNullOrWhiteSpace(finding.File))
+        {
+            return "";
+        }
+
+        var lineInfo = finding.Line.HasValue ? $":{finding.Line}" : "";
+        return $" ({finding.File}{lineInfo})";
+    }
+
+    private static string BuildSummarySection(CodeReviewResult result)
+    {
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine("## Summary");
+        builder.AppendLine(result.Summary);
+        return builder.ToString();
+    }
+
+    private string ApplyTokensToTemplate(string template)
+    {
+        var content = template;
+        var tokens = TemplateUtil.BuildTokens(WorkContext);
+        foreach (var pair in tokens)
+        {
+            content = content.Replace(pair.Key, pair.Value, StringComparison.OrdinalIgnoreCase);
+        }
+        return content;
+    }
+
+    private const string DefaultReviewTemplate =
+        "# Code Review: Issue {{ISSUE_NUMBER}} - {{ISSUE_TITLE}}\n\n" +
+        "STATUS: PENDING\n" +
+        "UPDATED: {{UPDATED_AT_UTC}}\n\n" +
+        "## Decision\n" +
+        "APPROVED | CHANGES_REQUESTED\n\n" +
+        "## Findings\n" +
+        "- None\n\n" +
+        "## Notes\n" +
+        "- Review notes here.\n";
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"## Findings\s*\n- None", System.Text.RegularExpressions.RegexOptions.Multiline, 1000)]
+    private static partial System.Text.RegularExpressions.Regex FindingsSectionRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"## Summary\s*\n- Review notes here\.", System.Text.RegularExpressions.RegexOptions.Multiline, 1000)]
+    private static partial System.Text.RegularExpressions.Regex SummarySectionRegex();
 }
