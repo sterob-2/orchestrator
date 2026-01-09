@@ -131,7 +131,14 @@ public sealed class McpFileOperations
                 ["path"] = path
             };
 
-            await _mcpManager.CallToolAsync("get_file_info", args);
+            var result = await _mcpManager.CallToolAsync("get_file_info", args);
+
+            // Check if the result is an error message (file doesn't exist)
+            if (IsErrorMessage(result))
+            {
+                return false;
+            }
+
             return true;
         }
         catch (ArgumentException)

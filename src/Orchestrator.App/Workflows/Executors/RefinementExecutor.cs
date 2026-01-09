@@ -20,20 +20,29 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
-        Logger.Info($"[Refinement] Starting refinement for issue #{input.WorkItem.Number}");
-        Logger.Debug($"[Refinement] Checking for existing spec at: {WorkflowPaths.SpecPath(input.WorkItem.Number)}");
+        try
+        {
+            Logger.Info($"[Refinement] Starting refinement for issue #{input.WorkItem.Number}");
+            Logger.Debug($"[Refinement] Checking for existing spec at: {WorkflowPaths.SpecPath(input.WorkItem.Number)}");
 
-        var refinement = await BuildRefinementAsync(input, cancellationToken);
+            var refinement = await BuildRefinementAsync(input, cancellationToken);
 
-        Logger.Info($"[Refinement] Refinement complete: {refinement.AcceptanceCriteria.Count} criteria, {refinement.OpenQuestions.Count} questions");
-        Logger.Debug($"[Refinement] Storing refinement result in workflow state");
+            Logger.Info($"[Refinement] Refinement complete: {refinement.AcceptanceCriteria.Count} criteria, {refinement.OpenQuestions.Count} questions");
+            Logger.Debug($"[Refinement] Storing refinement result in workflow state");
 
-        var serialized = WorkflowJson.Serialize(refinement);
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.RefinementResult, serialized, cancellationToken);
-        WorkContext.State[WorkflowStateKeys.RefinementResult] = serialized;
+            var serialized = WorkflowJson.Serialize(refinement);
+            await context.QueueStateUpdateAsync(WorkflowStateKeys.RefinementResult, serialized, cancellationToken);
+            WorkContext.State[WorkflowStateKeys.RefinementResult] = serialized;
 
-        var summary = $"Refinement captured ({refinement.AcceptanceCriteria.Count} criteria, {refinement.OpenQuestions.Count} open questions).";
-        return (true, summary);
+            var summary = $"Refinement captured ({refinement.AcceptanceCriteria.Count} criteria, {refinement.OpenQuestions.Count} open questions).";
+            return (true, summary);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[Refinement] Failed with exception: {ex.GetType().Name}: {ex.Message}");
+            Logger.Debug($"[Refinement] Stack trace: {ex.StackTrace}");
+            throw;
+        }
     }
 
     private async Task<RefinementResult> BuildRefinementAsync(WorkflowInput input, CancellationToken cancellationToken)
