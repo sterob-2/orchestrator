@@ -173,6 +173,6 @@ public partial class SpecParser
     [GeneratedRegex(@"(^|\n)Scenario:", RegexOptions.Multiline, 2000)]
     private static partial Regex ScenarioRegex();
 
-    [GeneratedRegex(@"^([-*]|\d+\.)\s+")]
+    [GeneratedRegex(@"^([-*]|\d+\.)\s+", RegexOptions.None, 2000)]
     private static partial Regex ListItemPrefixRegex();
 }

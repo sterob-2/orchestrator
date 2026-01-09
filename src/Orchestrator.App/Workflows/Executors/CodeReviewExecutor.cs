@@ -232,13 +232,15 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
             content,
             @"## Findings\s*\n- None",
             findingsSection.ToString().TrimEnd(),
-            System.Text.RegularExpressions.RegexOptions.Multiline);
+            System.Text.RegularExpressions.RegexOptions.Multiline,
+            TimeSpan.FromSeconds(1));
 
         content = System.Text.RegularExpressions.Regex.Replace(
             content,
             @"## Summary\s*\n- Review notes here\.",
             summarySection.ToString().TrimEnd(),
-            System.Text.RegularExpressions.RegexOptions.Multiline);
+            System.Text.RegularExpressions.RegexOptions.Multiline,
+            TimeSpan.FromSeconds(1));
 
         return content;
     }
