@@ -6,7 +6,7 @@ using Orchestrator.App.Utilities;
 
 namespace Orchestrator.App.Workflows.Executors;
 
-internal sealed class CodeReviewExecutor : WorkflowStageExecutor
+internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
 {
     private bool _forceHumanReview;
 
@@ -172,19 +172,8 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
         var findingsSection = BuildFindingsSection(result);
         var summarySection = BuildSummarySection(result);
 
-        content = System.Text.RegularExpressions.Regex.Replace(
-            content,
-            @"## Findings\s*\n- None",
-            findingsSection.TrimEnd(),
-            System.Text.RegularExpressions.RegexOptions.Multiline,
-            TimeSpan.FromSeconds(1));
-
-        content = System.Text.RegularExpressions.Regex.Replace(
-            content,
-            @"## Summary\s*\n- Review notes here\.",
-            summarySection.TrimEnd(),
-            System.Text.RegularExpressions.RegexOptions.Multiline,
-            TimeSpan.FromSeconds(1));
+        content = FindingsSectionRegex().Replace(content, findingsSection.TrimEnd());
+        content = SummarySectionRegex().Replace(content, summarySection.TrimEnd());
 
         return content;
     }
@@ -282,4 +271,10 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
         "- None\n\n" +
         "## Notes\n" +
         "- Review notes here.\n";
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"## Findings\s*\n- None", System.Text.RegularExpressions.RegexOptions.Multiline, 1000)]
+    private static partial System.Text.RegularExpressions.Regex FindingsSectionRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"## Summary\s*\n- Review notes here\.", System.Text.RegularExpressions.RegexOptions.Multiline, 1000)]
+    private static partial System.Text.RegularExpressions.Regex SummarySectionRegex();
 }

@@ -113,7 +113,7 @@ internal abstract class GateExecutor<TInput> : WorkflowStageExecutor
     /// <summary>
     /// Helper: Commit a file to git with error handling (best effort).
     /// </summary>
-    protected async Task<bool> TryCommitAndPushAsync(
+    protected Task<bool> TryCommitAndPushAsync(
         WorkItem workItem,
         string filePath,
         string commitMessage)
@@ -127,23 +127,23 @@ internal abstract class GateExecutor<TInput> : WorkflowStageExecutor
             if (committed)
             {
                 Logger.Info($"[{Stage}] Committed and pushed to branch '{branchName}'");
-                return true;
+                return Task.FromResult(true);
             }
             else
             {
                 Logger.Warning($"[{Stage}] No changes to commit (file unchanged)");
-                return false;
+                return Task.FromResult(false);
             }
         }
         catch (LibGit2Sharp.LibGit2SharpException ex)
         {
             Logger.Warning($"[{Stage}] Git commit failed (continuing anyway): {ex.Message}");
-            return false;
+            return Task.FromResult(false);
         }
         catch (InvalidOperationException ex)
         {
             Logger.Warning($"[{Stage}] Git commit failed (continuing anyway): {ex.Message}");
-            return false;
+            return Task.FromResult(false);
         }
     }
 

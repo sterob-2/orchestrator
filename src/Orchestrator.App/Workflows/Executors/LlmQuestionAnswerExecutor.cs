@@ -37,7 +37,7 @@ internal abstract class LlmQuestionAnswerExecutor<TAnswer> : WorkflowStageExecut
         Logger.Debug($"[{Stage}] LLM response received");
 
         // 4. Parse response
-        if (!TryParseAnswer(response, out var answer) || answer == null)
+        if (!TryParseAnswer(response, out var answer) || EqualityComparer<TAnswer>.Default.Equals(answer, default))
         {
             Logger.Warning($"[{Stage}] Failed to parse LLM response");
             return (false, $"{Stage} failed: could not parse answer.");
