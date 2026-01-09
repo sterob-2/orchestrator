@@ -1,0 +1,130 @@
+using Orchestrator.App.Core.Models;
+using Orchestrator.App.Parsing;
+using Orchestrator.App.Workflows;
+
+namespace Orchestrator.App.Tests.Workflows;
+
+public class RefinementPromptTests
+{
+    [Fact]
+    public void Build_WithBasicWorkItem_ReturnsPrompt()
+    {
+        var workItem = new WorkItem(1, "Test Title", "Test Body", "url", new List<string>());
+        var playbook = new Playbook();
+
+        var (system, user) = RefinementPrompt.Build(workItem, playbook, null);
+
+        Assert.Contains("SDLC refinement assistant", system);
+        Assert.Contains("Test Title", user);
+        Assert.Contains("Test Body", user);
+        Assert.Contains("Return JSON", user);
+    }
+
+    [Fact]
+    public void Build_WithPreviousRefinement_IncludesPreviousRefinement()
+    {
+        var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
+        var playbook = new Playbook();
+        var previousRefinement = "# Previous refinement\n## Open Questions\n- Question 1?";
+
+        var (_, user) = RefinementPrompt.Build(workItem, playbook, null, previousRefinement);
+
+        Assert.Contains("Previous Refinement", user);
+        Assert.Contains("Question 1?", user);
+    }
+
+    [Fact]
+    public void Build_WithComments_IncludesComments()
+    {
+        var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
+        var playbook = new Playbook();
+        var comments = new List<IssueComment>
+        {
+            new IssueComment("user1", "Answer to question 1"),
+            new IssueComment("user2", "Answer to question 2")
+        };
+
+        var (_, user) = RefinementPrompt.Build(workItem, playbook, null, null, comments);
+
+        Assert.Contains("Issue Comments", user);
+        Assert.Contains("user1", user);
+        Assert.Contains("Answer to question 1", user);
+        Assert.Contains("user2", user);
+        Assert.Contains("Answer to question 2", user);
+    }
+
+    [Fact]
+    public void Build_WithPlaybook_IncludesPlaybookConstraints()
+    {
+        var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
+        var playbook = new Playbook
+        {
+            AllowedFrameworks = new List<FrameworkDef>
+            {
+                new FrameworkDef { Name = "React", Id = "react", Version = "18" }
+            },
+            AllowedPatterns = new List<PatternDef>
+            {
+                new PatternDef { Name = "MVC", Id = "mvc", Reference = "Model-View-Controller" }
+            }
+        };
+
+        var (_, user) = RefinementPrompt.Build(workItem, playbook, null);
+
+        Assert.Contains("Playbook Constraints", user);
+        Assert.Contains("React", user);
+        Assert.Contains("MVC", user);
+    }
+
+    [Fact]
+    public void Build_WithExistingSpec_IncludesSpec()
+    {
+        var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
+        var playbook = new Playbook();
+        var existingSpec = "# Existing Spec\n## Details\nSome details here";
+
+        var (_, user) = RefinementPrompt.Build(workItem, playbook, existingSpec);
+
+        Assert.Contains("Existing Spec", user);
+        Assert.Contains("Some details here", user);
+    }
+
+    [Fact]
+    public void Build_WithEmptyPlaybook_ShowsNone()
+    {
+        var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
+        var playbook = new Playbook();
+
+        var (_, user) = RefinementPrompt.Build(workItem, playbook, null);
+
+        Assert.Contains("Playbook Constraints:", user);
+        Assert.Contains("None", user);
+    }
+
+    [Fact]
+    public void Fallback_ParsesAcceptanceCriteriaFromBody()
+    {
+        var body = "Description\n\nAcceptance Criteria:\n- Given X\n- When Y\n- Then Z";
+        var workItem = new WorkItem(1, "Title", body, "url", new List<string>());
+
+        var result = RefinementPrompt.Fallback(workItem);
+
+        Assert.Equal(body, result.ClarifiedStory);
+        Assert.Equal(3, result.AcceptanceCriteria.Count);
+        Assert.Contains("Given X", result.AcceptanceCriteria);
+        Assert.Single(result.OpenQuestions);
+        Assert.Contains("invalid", result.OpenQuestions[0], StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Fallback_WithEmptyBody_UsesTitleAsStory()
+    {
+        var workItem = new WorkItem(1, "Test Title", "", "url", new List<string>());
+
+        var result = RefinementPrompt.Fallback(workItem);
+
+        Assert.Equal("Test Title", result.ClarifiedStory);
+        Assert.Empty(result.AcceptanceCriteria);
+        Assert.Single(result.OpenQuestions);
+    }
+}
