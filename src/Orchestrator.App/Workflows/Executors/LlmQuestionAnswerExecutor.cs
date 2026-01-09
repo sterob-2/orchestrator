@@ -55,11 +55,32 @@ internal abstract class LlmQuestionAnswerExecutor<TAnswer> : WorkflowStageExecut
 
     /// <summary>
     /// Extract the question to answer. Return (question, null) on success or (null, errorMessage) on failure.
+    /// Default implementation reads from QuestionClassificationResult in workflow state.
+    /// Override if executor needs different question extraction logic.
     /// </summary>
-    protected abstract Task<(string? Question, string? FailureMessage)> GetQuestionAsync(
+    protected virtual async Task<(string? Question, string? FailureMessage)> GetQuestionAsync(
         WorkflowInput input,
         IWorkflowContext context,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        Logger.Info($"[{Stage}] Answering question for issue #{input.WorkItem.Number}");
+
+        // Get classification to know which question to answer
+        var classificationJson = await ReadStateWithFallbackAsync(
+            context,
+            WorkflowStateKeys.QuestionClassificationResult,
+            cancellationToken);
+
+        if (!WorkflowJson.TryDeserialize(classificationJson, out QuestionClassificationResult? classificationResult) || classificationResult is null)
+        {
+            Logger.Warning($"[{Stage}] No classification result found");
+            return (null, $"{Stage} failed: missing classification.");
+        }
+
+        var question = classificationResult.Classification.Question;
+        Logger.Info($"[{Stage}] Answering: {question}");
+        return (question, null);
+    }
 
     /// <summary>
     /// Build the LLM prompt (system and user prompts) for answering the question.

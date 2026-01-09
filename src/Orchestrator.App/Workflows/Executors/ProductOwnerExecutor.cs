@@ -15,30 +15,6 @@ internal sealed class ProductOwnerExecutor : LlmQuestionAnswerExecutor<ProductOw
     protected override WorkflowStage Stage => WorkflowStage.ProductOwner;
     protected override string Notes => "Product question answered.";
 
-    protected override async Task<(string? Question, string? FailureMessage)> GetQuestionAsync(
-        WorkflowInput input,
-        IWorkflowContext context,
-        CancellationToken cancellationToken)
-    {
-        Logger.Info($"[ProductOwner] Answering product question for issue #{input.WorkItem.Number}");
-
-        // Get classification to know which question to answer
-        var classificationJson = await ReadStateWithFallbackAsync(
-            context,
-            WorkflowStateKeys.QuestionClassificationResult,
-            cancellationToken);
-
-        if (!WorkflowJson.TryDeserialize(classificationJson, out QuestionClassificationResult? classificationResult) || classificationResult is null)
-        {
-            Logger.Warning($"[ProductOwner] No classification result found");
-            return (null, "Product owner failed: missing classification.");
-        }
-
-        var question = classificationResult.Classification.Question;
-        Logger.Info($"[ProductOwner] Answering: {question}");
-        return (question, null);
-    }
-
     protected override (string System, string User) BuildPrompt(string question, WorkflowInput input)
     {
         // Get refinement for context (already in state from previous stages)

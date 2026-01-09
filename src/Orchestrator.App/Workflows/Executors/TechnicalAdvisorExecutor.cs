@@ -17,30 +17,6 @@ internal sealed class TechnicalAdvisorExecutor : LlmQuestionAnswerExecutor<Techn
     protected override WorkflowStage Stage => WorkflowStage.TechnicalAdvisor;
     protected override string Notes => "Technical question answered.";
 
-    protected override async Task<(string? Question, string? FailureMessage)> GetQuestionAsync(
-        WorkflowInput input,
-        IWorkflowContext context,
-        CancellationToken cancellationToken)
-    {
-        Logger.Info($"[TechnicalAdvisor] Answering technical question for issue #{input.WorkItem.Number}");
-
-        // Get classification to know which question to answer
-        var classificationJson = await ReadStateWithFallbackAsync(
-            context,
-            WorkflowStateKeys.QuestionClassificationResult,
-            cancellationToken);
-
-        if (!WorkflowJson.TryDeserialize(classificationJson, out QuestionClassificationResult? classificationResult) || classificationResult is null)
-        {
-            Logger.Warning($"[TechnicalAdvisor] No classification result found");
-            return (null, "Technical advisor failed: missing classification.");
-        }
-
-        var question = classificationResult.Classification.Question;
-        Logger.Info($"[TechnicalAdvisor] Answering: {question}");
-        return (question, null);
-    }
-
     protected override (string System, string User) BuildPrompt(string question, WorkflowInput input)
     {
         // Get playbook for context
