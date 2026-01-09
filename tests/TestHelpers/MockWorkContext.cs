@@ -66,7 +66,9 @@ internal static class MockWorkContext
                 MaxTechLeadIterations: 3,
                 MaxDevIterations: 3,
                 MaxCodeReviewIterations: 3,
-                MaxDodIterations: 3
+                MaxDodIterations: 3,
+                PollIntervalSeconds: 60,
+                FastPollIntervalSeconds: 10
             ),
             Labels: new LabelConfig(
                 WorkItemLabel: "ready-for-agents",
@@ -83,6 +85,8 @@ internal static class MockWorkContext
                 UserReviewRequiredLabel: "user-review-required",
                 ReviewNeededLabel: "agent:review-needed",
                 ReviewedLabel: "agent:reviewed",
+                SpecQuestionsLabel: "spec-questions",
+                SpecClarifiedLabel: "spec-clarified",
                 CodeReviewNeededLabel: "code-review-needed",
                 CodeReviewApprovedLabel: "code-review-approved",
                 CodeReviewChangesRequestedLabel: "code-review-changes-requested",
