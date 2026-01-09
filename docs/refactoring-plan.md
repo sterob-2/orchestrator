@@ -69,10 +69,10 @@ This plan breaks the v3.1 concept into parallelizable workstreams. Each workstre
 - [x] Deliverable: Green CI with coverage on new modules; documented test matrix mapping to DoD/Spec Gate rules.
 
 ## Workstream 10: Migration and Cleanup
-- Remove legacy agents (Planner/TechLead/Dev/etc.) and any related utilities once workflow executors are in place; no feature flags or fallback paths.
-- Remove legacy runner entrypoints and feature flags (including `UseWorkflowMode` and associated env vars).
-- Migrate configuration files, environment variables, and docs to new structure; update README and samples.
-- Deliverable: Legacy code removed; documentation updated; migration guide for operators.
+- [x] Remove legacy agents (Planner/TechLead/Dev/etc.) and any related utilities once workflow executors are in place; no feature flags or fallback paths.
+- [x] Remove legacy runner entrypoints and feature flags (including `UseWorkflowMode` and associated env vars).
+- [x] Migrate configuration files, environment variables, and docs to new structure; update README and samples.
+- [x] Deliverable: Legacy code removed; documentation updated; migration guide for operators.
 
 ## Parallelization Notes
 - Workstreams 1, 2, and 8 can start immediately and unblock others.

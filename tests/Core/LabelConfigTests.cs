@@ -23,8 +23,6 @@ public class LabelConfigTests
             UserReviewRequiredLabel: "user-review",
             ReviewNeededLabel: "review-needed",
             ReviewedLabel: "reviewed",
-            SpecQuestionsLabel: "spec-questions",
-            SpecClarifiedLabel: "spec-clarified",
             CodeReviewNeededLabel: "code-review-needed",
             CodeReviewApprovedLabel: "code-review-approved",
             CodeReviewChangesRequestedLabel: "code-review-changes-requested",
@@ -45,8 +43,6 @@ public class LabelConfigTests
         Assert.Equal("user-review", config.UserReviewRequiredLabel);
         Assert.Equal("review-needed", config.ReviewNeededLabel);
         Assert.Equal("reviewed", config.ReviewedLabel);
-        Assert.Equal("spec-questions", config.SpecQuestionsLabel);
-        Assert.Equal("spec-clarified", config.SpecClarifiedLabel);
         Assert.Equal("code-review-needed", config.CodeReviewNeededLabel);
         Assert.Equal("code-review-approved", config.CodeReviewApprovedLabel);
         Assert.Equal("code-review-changes-requested", config.CodeReviewChangesRequestedLabel);

@@ -72,9 +72,9 @@ An AI-driven SDLC orchestrator built on the Microsoft Agent Framework. It proces
    - `IN_PROGRESS_LABEL` - Applied when work starts
    - `DONE_LABEL` - Applied when complete
    - `BLOCKED_LABEL` - Applied when blocked
+   - `DOR_LABEL` - DoR gate label
+   - `SPEC_GATE_LABEL` - Spec gate label
    - `USER_REVIEW_REQUIRED_LABEL` - Request user clarification
-   - `SPEC_QUESTIONS_LABEL` - Specification questions pending
-   - `SPEC_CLARIFIED_LABEL` - Specification clarified
    - `CODE_REVIEW_NEEDED_LABEL` - Code review requested
    - `CODE_REVIEW_APPROVED_LABEL` - Code review approved
    - `CODE_REVIEW_CHANGES_REQUESTED_LABEL` - Changes requested
@@ -129,6 +129,8 @@ dotnet test tests/Orchestrator.App.Tests.csproj --configuration Release
 
 - Concept: `docs/sdlc-orchestrator-konzept-v3.md`
 - Refactoring plan: `docs/refactoring-plan.md`
+- Workflow: `docs/workflow.md`
+- Migration guide: `docs/migration-guide.md`
 - MCP Setup: `docs/MCP_SETUP.md`
 - Docker Deployment: `docs/DOCKER_DEPLOYMENT.md`
 
