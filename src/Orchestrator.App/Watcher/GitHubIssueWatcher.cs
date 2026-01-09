@@ -45,8 +45,10 @@ internal sealed class GitHubIssueWatcher
         Logger.WriteLine(pollingEnabled
             ? $"Watcher started. Polling enabled (idle: {_config.Workflow.PollIntervalSeconds}s, fast: {_config.Workflow.FastPollIntervalSeconds}s), webhook triggers supported."
             : "Watcher started. Polling disabled, waiting for webhook triggers only.");
+
         Logger.WriteLine($"[Watcher] Watching for label: '{_config.Labels.WorkItemLabel}' (and workflow stage labels)");
         Logger.WriteLine($"[Watcher] Repository: {_config.RepoOwner}/{_config.RepoName}");
+
 
         RequestScan(); // Initial scan
         WorkItem? lastWorkItem = null;
