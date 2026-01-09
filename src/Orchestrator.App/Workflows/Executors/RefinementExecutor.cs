@@ -40,6 +40,24 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             await WriteRefinementFileAsync(input.WorkItem, refinement, refinementPath);
             Logger.Info($"[Refinement] Wrote refinement output to {refinementPath}");
 
+            // Commit the refinement file
+            var branchName = $"issue-{input.WorkItem.Number}";
+            var commitMessage = $"refine: Update refinement for issue #{input.WorkItem.Number}\n\n" +
+                               $"- {refinement.AcceptanceCriteria.Count} acceptance criteria\n" +
+                               $"- {refinement.OpenQuestions.Count} open questions";
+
+            Logger.Debug($"[Refinement] Committing {refinementPath} to branch '{branchName}'");
+            var committed = WorkContext.Repo.CommitAndPush(branchName, commitMessage, new[] { refinementPath });
+
+            if (committed)
+            {
+                Logger.Info($"[Refinement] Committed and pushed refinement to branch '{branchName}'");
+            }
+            else
+            {
+                Logger.Warning($"[Refinement] No changes to commit (file unchanged)");
+            }
+
             var summary = $"Refinement captured ({refinement.AcceptanceCriteria.Count} criteria, {refinement.OpenQuestions.Count} open questions).";
             return (true, summary);
         }

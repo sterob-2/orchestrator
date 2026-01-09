@@ -50,6 +50,24 @@ internal sealed class DorExecutor : WorkflowStageExecutor
             await WriteDorResultFileAsync(input.WorkItem, refinement, result, dorPath);
             Logger.Info($"[DoR] Wrote DoR result to {dorPath}");
 
+            // Commit the DoR result file
+            var branchName = $"issue-{input.WorkItem.Number}";
+            var commitMessage = $"dor: DoR gate failed for issue #{input.WorkItem.Number}\n\n" +
+                               $"Failures:\n" +
+                               string.Join("\n", result.Failures.Select(f => $"- {f}"));
+
+            Logger.Debug($"[DoR] Committing {dorPath} to branch '{branchName}'");
+            var committed = WorkContext.Repo.CommitAndPush(branchName, commitMessage, new[] { dorPath });
+
+            if (committed)
+            {
+                Logger.Info($"[DoR] Committed and pushed DoR result to branch '{branchName}'");
+            }
+            else
+            {
+                Logger.Warning($"[DoR] No changes to commit (file unchanged)");
+            }
+
             // Post simple pointer comment to GitHub
             await PostDorFailurePointerAsync(input.WorkItem, dorPath, result);
         }
