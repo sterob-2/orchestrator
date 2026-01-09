@@ -55,7 +55,7 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
         // Call LLM
         Logger.Debug($"[QuestionClassifier] Calling LLM for classification");
         var response = await CallLlmAsync(
-            WorkContext.Config.RefinementModel,
+            WorkContext.Config.TechLeadModel,
             systemPrompt,
             userPrompt,
             cancellationToken);
