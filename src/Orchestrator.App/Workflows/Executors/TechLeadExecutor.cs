@@ -68,7 +68,11 @@ internal sealed class TechLeadExecutor : WorkflowStageExecutor
                 Logger.Warning($"[TechLead] No changes to commit (spec unchanged)");
             }
         }
-        catch (Exception ex)
+        catch (LibGit2Sharp.LibGit2SharpException ex)
+        {
+            Logger.Warning($"[TechLead] Git commit failed (continuing anyway): {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             Logger.Warning($"[TechLead] Git commit failed (continuing anyway): {ex.Message}");
         }

@@ -60,7 +60,11 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
                     Logger.Warning($"[Refinement] No changes to commit (file unchanged)");
                 }
             }
-            catch (Exception ex)
+            catch (LibGit2Sharp.LibGit2SharpException ex)
+            {
+                Logger.Warning($"[Refinement] Git commit failed (continuing anyway): {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Logger.Warning($"[Refinement] Git commit failed (continuing anyway): {ex.Message}");
             }

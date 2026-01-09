@@ -70,7 +70,11 @@ internal sealed class DorExecutor : WorkflowStageExecutor
                     Logger.Warning($"[DoR] No changes to commit (file unchanged)");
                 }
             }
-            catch (Exception ex)
+            catch (LibGit2Sharp.LibGit2SharpException ex)
+            {
+                Logger.Warning($"[DoR] Git commit failed (continuing anyway): {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Logger.Warning($"[DoR] Git commit failed (continuing anyway): {ex.Message}");
             }
