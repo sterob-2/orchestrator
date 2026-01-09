@@ -40,13 +40,13 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
             return (false, "Question classification failed: no open questions.");
         }
 
-        // Get first question (index 0)
+        // Get first question (index 0) - questions now have stable numbers
         var questionIndex = 0;
-        var question = refinement.OpenQuestions[questionIndex];
-        Logger.Info($"[QuestionClassifier] Classifying question #{questionIndex + 1}: {question}");
+        var openQuestion = refinement.OpenQuestions[questionIndex];
+        Logger.Info($"[QuestionClassifier] Classifying question #{openQuestion.QuestionNumber}: {openQuestion.Question}");
 
         // Build prompt for classification
-        var (systemPrompt, userPrompt) = BuildClassificationPrompt(question, input.WorkItem, refinement);
+        var (systemPrompt, userPrompt) = BuildClassificationPrompt(openQuestion.Question, input.WorkItem, refinement);
 
         // Call LLM
         Logger.Debug($"[QuestionClassifier] Calling LLM for classification");
@@ -62,7 +62,7 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
         if (!WorkflowJson.TryDeserialize(response, out QuestionClassification? classification) || classification is null)
         {
             Logger.Warning($"[QuestionClassifier] Failed to parse LLM response, defaulting to Ambiguous");
-            classification = new QuestionClassification(question, QuestionType.Ambiguous, "Failed to parse LLM response");
+            classification = new QuestionClassification(openQuestion.Question, QuestionType.Ambiguous, "Failed to parse LLM response");
         }
 
         Logger.Info($"[QuestionClassifier] Question classified as: {classification.Type}");
@@ -74,11 +74,11 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
         await context.QueueStateUpdateAsync(WorkflowStateKeys.QuestionClassificationResult, serialized, cancellationToken);
         WorkContext.State[WorkflowStateKeys.QuestionClassificationResult] = serialized;
 
-        // Store the question and its index for tracking
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.LastProcessedQuestion, question, cancellationToken);
-        WorkContext.State[WorkflowStateKeys.LastProcessedQuestion] = question;
+        // Store the question and its stable number for tracking
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.LastProcessedQuestion, openQuestion.Question, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.LastProcessedQuestion] = openQuestion.Question;
 
-        var questionNumber = (questionIndex + 1).ToString();
+        var questionNumber = openQuestion.QuestionNumber.ToString();
         await context.QueueStateUpdateAsync(WorkflowStateKeys.LastProcessedQuestionNumber, questionNumber, cancellationToken);
         WorkContext.State[WorkflowStateKeys.LastProcessedQuestionNumber] = questionNumber;
 

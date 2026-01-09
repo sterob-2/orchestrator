@@ -37,12 +37,11 @@ internal static class RefinementMarkdownBuilder
         content.AppendLine();
     }
 
-    public static void AppendOpenQuestions(StringBuilder content, IReadOnlyList<string> questions)
+    public static void AppendOpenQuestions(StringBuilder content, IReadOnlyList<OpenQuestion> questions)
     {
-        for (int i = 0; i < questions.Count; i++)
+        foreach (var question in questions)
         {
-            var questionNumber = i + 1;
-            content.AppendLine($"- [ ] **Question #{questionNumber}:** {questions[i]}");
+            content.AppendLine($"- [ ] **Question #{question.QuestionNumber}:** {question.Question}");
         }
         content.AppendLine();
     }

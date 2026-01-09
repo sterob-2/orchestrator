@@ -36,7 +36,7 @@ public class DorExecutorTests
                 "Given valid input, when processing, then it should succeed.",
                 "Given invalid input, when processing, then an error should be returned."
             },
-            new List<string>(), // No open questions
+            new List<OpenQuestion>(), // No open questions
             new ComplexityIndicators(new List<string> { "signal" }, null));
 
         var workflowContext = new Mock<IWorkflowContext>();
@@ -57,7 +57,7 @@ public class DorExecutorTests
     public async Task HandleAsync_FailsWhenRefinementHasOpenQuestions()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(2, "Title", "Body", "url", new List<string>());
+        var workItem = new WorkItem(2, "Title", "Body", "url", new List<OpenQuestion>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
@@ -79,8 +79,8 @@ public class DorExecutorTests
         var refinement = new RefinementResult(
             "Clarified story",
             new List<string> { "Criterion 1" },
-            new List<string> { "Question 1?", "Question 2?" },
-            new ComplexityIndicators(new List<string>(), null));
+            new List<OpenQuestion> { new OpenQuestion(1, "Question 1?"), new OpenQuestion(2, "Question 2?") },
+            new ComplexityIndicators(new List<OpenQuestion>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
@@ -101,7 +101,7 @@ public class DorExecutorTests
     public async Task HandleAsync_FailsWhenRefinementMissing()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(3, "Title", "Body", "url", new List<string>());
+        var workItem = new WorkItem(3, "Title", "Body", "url", new List<OpenQuestion>());
         var github = new Mock<IGitHubClient>();
         var workspace = new Mock<IRepoWorkspace>();
         var repo = new Mock<IRepoGit>();
@@ -131,7 +131,7 @@ public class DorExecutorTests
     public async Task HandleAsync_WritesFileWhenGateFails()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(4, "Title", "Body", "url", new List<string>());
+        var workItem = new WorkItem(4, "Title", "Body", "url", new List<OpenQuestion>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
@@ -154,9 +154,9 @@ public class DorExecutorTests
 
         var refinement = new RefinementResult(
             "Story",
-            new List<string>(),
-            new List<string> { "Open question?" },
-            new ComplexityIndicators(new List<string>(), null));
+            new List<OpenQuestion>(),
+            new List<OpenQuestion> { new OpenQuestion(1, "Open question?") },
+            new ComplexityIndicators(new List<OpenQuestion>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
@@ -180,7 +180,7 @@ public class DorExecutorTests
     public async Task HandleAsync_ContinuesWhenGitCommitFailsWithLibGit2Exception()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(5, "Title", "Body", "url", new List<string>());
+        var workItem = new WorkItem(5, "Title", "Body", "url", new List<OpenQuestion>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
@@ -201,9 +201,9 @@ public class DorExecutorTests
 
         var refinement = new RefinementResult(
             "Story",
-            new List<string>(),
+            new List<OpenQuestion>(),
             new List<string> { "Question 1?" },
-            new ComplexityIndicators(new List<string>(), null));
+            new ComplexityIndicators(new List<OpenQuestion>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
@@ -223,7 +223,7 @@ public class DorExecutorTests
     public async Task HandleAsync_ContinuesWhenGitCommitFailsWithInvalidOperationException()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(6, "Title", "Body", "url", new List<string>());
+        var workItem = new WorkItem(6, "Title", "Body", "url", new List<OpenQuestion>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
@@ -244,9 +244,9 @@ public class DorExecutorTests
 
         var refinement = new RefinementResult(
             "Story",
-            new List<string>(),
+            new List<OpenQuestion>(),
             new List<string> { "Question 1?" },
-            new ComplexityIndicators(new List<string>(), null));
+            new ComplexityIndicators(new List<OpenQuestion>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
@@ -266,7 +266,7 @@ public class DorExecutorTests
     public async Task HandleAsync_HandlesGitHubApiException()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(7, "Title", "Body", "url", new List<string>());
+        var workItem = new WorkItem(7, "Title", "Body", "url", new List<OpenQuestion>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Throws(new Octokit.ApiException("API error", System.Net.HttpStatusCode.BadRequest));
@@ -287,9 +287,9 @@ public class DorExecutorTests
 
         var refinement = new RefinementResult(
             "Story",
-            new List<string>(),
+            new List<OpenQuestion>(),
             new List<string> { "Question 1?" },
-            new ComplexityIndicators(new List<string>(), null));
+            new ComplexityIndicators(new List<OpenQuestion>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
@@ -308,7 +308,7 @@ public class DorExecutorTests
     public async Task HandleAsync_HandlesHttpRequestException()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(8, "Title", "Body", "url", new List<string>());
+        var workItem = new WorkItem(8, "Title", "Body", "url", new List<OpenQuestion>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Throws(new System.Net.Http.HttpRequestException("Network error"));
@@ -329,9 +329,9 @@ public class DorExecutorTests
 
         var refinement = new RefinementResult(
             "Story",
-            new List<string>(),
+            new List<OpenQuestion>(),
             new List<string> { "Question 1?" },
-            new ComplexityIndicators(new List<string>(), null));
+            new ComplexityIndicators(new List<OpenQuestion>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
@@ -350,7 +350,7 @@ public class DorExecutorTests
     public async Task HandleAsync_HandlesOperationCanceledException()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(9, "Title", "Body", "url", new List<string>());
+        var workItem = new WorkItem(9, "Title", "Body", "url", new List<OpenQuestion>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Throws(new OperationCanceledException("Timeout"));
@@ -371,9 +371,9 @@ public class DorExecutorTests
 
         var refinement = new RefinementResult(
             "Story",
-            new List<string>(),
+            new List<OpenQuestion>(),
             new List<string> { "Question 1?" },
-            new ComplexityIndicators(new List<string>(), null));
+            new ComplexityIndicators(new List<OpenQuestion>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))

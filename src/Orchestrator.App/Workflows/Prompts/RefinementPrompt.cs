@@ -86,7 +86,7 @@ internal static class RefinementPrompt
         builder.AppendLine("{");
         builder.AppendLine("  \"clarifiedStory\": string,");
         builder.AppendLine("  \"acceptanceCriteria\": [string],");
-        builder.AppendLine("  \"openQuestions\": [string],");
+        builder.AppendLine("  \"openQuestions\": [string],  // IMPORTANT: Do NOT include 'Question #X:' prefix - just the question text");
         builder.AppendLine("  \"complexitySignals\": [string],");
         builder.AppendLine("  \"complexitySummary\": string,");
         builder.AppendLine("  \"answeredQuestions\": [{ \"questionNumber\": int, \"question\": string, \"answer\": string, \"answeredBy\": string }] (optional)");
@@ -102,7 +102,7 @@ internal static class RefinementPrompt
         return new RefinementResult(
             clarifiedStory,
             acceptanceCriteria,
-            new List<string> { "Refinement output was invalid; please clarify requirements." },
+            new List<OpenQuestion> { new OpenQuestion(1, "Refinement output was invalid; please clarify requirements.") },
             new ComplexityIndicators(new List<string>(), null));
     }
 

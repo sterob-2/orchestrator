@@ -141,7 +141,7 @@ public class RefinementPromptTests
         Assert.Equal(3, result.AcceptanceCriteria.Count);
         Assert.Contains("Given X", result.AcceptanceCriteria);
         Assert.Single(result.OpenQuestions);
-        Assert.Contains("invalid", result.OpenQuestions[0], StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("invalid", result.OpenQuestions[0].Question, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

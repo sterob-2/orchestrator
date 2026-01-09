@@ -181,7 +181,8 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
 
         Logger.Debug($"[Refinement] LLM response received: {response.Length} chars");
 
-        if (!WorkflowJson.TryDeserialize(response, out RefinementResult? result) || result is null)
+        // Parse LLM response (questions as strings)
+        if (!WorkflowJson.TryDeserialize(response, out RefinementLlmResult? llmResult) || llmResult is null)
         {
             Logger.Warning($"[Refinement] Failed to parse LLM response, using fallback");
             return RefinementPrompt.Fallback(workItem);
@@ -189,9 +190,73 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
 
         Logger.Debug($"[Refinement] Successfully parsed refinement result");
 
-        // Preserve answered questions history in the result
-        var resultWithHistory = result with { AnsweredQuestions = previousAnsweredQuestions };
-        return resultWithHistory;
+        // Clean question text - strip any "Question #X:" prefix that LLM might have added
+        var cleanedQuestionStrings = llmResult.OpenQuestions
+            .Select(q => System.Text.RegularExpressions.Regex.Replace(q.Trim(), @"^Question\s+#\d+:\s*", "", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
+            .ToList();
+
+        // Load previous OpenQuestions to get existing question numbers
+        var previousOpenQuestions = new List<OpenQuestion>();
+        if (WorkContext.State.TryGetValue(WorkflowStateKeys.RefinementResult, out var prevRefinementJson2) &&
+            WorkflowJson.TryDeserialize(prevRefinementJson2, out RefinementResult? prevResult2) &&
+            prevResult2?.OpenQuestions != null)
+        {
+            previousOpenQuestions.AddRange(prevResult2.OpenQuestions);
+        }
+
+        // Assign stable question numbers
+        var openQuestionsWithNumbers = AssignStableQuestionNumbers(
+            cleanedQuestionStrings,
+            previousOpenQuestions,
+            previousAnsweredQuestions);
+
+        Logger.Debug($"[Refinement] Assigned question numbers: {string.Join(", ", openQuestionsWithNumbers.Select(q => $"#{q.QuestionNumber}"))}");
+
+        // Create final result with stable question numbers
+        var result = new RefinementResult(
+            ClarifiedStory: llmResult.ClarifiedStory,
+            AcceptanceCriteria: llmResult.AcceptanceCriteria,
+            OpenQuestions: openQuestionsWithNumbers,
+            Complexity: llmResult.Complexity,
+            AnsweredQuestions: previousAnsweredQuestions
+        );
+
+        return result;
+    }
+
+    private static List<OpenQuestion> AssignStableQuestionNumbers(
+        List<string> questionTexts,
+        List<OpenQuestion> previousOpenQuestions,
+        List<AnsweredQuestion> answeredQuestions)
+    {
+        // Find the highest question number used so far
+        var maxNumber = 0;
+        if (previousOpenQuestions.Count > 0)
+            maxNumber = Math.Max(maxNumber, previousOpenQuestions.Max(q => q.QuestionNumber));
+        if (answeredQuestions.Count > 0)
+            maxNumber = Math.Max(maxNumber, answeredQuestions.Max(q => q.QuestionNumber));
+
+        var result = new List<OpenQuestion>();
+        foreach (var questionText in questionTexts)
+        {
+            // Try to find this question in previous open questions (reuse number)
+            var existing = previousOpenQuestions.FirstOrDefault(q =>
+                string.Equals(q.Question.Trim(), questionText.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null)
+            {
+                // Reuse existing number
+                result.Add(new OpenQuestion(existing.QuestionNumber, questionText));
+            }
+            else
+            {
+                // Assign new number
+                maxNumber++;
+                result.Add(new OpenQuestion(maxNumber, questionText));
+            }
+        }
+
+        return result;
     }
 
     private async Task WriteRefinementFileAsync(WorkItem workItem, RefinementResult refinement, string filePath)
@@ -257,10 +322,10 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
 
         // We have questions - implement one-at-a-time routing with 2 attempt limit
         var firstQuestion = refinement.OpenQuestions[0];
-        var lastQuestion = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestion, out var last) ? last : null;
+        var lastQuestionText = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestion, out var last) ? last : null;
         var attemptCount = WorkContext.State.TryGetValue(WorkflowStateKeys.QuestionAttemptCount, out var countStr) && int.TryParse(countStr, out var count) ? count : 0;
 
-        if (firstQuestion == lastQuestion)
+        if (firstQuestion.Question == lastQuestionText)
         {
             // Same question still exists after routing to TechLead/ProductOwner
             attemptCount++;
@@ -269,7 +334,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             if (attemptCount >= 2)
             {
                 // Failed after 2 attempts, block for human intervention
-                Logger.Warning($"[Refinement] Question unresolved after 2 attempts: {firstQuestion}");
+                Logger.Warning($"[Refinement] Question unresolved after 2 attempts: {firstQuestion.Question}");
                 Logger.Info($"[Refinement] Blocking workflow - human intervention required");
                 return null; // Workflow will be blocked
             }
@@ -282,10 +347,10 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         }
 
         // Store tracking state
-        WorkContext.State[WorkflowStateKeys.LastProcessedQuestion] = firstQuestion;
+        WorkContext.State[WorkflowStateKeys.LastProcessedQuestion] = firstQuestion.Question;
         WorkContext.State[WorkflowStateKeys.QuestionAttemptCount] = attemptCount.ToString();
 
-        Logger.Info($"[Refinement] Routing question to classifier (attempt {attemptCount}/2): {firstQuestion.Substring(0, Math.Min(80, firstQuestion.Length))}...");
+        Logger.Info($"[Refinement] Routing question to classifier (attempt {attemptCount}/2): Question #{firstQuestion.QuestionNumber}: {firstQuestion.Question.Substring(0, Math.Min(80, firstQuestion.Question.Length))}...");
         return WorkflowStage.QuestionClassifier;
     }
 }
