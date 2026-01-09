@@ -200,4 +200,184 @@ public class RefinementExecutorTests
 
         Assert.True(output.Success); // Should use fallback and succeed
     }
+
+    [Fact]
+    public async Task HandleAsync_RoutesToQuestionClassifierWhenQuestionsExist()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetIssueCommentsAsync(It.IsAny<int>()))
+            .Returns(Task.FromResult<IReadOnlyList<IssueComment>>(Array.Empty<IssueComment>()));
+        var workspace = new Mock<IRepoWorkspace>();
+        workspace.Setup(w => w.Exists(It.IsAny<string>())).Returns(false);
+        var repo = new Mock<IRepoGit>();
+        var llm = new Mock<ILlmClient>();
+
+        // Return refinement with open questions
+        llm.Setup(l => l.GetUpdatedFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync("{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[\"Which framework?\"],\"complexitySignals\":[],\"complexitySummary\":\"low\"}");
+
+        var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
+
+        var executor = new RefinementExecutor(workContext, config.Workflow);
+        var input = new WorkflowInput(
+            workItem,
+            new ProjectContext("owner", "repo", "main", "/tmp", "/tmp", "owner", "user", 1),
+            Mode: null,
+            Attempt: 0);
+
+        var workflowContext = new Mock<IWorkflowContext>();
+        workflowContext.Setup(c => c.ReadOrInitStateAsync(It.IsAny<string>(), It.IsAny<Func<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.SendMessageAsync(It.IsAny<object>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+
+        var output = await executor.HandleAsync(input, workflowContext.Object, CancellationToken.None);
+
+        Assert.True(output.Success);
+        Assert.Equal(WorkflowStage.QuestionClassifier, output.NextStage);
+    }
+
+    [Fact]
+    public async Task HandleAsync_RoutesToDorWhenNoQuestions()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetIssueCommentsAsync(It.IsAny<int>()))
+            .Returns(Task.FromResult<IReadOnlyList<IssueComment>>(Array.Empty<IssueComment>()));
+        var workspace = new Mock<IRepoWorkspace>();
+        workspace.Setup(w => w.Exists(It.IsAny<string>())).Returns(false);
+        var repo = new Mock<IRepoGit>();
+        var llm = new Mock<ILlmClient>();
+
+        // Return refinement with NO open questions
+        llm.Setup(l => l.GetUpdatedFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync("{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[],\"complexitySignals\":[],\"complexitySummary\":\"low\"}");
+
+        var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
+
+        var executor = new RefinementExecutor(workContext, config.Workflow);
+        var input = new WorkflowInput(
+            workItem,
+            new ProjectContext("owner", "repo", "main", "/tmp", "/tmp", "owner", "user", 1),
+            Mode: null,
+            Attempt: 0);
+
+        var workflowContext = new Mock<IWorkflowContext>();
+        workflowContext.Setup(c => c.ReadOrInitStateAsync(It.IsAny<string>(), It.IsAny<Func<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.SendMessageAsync(It.IsAny<object>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+
+        var output = await executor.HandleAsync(input, workflowContext.Object, CancellationToken.None);
+
+        Assert.True(output.Success);
+        Assert.Equal(WorkflowStage.DoR, output.NextStage);
+    }
+
+    [Fact]
+    public async Task HandleAsync_BlocksAfterTwoFailedAttempts()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetIssueCommentsAsync(It.IsAny<int>()))
+            .Returns(Task.FromResult<IReadOnlyList<IssueComment>>(Array.Empty<IssueComment>()));
+        var workspace = new Mock<IRepoWorkspace>();
+        workspace.Setup(w => w.Exists(It.IsAny<string>())).Returns(false);
+        var repo = new Mock<IRepoGit>();
+        var llm = new Mock<ILlmClient>();
+
+        // Return refinement with same question (indicating failed answer attempt)
+        llm.Setup(l => l.GetUpdatedFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync("{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[\"Which framework?\"],\"complexitySignals\":[],\"complexitySummary\":\"low\"}");
+
+        var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
+
+        // Simulate second attempt (same question persists)
+        workContext.State[WorkflowStateKeys.LastProcessedQuestion] = "Which framework?";
+        workContext.State[WorkflowStateKeys.QuestionAttemptCount] = "1";
+
+        var executor = new RefinementExecutor(workContext, config.Workflow);
+        var input = new WorkflowInput(
+            workItem,
+            new ProjectContext("owner", "repo", "main", "/tmp", "/tmp", "owner", "user", 1),
+            Mode: null,
+            Attempt: 0);
+
+        var workflowContext = new Mock<IWorkflowContext>();
+        workflowContext.Setup(c => c.ReadOrInitStateAsync(It.IsAny<string>(), It.IsAny<Func<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.SendMessageAsync(It.IsAny<object>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+
+        var output = await executor.HandleAsync(input, workflowContext.Object, CancellationToken.None);
+
+        Assert.True(output.Success);
+        Assert.Null(output.NextStage); // Should block after 2 attempts
+    }
+
+    [Fact]
+    public async Task HandleAsync_IncorporatesAnswerFromPreviousStage()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetIssueCommentsAsync(It.IsAny<int>()))
+            .Returns(Task.FromResult<IReadOnlyList<IssueComment>>(Array.Empty<IssueComment>()));
+        var workspace = new Mock<IRepoWorkspace>();
+        workspace.Setup(w => w.Exists(It.IsAny<string>())).Returns(false);
+        var repo = new Mock<IRepoGit>();
+        var llm = new Mock<ILlmClient>();
+
+        // LLM should receive the answer as a synthetic comment
+        string? capturedUser = null;
+        llm.Setup(l => l.GetUpdatedFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<string, string, string>((_, user, _) => capturedUser = user)
+            .ReturnsAsync("{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[],\"complexitySignals\":[],\"complexitySummary\":\"low\"}");
+
+        var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
+
+        // Simulate answer from TechLead/ProductOwner
+        workContext.State[WorkflowStateKeys.CurrentQuestionAnswer] = "Use React framework";
+
+        var executor = new RefinementExecutor(workContext, config.Workflow);
+        var input = new WorkflowInput(
+            workItem,
+            new ProjectContext("owner", "repo", "main", "/tmp", "/tmp", "owner", "user", 1),
+            Mode: null,
+            Attempt: 0);
+
+        var workflowContext = new Mock<IWorkflowContext>();
+        workflowContext.Setup(c => c.ReadOrInitStateAsync(It.IsAny<string>(), It.IsAny<Func<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.SendMessageAsync(It.IsAny<object>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+
+        var output = await executor.HandleAsync(input, workflowContext.Object, CancellationToken.None);
+
+        Assert.True(output.Success);
+        Assert.NotNull(capturedUser);
+        Assert.Contains("Use React framework", capturedUser);
+        Assert.Contains("orchestrator-bot", capturedUser);
+        Assert.False(workContext.State.ContainsKey(WorkflowStateKeys.CurrentQuestionAnswer)); // Should be cleared
+    }
 }
