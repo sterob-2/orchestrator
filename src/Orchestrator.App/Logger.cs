@@ -4,7 +4,7 @@ namespace Orchestrator.App;
 
 internal static class Logger
 {
-    private static bool _debugEnabled = Environment.GetEnvironmentVariable("DEBUG")?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+    private static readonly bool _debugEnabled = Environment.GetEnvironmentVariable("DEBUG")?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
     public static void WriteLine(string message)
     {

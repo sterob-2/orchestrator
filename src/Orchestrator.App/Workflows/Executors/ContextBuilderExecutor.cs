@@ -37,9 +37,14 @@ internal sealed class ContextBuilderExecutor : WorkflowStageExecutor
 
             return (true, $"Branch '{branchName}' ready for work.");
         }
-        catch (Exception ex)
+        catch (LibGit2Sharp.LibGit2SharpException ex)
         {
-            Logger.Error($"[ContextBuilder] Failed to create branch: {ex.Message}");
+            Logger.Error($"[ContextBuilder] Git error creating branch: {ex.Message}");
+            return (false, $"Failed to create branch: {ex.Message}");
+        }
+        catch (System.IO.IOException ex)
+        {
+            Logger.Error($"[ContextBuilder] IO error creating branch: {ex.Message}");
             return (false, $"Failed to create branch: {ex.Message}");
         }
     }

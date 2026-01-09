@@ -156,9 +156,17 @@ internal sealed class DorExecutor : WorkflowStageExecutor
             await WorkContext.GitHub.CommentOnWorkItemAsync(workItem.Number, comment);
             Logger.Info($"[DoR] Posted DoR failure pointer to GitHub issue #{workItem.Number}");
         }
-        catch (Exception ex)
+        catch (Octokit.ApiException ex)
         {
-            Logger.Error($"[DoR] Failed to post comment to GitHub: {ex.Message}");
+            Logger.Error($"[DoR] GitHub API error posting comment: {ex.Message}");
+        }
+        catch (System.Net.Http.HttpRequestException ex)
+        {
+            Logger.Error($"[DoR] Network error posting comment to GitHub: {ex.Message}");
+        }
+        catch (OperationCanceledException ex)
+        {
+            Logger.Error($"[DoR] Timeout posting comment to GitHub: {ex.Message}");
         }
     }
 }
