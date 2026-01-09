@@ -126,6 +126,7 @@ internal abstract class WorkflowStageExecutor : Executor<WorkflowInput, Workflow
         {
             WorkflowStage.ContextBuilder => 1,
             WorkflowStage.Refinement or WorkflowStage.DoR => config.MaxRefinementIterations,
+            WorkflowStage.QuestionClassifier or WorkflowStage.ProductOwner or WorkflowStage.TechnicalAdvisor => config.MaxRefinementIterations,
             WorkflowStage.TechLead or WorkflowStage.SpecGate => config.MaxTechLeadIterations,
             WorkflowStage.Dev => config.MaxDevIterations,
             WorkflowStage.CodeReview => config.MaxCodeReviewIterations,
