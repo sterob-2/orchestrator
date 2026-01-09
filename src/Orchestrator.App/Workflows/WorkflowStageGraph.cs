@@ -58,6 +58,8 @@ internal static class WorkflowStageGraph
         {
             WorkflowStage.ContextBuilder => WorkflowStage.Refinement,
             WorkflowStage.Refinement => WorkflowStage.DoR,
+            WorkflowStage.QuestionClassifier => null, // Routes to TechLead or ProductOwner based on classification
+            WorkflowStage.ProductOwner => WorkflowStage.Refinement, // Returns answer to Refinement
             WorkflowStage.DoR => success ? WorkflowStage.TechLead : WorkflowStage.Refinement,
             WorkflowStage.TechLead => WorkflowStage.SpecGate,
             WorkflowStage.SpecGate => success ? WorkflowStage.Dev : WorkflowStage.TechLead,
@@ -75,6 +77,8 @@ internal static class WorkflowStageGraph
         {
             WorkflowStage.ContextBuilder => "ContextBuilder",
             WorkflowStage.Refinement => "Refinement",
+            WorkflowStage.QuestionClassifier => "QuestionClassifier",
+            WorkflowStage.ProductOwner => "ProductOwner",
             WorkflowStage.DoR => "DoR",
             WorkflowStage.TechLead => "TechLead",
             WorkflowStage.SpecGate => "SpecGate",
