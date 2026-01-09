@@ -250,6 +250,7 @@ internal sealed class GitHubWebhookListener : IAsyncDisposable
 
         try
         {
+            Logger.WriteLine($"[Webhook] Attempting to bind to: {prefix}");
             _listener.Start();
             _activePrefix = prefix;
             if (!useHttps)

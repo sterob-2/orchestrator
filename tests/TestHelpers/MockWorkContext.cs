@@ -66,7 +66,9 @@ internal static class MockWorkContext
                 MaxTechLeadIterations: 3,
                 MaxDevIterations: 3,
                 MaxCodeReviewIterations: 3,
-                MaxDodIterations: 3
+                MaxDodIterations: 3,
+                PollIntervalSeconds: 60,
+                FastPollIntervalSeconds: 10
             ),
             Labels: new LabelConfig(
                 WorkItemLabel: "ready-for-agents",

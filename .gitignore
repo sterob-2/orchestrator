@@ -63,6 +63,8 @@ build/
 .env
 .env.local
 .env.*.local
+env.production
+*.env.production
 
 # OS files
 .DS_Store

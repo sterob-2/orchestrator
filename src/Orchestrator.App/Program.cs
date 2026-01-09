@@ -79,8 +79,9 @@ internal static class Program
                 services.RepoGit,
                 services.Llm,
                 Mcp: mcpManager),
-            checkpoints);
-        var webhook = new Watcher.GitHubWebhookListener(cfg, watcher.RequestScan);
+            checkpoints,
+            delay: null);
+        var webhook = new Watcher.GitHubWebhookListener(cfg, watcher.RequestScan, preferHttps: false);
         try
         {
             var webhookTask = (!cts.IsCancellationRequested && cfg.WebhookPort > 0)
