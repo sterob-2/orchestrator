@@ -98,10 +98,23 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         var comments = (await WorkContext.GitHub.GetIssueCommentsAsync(workItem.Number))?.ToList() ?? new List<IssueComment>();
         Logger.Debug($"[Refinement] Fetched {comments.Count} issue comment(s)");
 
-        // Check if we have an answer from TechLead or ProductOwner
+        // Check if we have an answer from ProductOwner or TechnicalAdvisor
         if (WorkContext.State.TryGetValue(WorkflowStateKeys.CurrentQuestionAnswer, out var answer) && !string.IsNullOrWhiteSpace(answer))
         {
-            Logger.Info($"[Refinement] Incorporating answer from previous stage: {answer.Substring(0, Math.Min(100, answer.Length))}");
+            // Determine which executor provided the answer
+            var answerSource = "unknown";
+            if (WorkContext.State.ContainsKey(WorkflowStateKeys.ProductOwnerResult))
+            {
+                answerSource = "ProductOwner";
+            }
+            else if (WorkContext.State.ContainsKey(WorkflowStateKeys.TechnicalAdvisorResult))
+            {
+                answerSource = "TechnicalAdvisor";
+            }
+
+            Logger.Info($"[Refinement] Incorporating answer from {answerSource}");
+            Logger.Info($"[Refinement] Answer preview: {answer.Substring(0, Math.Min(100, answer.Length))}...");
+            Logger.Debug($"[Refinement] Full answer: {answer}");
 
             // Add answer as synthetic comment for the LLM to process
             var syntheticComment = new IssueComment(
@@ -113,6 +126,10 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             // Clear the answer from state after incorporating
             WorkContext.State.Remove(WorkflowStateKeys.CurrentQuestionAnswer, out _);
             Logger.Debug($"[Refinement] Cleared CurrentQuestionAnswer from state");
+        }
+        else
+        {
+            Logger.Debug($"[Refinement] No answer from previous stage to incorporate");
         }
 
         var playbookContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.PlaybookPath) ?? "";
