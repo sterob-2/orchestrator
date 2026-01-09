@@ -18,6 +18,8 @@ internal sealed class DorExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
+        Logger.Info($"[DoR] Evaluating DoR gate for issue #{input.WorkItem.Number}");
+
         var refinementJson = await context.ReadOrInitStateAsync(
             WorkflowStateKeys.RefinementResult,
             () => string.Empty,
@@ -30,14 +32,23 @@ internal sealed class DorExecutor : WorkflowStageExecutor
 
         if (!WorkflowJson.TryDeserialize(refinementJson, out RefinementResult? refinement) || refinement is null)
         {
+            Logger.Warning($"[DoR] No refinement result found in workflow state");
             return (false, "DoR gate failed: missing refinement output.");
         }
+
+        Logger.Debug($"[DoR] Validating refinement: {refinement.AcceptanceCriteria.Count} criteria, {refinement.OpenQuestions.Count} questions");
 
         var result = DorGateValidator.Evaluate(input.WorkItem, refinement, WorkContext.Config.Labels);
         if (!result.Passed && result.Failures.Count > 0)
         {
+            Logger.Info($"[DoR] Gate failed with {result.Failures.Count} failure(s): {string.Join(", ", result.Failures)}");
             WorkContext.Metrics?.RecordGateFailures(result.Failures);
         }
+        else
+        {
+            Logger.Info($"[DoR] Gate passed");
+        }
+
         var notes = result.Passed
             ? "DoR gate passed."
             : $"DoR gate failed: {string.Join(" ", result.Failures)}";

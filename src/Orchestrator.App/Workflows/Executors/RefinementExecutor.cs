@@ -20,7 +20,14 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
+        Logger.Info($"[Refinement] Starting refinement for issue #{input.WorkItem.Number}");
+        Logger.Debug($"[Refinement] Checking for existing spec at: {WorkflowPaths.SpecPath(input.WorkItem.Number)}");
+
         var refinement = await BuildRefinementAsync(input, cancellationToken);
+
+        Logger.Info($"[Refinement] Refinement complete: {refinement.AcceptanceCriteria.Count} criteria, {refinement.OpenQuestions.Count} questions");
+        Logger.Debug($"[Refinement] Storing refinement result in workflow state");
+
         var serialized = WorkflowJson.Serialize(refinement);
         await context.QueueStateUpdateAsync(WorkflowStateKeys.RefinementResult, serialized, cancellationToken);
         WorkContext.State[WorkflowStateKeys.RefinementResult] = serialized;
@@ -33,21 +40,30 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
     {
         var workItem = input.WorkItem;
         var existingSpec = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.SpecPath(workItem.Number));
+        Logger.Debug($"[Refinement] Existing spec found: {existingSpec != null}");
+
         var playbookContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.PlaybookPath) ?? "";
+        Logger.Debug($"[Refinement] Playbook loaded: {playbookContent.Length} chars");
+
         var playbook = new PlaybookParser().Parse(playbookContent);
         var prompt = RefinementPrompt.Build(workItem, playbook, existingSpec);
 
+        Logger.Debug($"[Refinement] Calling LLM with model: {WorkContext.Config.TechLeadModel}");
         var response = await CallLlmAsync(
             WorkContext.Config.TechLeadModel,
             prompt.System,
             prompt.User,
             cancellationToken);
 
+        Logger.Debug($"[Refinement] LLM response received: {response.Length} chars");
+
         if (!WorkflowJson.TryDeserialize(response, out RefinementResult? result) || result is null)
         {
+            Logger.Warning($"[Refinement] Failed to parse LLM response, using fallback");
             return RefinementPrompt.Fallback(workItem);
         }
 
+        Logger.Debug($"[Refinement] Successfully parsed refinement result");
         return result;
     }
 }
