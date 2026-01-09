@@ -65,4 +65,28 @@ internal static class RefinementMarkdownBuilder
             content.AppendLine();
         }
     }
+
+    public static void AppendAmbiguousQuestions(StringBuilder content, IReadOnlyList<OpenQuestion> ambiguousQuestions)
+    {
+        if (ambiguousQuestions.Count == 0)
+        {
+            return;
+        }
+
+        content.AppendLine($"## Ambiguous Questions ({ambiguousQuestions.Count})");
+        content.AppendLine();
+        content.AppendLine("**These questions require human clarification:**");
+        content.AppendLine("They mix product and technical concerns and need stakeholder input to determine the correct approach.");
+        content.AppendLine();
+        content.AppendLine("**How to clarify:**");
+        content.AppendLine("1. Add a comment to the GitHub issue with clarifications");
+        content.AppendLine("2. Remove `blocked` and `user-review-required` labels");
+        content.AppendLine("3. Add the `dor` label to re-trigger refinement");
+        content.AppendLine();
+        foreach (var question in ambiguousQuestions)
+        {
+            content.AppendLine($"- **Question #{question.QuestionNumber}:** {question.Question}");
+        }
+        content.AppendLine();
+    }
 }

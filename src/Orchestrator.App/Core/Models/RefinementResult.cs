@@ -26,5 +26,6 @@ public sealed record RefinementResult(
     IReadOnlyList<string> AcceptanceCriteria,
     IReadOnlyList<OpenQuestion> OpenQuestions,
     ComplexityIndicators Complexity,
-    IReadOnlyList<AnsweredQuestion>? AnsweredQuestions = null
+    IReadOnlyList<AnsweredQuestion>? AnsweredQuestions = null,
+    IReadOnlyList<OpenQuestion>? AmbiguousQuestions = null
 );

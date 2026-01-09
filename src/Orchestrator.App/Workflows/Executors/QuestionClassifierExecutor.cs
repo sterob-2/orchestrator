@@ -110,7 +110,7 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
         {
             QuestionType.Technical => WorkflowStage.TechnicalAdvisor,
             QuestionType.Product => WorkflowStage.ProductOwner,
-            QuestionType.Ambiguous => null, // Block - needs human intervention
+            QuestionType.Ambiguous => WorkflowStage.Refinement, // Return to Refinement to skip and continue with next question
             _ => null
         };
     }

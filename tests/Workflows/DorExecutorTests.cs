@@ -80,7 +80,7 @@ public class DorExecutorTests
             "Clarified story",
             new List<string> { "Criterion 1" },
             new List<OpenQuestion> { new OpenQuestion(1, "Question 1?"), new OpenQuestion(2, "Question 2?") },
-            new ComplexityIndicators(new List<OpenQuestion>(), null));
+            new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
@@ -156,7 +156,7 @@ public class DorExecutorTests
             "Story",
             new List<OpenQuestion>(),
             new List<OpenQuestion> { new OpenQuestion(1, "Open question?") },
-            new ComplexityIndicators(new List<OpenQuestion>(), null));
+            new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
@@ -201,9 +201,9 @@ public class DorExecutorTests
 
         var refinement = new RefinementResult(
             "Story",
-            new List<OpenQuestion>(),
-            new List<string> { "Question 1?" },
-            new ComplexityIndicators(new List<OpenQuestion>(), null));
+            new List<string>(),
+            new List<OpenQuestion> { new OpenQuestion(1, "Question 1?") },
+            new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
@@ -244,9 +244,9 @@ public class DorExecutorTests
 
         var refinement = new RefinementResult(
             "Story",
-            new List<OpenQuestion>(),
-            new List<string> { "Question 1?" },
-            new ComplexityIndicators(new List<OpenQuestion>(), null));
+            new List<string>(),
+            new List<OpenQuestion> { new OpenQuestion(1, "Question 1?") },
+            new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
@@ -287,9 +287,9 @@ public class DorExecutorTests
 
         var refinement = new RefinementResult(
             "Story",
-            new List<OpenQuestion>(),
-            new List<string> { "Question 1?" },
-            new ComplexityIndicators(new List<OpenQuestion>(), null));
+            new List<string>(),
+            new List<OpenQuestion> { new OpenQuestion(1, "Question 1?") },
+            new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
@@ -329,9 +329,9 @@ public class DorExecutorTests
 
         var refinement = new RefinementResult(
             "Story",
-            new List<OpenQuestion>(),
-            new List<string> { "Question 1?" },
-            new ComplexityIndicators(new List<OpenQuestion>(), null));
+            new List<string>(),
+            new List<OpenQuestion> { new OpenQuestion(1, "Question 1?") },
+            new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
@@ -371,9 +371,9 @@ public class DorExecutorTests
 
         var refinement = new RefinementResult(
             "Story",
-            new List<OpenQuestion>(),
-            new List<string> { "Question 1?" },
-            new ComplexityIndicators(new List<OpenQuestion>(), null));
+            new List<string>(),
+            new List<OpenQuestion> { new OpenQuestion(1, "Question 1?") },
+            new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
         workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))

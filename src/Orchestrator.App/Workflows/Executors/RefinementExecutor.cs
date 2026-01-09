@@ -94,14 +94,23 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         var previousRefinement = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.RefinementPath(workItem.Number));
         Logger.Debug($"[Refinement] Previous refinement found: {previousRefinement != null}");
 
-        // Load previous refinement result to get answered questions history
+        // Load previous refinement result to get answered questions history and ambiguous questions
         var previousAnsweredQuestions = new List<AnsweredQuestion>();
+        var previousAmbiguousQuestions = new List<OpenQuestion>();
         if (WorkContext.State.TryGetValue(WorkflowStateKeys.RefinementResult, out var prevRefinementJson))
         {
-            if (WorkflowJson.TryDeserialize(prevRefinementJson, out RefinementResult? prevResult) && prevResult?.AnsweredQuestions != null)
+            if (WorkflowJson.TryDeserialize(prevRefinementJson, out RefinementResult? prevResult))
             {
-                previousAnsweredQuestions.AddRange(prevResult.AnsweredQuestions);
-                Logger.Debug($"[Refinement] Loaded {previousAnsweredQuestions.Count} previously answered question(s)");
+                if (prevResult?.AnsweredQuestions != null)
+                {
+                    previousAnsweredQuestions.AddRange(prevResult.AnsweredQuestions);
+                    Logger.Debug($"[Refinement] Loaded {previousAnsweredQuestions.Count} previously answered question(s)");
+                }
+                if (prevResult?.AmbiguousQuestions != null)
+                {
+                    previousAmbiguousQuestions.AddRange(prevResult.AmbiguousQuestions);
+                    Logger.Debug($"[Refinement] Loaded {previousAmbiguousQuestions.Count} ambiguous question(s)");
+                }
             }
         }
 
@@ -161,6 +170,46 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             WorkContext.State.Remove(WorkflowStateKeys.CurrentQuestionAnswer, out _);
             Logger.Debug($"[Refinement] Cleared CurrentQuestionAnswer from state");
         }
+        // Check if the last question was classified as Ambiguous
+        else if (WorkContext.State.TryGetValue(WorkflowStateKeys.QuestionClassificationResult, out var classificationJson))
+        {
+            if (WorkflowJson.TryDeserialize(classificationJson, out QuestionClassificationResult? classificationResult) &&
+                classificationResult?.Classification.Type == QuestionType.Ambiguous)
+            {
+                // Get the ambiguous question details
+                var questionNumber = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestionNumber, out var qNum) && int.TryParse(qNum, out var qNumInt)
+                    ? qNumInt
+                    : 0;
+
+                var questionText = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestion, out var question)
+                    ? question
+                    : "";
+
+                if (questionNumber > 0 && !string.IsNullOrEmpty(questionText))
+                {
+                    var ambiguousQuestion = new OpenQuestion(questionNumber, questionText);
+
+                    // Check if not already in ambiguous list
+                    if (!previousAmbiguousQuestions.Any(q => q.QuestionNumber == questionNumber))
+                    {
+                        previousAmbiguousQuestions.Add(ambiguousQuestion);
+                        Logger.Info($"[Refinement] Question #{questionNumber} classified as Ambiguous, moving to ambiguous questions list");
+                        Logger.Debug($"[Refinement] Reasoning: {classificationResult.Classification.Reasoning}");
+                    }
+
+                    // Add synthetic comment to inform LLM to remove from openQuestions
+                    var syntheticComment = new IssueComment(
+                        Author: "orchestrator-bot",
+                        Body: $"**Question #{questionNumber} requires human clarification:**\n\nThis question mixes product and technical concerns and needs stakeholder input.\n\n**IMPORTANT: Question #{questionNumber} has been moved to ambiguous questions. Remove it from the openQuestions list.**"
+                    );
+                    comments.Add(syntheticComment);
+                }
+
+                // Clear classification from state
+                WorkContext.State.Remove(WorkflowStateKeys.QuestionClassificationResult, out _);
+                Logger.Debug($"[Refinement] Cleared QuestionClassificationResult from state");
+            }
+        }
         else
         {
             Logger.Debug($"[Refinement] No answer from previous stage to incorporate");
@@ -218,7 +267,8 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             AcceptanceCriteria: llmResult.AcceptanceCriteria,
             OpenQuestions: openQuestionsWithNumbers,
             Complexity: llmResult.Complexity,
-            AnsweredQuestions: previousAnsweredQuestions
+            AnsweredQuestions: previousAnsweredQuestions,
+            AmbiguousQuestions: previousAmbiguousQuestions
         );
 
         return result;
@@ -276,6 +326,11 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             RefinementMarkdownBuilder.AppendAnsweredQuestions(content, refinement.AnsweredQuestions);
         }
 
+        if (refinement.AmbiguousQuestions != null && refinement.AmbiguousQuestions.Count > 0)
+        {
+            RefinementMarkdownBuilder.AppendAmbiguousQuestions(content, refinement.AmbiguousQuestions);
+        }
+
         if (refinement.OpenQuestions.Count > 0)
         {
             content.AppendLine($"## Open Questions ({refinement.OpenQuestions.Count})");
@@ -316,6 +371,15 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         // Check if there are open questions
         if (refinement.OpenQuestions.Count == 0)
         {
+            // No more open questions - check if we have ambiguous questions
+            var ambiguousCount = refinement.AmbiguousQuestions?.Count ?? 0;
+            if (ambiguousCount > 0)
+            {
+                Logger.Warning($"[Refinement] No more answerable questions, but {ambiguousCount} ambiguous question(s) require human clarification");
+                Logger.Info($"[Refinement] Blocking workflow - human intervention required for ambiguous questions");
+                return null; // Block for human intervention
+            }
+
             Logger.Info($"[Refinement] No open questions, proceeding to DoR");
             return WorkflowStage.DoR;
         }
