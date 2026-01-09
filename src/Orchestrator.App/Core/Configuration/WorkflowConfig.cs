@@ -6,5 +6,7 @@ public sealed record WorkflowConfig(
     int MaxTechLeadIterations,
     int MaxDevIterations,
     int MaxCodeReviewIterations,
-    int MaxDodIterations
+    int MaxDodIterations,
+    int PollIntervalSeconds,
+    int FastPollIntervalSeconds
 );

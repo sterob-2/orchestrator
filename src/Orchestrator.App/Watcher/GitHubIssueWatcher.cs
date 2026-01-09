@@ -10,19 +10,22 @@ internal sealed class GitHubIssueWatcher
     private readonly Func<WorkItem, WorkContext> _contextFactory;
     private readonly IWorkflowCheckpointStore _checkpointStore;
     private readonly Channel<bool> _scanSignals;
+    private readonly Func<TimeSpan, CancellationToken, Task> _delay;
 
     public GitHubIssueWatcher(
         OrchestratorConfig config,
         IGitHubClient github,
         IWorkflowRunner runner,
         Func<WorkItem, WorkContext> contextFactory,
-        IWorkflowCheckpointStore checkpointStore)
+        IWorkflowCheckpointStore checkpointStore,
+        Func<TimeSpan, CancellationToken, Task>? delay = null)
     {
         _config = config;
         _github = github;
         _runner = runner;
         _contextFactory = contextFactory;
         _checkpointStore = checkpointStore;
+        _delay = delay ?? Task.Delay;
         _scanSignals = Channel.CreateUnbounded<bool>(new UnboundedChannelOptions
         {
             SingleReader = true,
@@ -37,21 +40,41 @@ internal sealed class GitHubIssueWatcher
             Logger.WriteLine("Orchestrator stopped");
             return;
         }
-        Logger.WriteLine("Watcher started. Waiting for webhook triggers.");
-        RequestScan();
+
+        var pollingEnabled = _config.Workflow.PollIntervalSeconds > 0;
+        Logger.WriteLine(pollingEnabled
+            ? $"Watcher started. Polling enabled (idle: {_config.Workflow.PollIntervalSeconds}s, fast: {_config.Workflow.FastPollIntervalSeconds}s), webhook triggers supported."
+            : "Watcher started. Polling disabled, waiting for webhook triggers only.");
+
+        RequestScan(); // Initial scan
+        WorkItem? lastWorkItem = null;
 
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                await _scanSignals.Reader.ReadAsync(cancellationToken);
+                // Compute next poll interval based on last work item
+                var pollInterval = ComputePollIntervalSeconds(_config, lastWorkItem);
 
-                while (_scanSignals.Reader.TryRead(out _))
+                // Wait for either webhook signal OR polling timer
+                Task signalTask = _scanSignals.Reader.ReadAsync(cancellationToken).AsTask();
+                Task delayTask = pollingEnabled
+                    ? _delay(TimeSpan.FromSeconds(pollInterval), cancellationToken)
+                    : Task.Delay(Timeout.Infinite, cancellationToken); // Never complete if polling disabled
+
+                var completedTask = await Task.WhenAny(signalTask, delayTask);
+
+                // Drain any additional pending webhook signals (coalesce)
+                if (completedTask == signalTask)
                 {
-                    // Drain any additional pending scan signals; coalesce multiple triggers.
+                    while (_scanSignals.Reader.TryRead(out _))
+                    {
+                        // Coalesce multiple webhook triggers
+                    }
                 }
 
-                await RunOnceAsync(cancellationToken);
+                // Run the scan
+                lastWorkItem = await RunOnceAsync(cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -171,6 +194,32 @@ internal sealed class GitHubIssueWatcher
 
         await _github.RemoveLabelsAsync(item.Number, labelsToRemove);
         await _github.AddLabelsAsync(item.Number, _config.Labels.WorkItemLabel);
+    }
+
+    private static int ComputePollIntervalSeconds(OrchestratorConfig cfg, WorkItem? workItem)
+    {
+        if (workItem == null)
+        {
+            return cfg.Workflow.PollIntervalSeconds;
+        }
+
+        // Check if work item has any "active" labels indicating work in progress
+        if (HasAnyLabel(
+            workItem,
+            cfg.Labels.PlannerLabel,
+            cfg.Labels.DorLabel,
+            cfg.Labels.TechLeadLabel,
+            cfg.Labels.SpecGateLabel,
+            cfg.Labels.DevLabel,
+            cfg.Labels.TestLabel,
+            cfg.Labels.ReleaseLabel,
+            cfg.Labels.CodeReviewNeededLabel,
+            cfg.Labels.CodeReviewChangesRequestedLabel))
+        {
+            return cfg.Workflow.FastPollIntervalSeconds;
+        }
+
+        return cfg.Workflow.PollIntervalSeconds;
     }
 
     private static bool HasLabel(WorkItem item, string label)

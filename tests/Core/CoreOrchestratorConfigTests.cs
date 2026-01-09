@@ -30,6 +30,8 @@ public class CoreOrchestratorConfigTests
         "MAX_DEV_ITERATIONS",
         "MAX_CODE_REVIEW_ITERATIONS",
         "MAX_DOD_ITERATIONS",
+        "POLL_INTERVAL_SECONDS",
+        "FAST_POLL_INTERVAL_SECONDS",
         "WORK_ITEM_LABEL",
         "IN_PROGRESS_LABEL",
         "DONE_LABEL",
@@ -81,6 +83,8 @@ public class CoreOrchestratorConfigTests
             ["MAX_DEV_ITERATIONS"] = "5",
             ["MAX_CODE_REVIEW_ITERATIONS"] = "6",
             ["MAX_DOD_ITERATIONS"] = "7",
+            ["POLL_INTERVAL_SECONDS"] = "90",
+            ["FAST_POLL_INTERVAL_SECONDS"] = "15",
             ["WORK_ITEM_LABEL"] = "work",
             ["IN_PROGRESS_LABEL"] = "in-progress",
             ["DONE_LABEL"] = "done",
@@ -130,7 +134,9 @@ public class CoreOrchestratorConfigTests
                 MaxTechLeadIterations: 4,
                 MaxDevIterations: 5,
                 MaxCodeReviewIterations: 6,
-                MaxDodIterations: 7
+                MaxDodIterations: 7,
+                PollIntervalSeconds: 90,
+                FastPollIntervalSeconds: 15
             ),
             Labels: new CoreConfig.LabelConfig(
                 WorkItemLabel: "work",
@@ -191,7 +197,9 @@ public class CoreOrchestratorConfigTests
                 MaxTechLeadIterations: 3,
                 MaxDevIterations: 3,
                 MaxCodeReviewIterations: 3,
-                MaxDodIterations: 3
+                MaxDodIterations: 3,
+                PollIntervalSeconds: 60,
+                FastPollIntervalSeconds: 10
             ),
             Labels: new CoreConfig.LabelConfig(
                 WorkItemLabel: "ready-for-agents",
@@ -237,6 +245,8 @@ public class CoreOrchestratorConfigTests
             ["MAX_DEV_ITERATIONS"] = "invalid",
             ["MAX_CODE_REVIEW_ITERATIONS"] = "invalid",
             ["MAX_DOD_ITERATIONS"] = "invalid",
+            ["POLL_INTERVAL_SECONDS"] = "invalid",
+            ["FAST_POLL_INTERVAL_SECONDS"] = "invalid",
             ["PROJECT_NUMBER"] = "invalid"
         });
 
@@ -247,6 +257,8 @@ public class CoreOrchestratorConfigTests
         Assert.Equal(3, actual.Workflow.MaxDevIterations);
         Assert.Equal(3, actual.Workflow.MaxCodeReviewIterations);
         Assert.Equal(3, actual.Workflow.MaxDodIterations);
+        Assert.Equal(60, actual.Workflow.PollIntervalSeconds);
+        Assert.Equal(10, actual.Workflow.FastPollIntervalSeconds);
         Assert.Null(actual.ProjectNumber);
     }
 

@@ -80,7 +80,9 @@ public sealed record OrchestratorConfig(
             MaxTechLeadIterations: GetInt("MAX_TECHLEAD_ITERATIONS", 3),
             MaxDevIterations: GetInt("MAX_DEV_ITERATIONS", 3),
             MaxCodeReviewIterations: GetInt("MAX_CODE_REVIEW_ITERATIONS", 3),
-            MaxDodIterations: GetInt("MAX_DOD_ITERATIONS", 3)
+            MaxDodIterations: GetInt("MAX_DOD_ITERATIONS", 3),
+            PollIntervalSeconds: GetInt("POLL_INTERVAL_SECONDS", 60),
+            FastPollIntervalSeconds: GetInt("FAST_POLL_INTERVAL_SECONDS", 10)
         );
 
         return new OrchestratorConfig(
