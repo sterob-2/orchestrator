@@ -258,7 +258,7 @@ public class RefinementExecutorTests
 
         // Return refinement with NO open questions
         llm.Setup(l => l.GetUpdatedFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync("{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[],\"complexitySignals\":[],\"complexitySummary\":\"low\"}");
+            .ReturnsAsync("{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[],\"complexitySignals\":[],\"complexitySummary\":\"low\",\"answeredQuestions\":[]}");
 
         var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
 
@@ -348,12 +348,15 @@ public class RefinementExecutorTests
         string? capturedUser = null;
         llm.Setup(l => l.GetUpdatedFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .Callback<string, string, string>((model, system, user) => capturedUser = user)
-            .ReturnsAsync("{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[],\"complexitySignals\":[],\"complexitySummary\":\"low\"}");
+            .ReturnsAsync("{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[],\"complexitySignals\":[],\"complexitySummary\":\"low\",\"answeredQuestions\":[]}");
 
         var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
 
-        // Simulate answer from TechLead/ProductOwner
+        // Simulate answer from TechnicalAdvisor with the question context
         workContext.State[WorkflowStateKeys.CurrentQuestionAnswer] = "Use React framework";
+        workContext.State[WorkflowStateKeys.LastProcessedQuestion] = "Which framework should we use?";
+        workContext.State[WorkflowStateKeys.LastProcessedQuestionNumber] = "1";
+        workContext.State[WorkflowStateKeys.TechnicalAdvisorResult] = "{}"; // Indicates answer came from TechnicalAdvisor
 
         var executor = new RefinementExecutor(workContext, config.Workflow);
         var input = new WorkflowInput(
@@ -377,12 +380,14 @@ public class RefinementExecutorTests
         Assert.True(output.Success);
         Assert.NotNull(capturedUser);
 
-        // The answer should have been incorporated as a synthetic comment
+        // The answer should have been incorporated in markdown checkbox format
         var hasAnswer = capturedUser.Contains("Use React framework");
-        var hasBot = capturedUser.Contains("orchestrator-bot");
+        var hasCheckbox = capturedUser.Contains("- [x]");
+        var hasAnswerSource = capturedUser.Contains("(TechnicalAdvisor)");
 
         Assert.True(hasAnswer, $"Expected 'Use React framework' in prompt. Got: {capturedUser.Substring(0, Math.Min(1000, capturedUser.Length))}");
-        Assert.True(hasBot, "Expected 'orchestrator-bot' in prompt");
+        Assert.True(hasCheckbox, "Expected checkbox format '- [x]' in prompt");
+        Assert.True(hasAnswerSource, "Expected '(TechnicalAdvisor)' indicating answer source in prompt");
         Assert.False(workContext.State.ContainsKey(WorkflowStateKeys.CurrentQuestionAnswer)); // Should be cleared
     }
 }

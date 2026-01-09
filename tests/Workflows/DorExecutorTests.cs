@@ -57,7 +57,7 @@ public class DorExecutorTests
     public async Task HandleAsync_FailsWhenRefinementHasOpenQuestions()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(2, "Title", "Body", "url", new List<OpenQuestion>());
+        var workItem = new WorkItem(2, "Title", "Body", "url", new List<string>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
@@ -101,7 +101,7 @@ public class DorExecutorTests
     public async Task HandleAsync_FailsWhenRefinementMissing()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(3, "Title", "Body", "url", new List<OpenQuestion>());
+        var workItem = new WorkItem(3, "Title", "Body", "url", new List<string>());
         var github = new Mock<IGitHubClient>();
         var workspace = new Mock<IRepoWorkspace>();
         var repo = new Mock<IRepoGit>();
@@ -131,7 +131,7 @@ public class DorExecutorTests
     public async Task HandleAsync_WritesFileWhenGateFails()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(4, "Title", "Body", "url", new List<OpenQuestion>());
+        var workItem = new WorkItem(4, "Title", "Body", "url", new List<string>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
@@ -154,7 +154,7 @@ public class DorExecutorTests
 
         var refinement = new RefinementResult(
             "Story",
-            new List<OpenQuestion>(),
+            new List<string>(),
             new List<OpenQuestion> { new OpenQuestion(1, "Open question?") },
             new ComplexityIndicators(new List<string>(), null));
 
@@ -180,7 +180,7 @@ public class DorExecutorTests
     public async Task HandleAsync_ContinuesWhenGitCommitFailsWithLibGit2Exception()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(5, "Title", "Body", "url", new List<OpenQuestion>());
+        var workItem = new WorkItem(5, "Title", "Body", "url", new List<string>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
@@ -223,7 +223,7 @@ public class DorExecutorTests
     public async Task HandleAsync_ContinuesWhenGitCommitFailsWithInvalidOperationException()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(6, "Title", "Body", "url", new List<OpenQuestion>());
+        var workItem = new WorkItem(6, "Title", "Body", "url", new List<string>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
@@ -266,7 +266,7 @@ public class DorExecutorTests
     public async Task HandleAsync_HandlesGitHubApiException()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(7, "Title", "Body", "url", new List<OpenQuestion>());
+        var workItem = new WorkItem(7, "Title", "Body", "url", new List<string>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Throws(new Octokit.ApiException("API error", System.Net.HttpStatusCode.BadRequest));
@@ -308,7 +308,7 @@ public class DorExecutorTests
     public async Task HandleAsync_HandlesHttpRequestException()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(8, "Title", "Body", "url", new List<OpenQuestion>());
+        var workItem = new WorkItem(8, "Title", "Body", "url", new List<string>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Throws(new System.Net.Http.HttpRequestException("Network error"));
@@ -350,7 +350,7 @@ public class DorExecutorTests
     public async Task HandleAsync_HandlesOperationCanceledException()
     {
         var config = MockWorkContext.CreateConfig();
-        var workItem = new WorkItem(9, "Title", "Body", "url", new List<OpenQuestion>());
+        var workItem = new WorkItem(9, "Title", "Body", "url", new List<string>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
             .Throws(new OperationCanceledException("Timeout"));

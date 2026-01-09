@@ -20,7 +20,7 @@ public class WorkflowFactoryTests
     {
         var config = MockWorkContext.CreateConfig();
         var stage = Enum.Parse<WorkflowStage>(stageName);
-        var workItem = new WorkItem(1, "Title", "Body", "url", new List<OpenQuestion>());
+        var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
         var github = new Mock<IGitHubClient>();
         github.Setup(g => g.GetIssueCommentsAsync(It.IsAny<int>()))
             .Returns(Task.FromResult<IReadOnlyList<IssueComment>>(Array.Empty<IssueComment>()));
@@ -39,7 +39,7 @@ public class WorkflowFactoryTests
             "Clarified story",
             new List<string> { "Acceptance criteria 1" },
             new List<OpenQuestion>(),
-            new ComplexityIndicators(new List<OpenQuestion>(), null)));
+            new ComplexityIndicators(new List<string>(), null)));
         llm.Setup(l => l.GetUpdatedFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .Returns(Task.FromResult(refinementJson));
         var context = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);

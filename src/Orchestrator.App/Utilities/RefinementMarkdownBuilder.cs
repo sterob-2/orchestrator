@@ -37,31 +37,44 @@ internal static class RefinementMarkdownBuilder
         content.AppendLine();
     }
 
-    public static void AppendOpenQuestions(StringBuilder content, IReadOnlyList<OpenQuestion> questions)
+    public static void AppendQuestions(StringBuilder content,
+        IReadOnlyList<OpenQuestion> openQuestions,
+        IReadOnlyList<AnsweredQuestion>? answeredQuestions)
     {
-        foreach (var question in questions)
-        {
-            content.AppendLine($"- [ ] **Question #{question.QuestionNumber}:** {question.Question}");
-        }
-        content.AppendLine();
-    }
+        var allQuestions = new Dictionary<int, (string Question, string? Answer, string? AnsweredBy, bool IsAnswered)>();
 
-    public static void AppendAnsweredQuestions(StringBuilder content, IReadOnlyList<AnsweredQuestion> answeredQuestions)
-    {
-        if (answeredQuestions.Count == 0)
+        // Add open questions
+        foreach (var q in openQuestions)
         {
-            return;
+            allQuestions[q.QuestionNumber] = (q.Question, null, null, false);
         }
 
-        content.AppendLine($"## Answered Questions ({answeredQuestions.Count})");
-        content.AppendLine();
-        foreach (var aq in answeredQuestions)
+        // Add answered questions
+        if (answeredQuestions != null)
         {
-            content.AppendLine($"### Question #{aq.QuestionNumber}");
-            content.AppendLine($"**Question:** {aq.Question}");
-            content.AppendLine();
-            content.AppendLine($"**Answer (from {aq.AnsweredBy}):**");
-            content.AppendLine(aq.Answer);
+            foreach (var aq in answeredQuestions)
+            {
+                allQuestions[aq.QuestionNumber] = (aq.Question, aq.Answer, aq.AnsweredBy, true);
+            }
+        }
+
+        // Sort by question number
+        var sortedQuestions = allQuestions.OrderBy(kvp => kvp.Key);
+
+        foreach (var (number, (question, answer, answeredBy, isAnswered)) in sortedQuestions)
+        {
+            var checkbox = isAnswered ? "[x]" : "[ ]";
+            content.AppendLine($"- {checkbox} **Question #{number}:** {question}");
+
+            if (isAnswered && !string.IsNullOrEmpty(answer))
+            {
+                content.AppendLine($"  **Answer ({answeredBy}):** {answer}");
+            }
+            else
+            {
+                content.AppendLine($"  **Answer:** _[Pending]_");
+            }
+
             content.AppendLine();
         }
     }

@@ -24,7 +24,7 @@ public class QuestionClassifierExecutorTests
         var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
 
         // Setup refinement result with open question
-        var refinementResult = "{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[\"Which framework should we use?\"],\"complexitySignals\":[],\"complexitySummary\":\"low\"}";
+        var refinementResult = "{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[{\"questionNumber\":1,\"question\":\"Which framework should we use?\"}],\"complexity\":{\"signals\":[],\"summary\":\"low\"}}";
         workContext.State[WorkflowStateKeys.RefinementResult] = refinementResult;
 
         var executor = new QuestionClassifierExecutor(workContext, config.Workflow);
@@ -72,7 +72,7 @@ public class QuestionClassifierExecutorTests
         var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
 
         // Setup refinement result with open question
-        var refinementResult = "{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[\"What happens when user clicks submit?\"],\"complexitySignals\":[],\"complexitySummary\":\"low\"}";
+        var refinementResult = "{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[{\"questionNumber\":1,\"question\":\"What happens when user clicks submit?\"}],\"complexity\":{\"signals\":[],\"summary\":\"low\"}}";
         workContext.State[WorkflowStateKeys.RefinementResult] = refinementResult;
 
         var executor = new QuestionClassifierExecutor(workContext, config.Workflow);
@@ -113,7 +113,7 @@ public class QuestionClassifierExecutorTests
         var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
 
         // Setup refinement result with open question
-        var refinementResult = "{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[\"Should we do this?\"],\"complexitySignals\":[],\"complexitySummary\":\"low\"}";
+        var refinementResult = "{\"clarifiedStory\":\"Story\",\"acceptanceCriteria\":[\"Given X\"],\"openQuestions\":[{\"questionNumber\":1,\"question\":\"Should we do this?\"}],\"complexity\":{\"signals\":[],\"summary\":\"low\"}}";
         workContext.State[WorkflowStateKeys.RefinementResult] = refinementResult;
 
         var executor = new QuestionClassifierExecutor(workContext, config.Workflow);
@@ -134,6 +134,6 @@ public class QuestionClassifierExecutorTests
         var output = await executor.HandleAsync(input, workflowContext.Object, CancellationToken.None);
 
         Assert.True(output.Success);
-        Assert.Null(output.NextStage); // Should block - no next stage
+        Assert.Equal(WorkflowStage.Refinement, output.NextStage); // Returns to Refinement to skip ambiguous question
     }
 }

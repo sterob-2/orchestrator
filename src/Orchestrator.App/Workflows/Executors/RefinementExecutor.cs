@@ -94,18 +94,21 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         var previousRefinement = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.RefinementPath(workItem.Number));
         Logger.Debug($"[Refinement] Previous refinement found: {previousRefinement != null}");
 
-        // Load previous refinement result to get answered questions history and ambiguous questions
+        // Parse answered questions from previous refinement markdown file
         var previousAnsweredQuestions = new List<AnsweredQuestion>();
+        if (previousRefinement != null)
+        {
+            var parsedAnswers = RefinementMarkdownParser.ParseAnsweredQuestions(previousRefinement);
+            previousAnsweredQuestions.AddRange(parsedAnswers);
+            Logger.Debug($"[Refinement] Parsed {previousAnsweredQuestions.Count} answered question(s) from markdown");
+        }
+
+        // Load ambiguous questions from previous refinement result
         var previousAmbiguousQuestions = new List<OpenQuestion>();
         if (WorkContext.State.TryGetValue(WorkflowStateKeys.RefinementResult, out var prevRefinementJson))
         {
             if (WorkflowJson.TryDeserialize(prevRefinementJson, out RefinementResult? prevResult))
             {
-                if (prevResult?.AnsweredQuestions != null)
-                {
-                    previousAnsweredQuestions.AddRange(prevResult.AnsweredQuestions);
-                    Logger.Debug($"[Refinement] Loaded {previousAnsweredQuestions.Count} previously answered question(s)");
-                }
                 if (prevResult?.AmbiguousQuestions != null)
                 {
                     previousAmbiguousQuestions.AddRange(prevResult.AmbiguousQuestions);
@@ -113,10 +116,6 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
                 }
             }
         }
-
-        // Read issue comments to get answers
-        var comments = (await WorkContext.GitHub.GetIssueCommentsAsync(workItem.Number))?.ToList() ?? new List<IssueComment>();
-        Logger.Debug($"[Refinement] Fetched {comments.Count} issue comment(s)");
 
         // Check if we have an answer from ProductOwner or TechnicalAdvisor
         if (WorkContext.State.TryGetValue(WorkflowStateKeys.CurrentQuestionAnswer, out var answer) && !string.IsNullOrWhiteSpace(answer))
@@ -146,7 +145,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             Logger.Info($"[Refinement] Answer preview: {answer.Substring(0, Math.Min(100, answer.Length))}...");
             Logger.Debug($"[Refinement] Full answer: {answer}");
 
-            // Add to answered questions history
+            // Add to answered questions history - will be written to markdown file
             if (questionNumber > 0)
             {
                 var answeredQuestionEntry = new AnsweredQuestion(
@@ -158,13 +157,6 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
                 previousAnsweredQuestions.Add(answeredQuestionEntry);
                 Logger.Debug($"[Refinement] Added answered question to history (total: {previousAnsweredQuestions.Count})");
             }
-
-            // Add answer as synthetic comment for the LLM to process
-            var syntheticComment = new IssueComment(
-                Author: "orchestrator-bot",
-                Body: $"**Answer to Question #{questionNumber}:**\n\n{answer}\n\n**IMPORTANT: Question #{questionNumber} has been answered. Remove it from the openQuestions list.**"
-            );
-            comments.Add(syntheticComment);
 
             // Clear the answer from state after incorporating
             WorkContext.State.Remove(WorkflowStateKeys.CurrentQuestionAnswer, out _);
@@ -196,13 +188,6 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
                         Logger.Info($"[Refinement] Question #{questionNumber} classified as Ambiguous, moving to ambiguous questions list");
                         Logger.Debug($"[Refinement] Reasoning: {classificationResult.Classification.Reasoning}");
                     }
-
-                    // Add synthetic comment to inform LLM to remove from openQuestions
-                    var syntheticComment = new IssueComment(
-                        Author: "orchestrator-bot",
-                        Body: $"**Question #{questionNumber} requires human clarification:**\n\nThis question mixes product and technical concerns and needs stakeholder input.\n\n**IMPORTANT: Question #{questionNumber} has been moved to ambiguous questions. Remove it from the openQuestions list.**"
-                    );
-                    comments.Add(syntheticComment);
                 }
 
                 // Clear classification from state
@@ -219,7 +204,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         Logger.Debug($"[Refinement] Playbook loaded: {playbookContent.Length} chars");
 
         var playbook = new PlaybookParser().Parse(playbookContent);
-        var prompt = RefinementPrompt.Build(workItem, playbook, existingSpec, previousRefinement, comments, previousAnsweredQuestions);
+        var prompt = RefinementPrompt.Build(workItem, playbook, existingSpec, previousRefinement, previousAnsweredQuestions);
 
         Logger.Debug($"[Refinement] Calling LLM with model: {WorkContext.Config.TechLeadModel}");
         var response = await CallLlmAsync(
@@ -321,28 +306,24 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         RefinementMarkdownBuilder.AppendClarifiedStory(content, refinement.ClarifiedStory);
         RefinementMarkdownBuilder.AppendAcceptanceCriteria(content, refinement.AcceptanceCriteria);
 
-        if (refinement.AnsweredQuestions != null && refinement.AnsweredQuestions.Count > 0)
+        // Combined questions section with checkboxes
+        if (refinement.OpenQuestions.Count > 0 || (refinement.AnsweredQuestions != null && refinement.AnsweredQuestions.Count > 0))
         {
-            RefinementMarkdownBuilder.AppendAnsweredQuestions(content, refinement.AnsweredQuestions);
+            content.AppendLine("## Questions");
+            content.AppendLine();
+            content.AppendLine("**How to answer:**");
+            content.AppendLine("1. Edit this file and add your answer after the question");
+            content.AppendLine("2. Mark the checkbox with [x] when answered");
+            content.AppendLine("3. Commit and push changes");
+            content.AppendLine("4. Remove `blocked` label and add `dor` label to re-trigger");
+            content.AppendLine();
+            RefinementMarkdownBuilder.AppendQuestions(content, refinement.OpenQuestions, refinement.AnsweredQuestions);
         }
 
+        // Ambiguous questions require human clarification
         if (refinement.AmbiguousQuestions != null && refinement.AmbiguousQuestions.Count > 0)
         {
             RefinementMarkdownBuilder.AppendAmbiguousQuestions(content, refinement.AmbiguousQuestions);
-        }
-
-        if (refinement.OpenQuestions.Count > 0)
-        {
-            content.AppendLine($"## Open Questions ({refinement.OpenQuestions.Count})");
-            content.AppendLine();
-            content.AppendLine("**How to answer:**");
-            content.AppendLine("1. Add a comment to the GitHub issue with your answers");
-            content.AppendLine("2. Remove `blocked` and `user-review-required` labels");
-            content.AppendLine("3. Add the `dor` label to re-trigger refinement");
-            content.AppendLine();
-            content.AppendLine("Refinement will read your comment, incorporate answers, and stop re-asking those questions.");
-            content.AppendLine();
-            RefinementMarkdownBuilder.AppendOpenQuestions(content, refinement.OpenQuestions);
         }
 
         await FileOperationHelper.WriteAllTextAsync(WorkContext, filePath, content.ToString());
