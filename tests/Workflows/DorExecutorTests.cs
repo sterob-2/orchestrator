@@ -175,4 +175,216 @@ public class DorExecutorTests
         Assert.Contains("Open question?", writtenContent);
         workspace.Verify(w => w.WriteAllText(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
+
+    [Fact]
+    public async Task HandleAsync_ContinuesWhenGitCommitFailsWithLibGit2Exception()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = new WorkItem(5, "Title", "Body", "url", new List<string>());
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+        var workspace = new Mock<IRepoWorkspace>();
+        workspace.Setup(w => w.WriteAllText(It.IsAny<string>(), It.IsAny<string>()));
+        var repo = new Mock<IRepoGit>();
+        repo.Setup(r => r.CommitAndPush(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string[]>()))
+            .Throws(new LibGit2Sharp.LibGit2SharpException("Git error"));
+        var llm = new Mock<ILlmClient>();
+        var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
+
+        var executor = new DorExecutor(workContext, config.Workflow);
+        var input = new WorkflowInput(
+            workItem,
+            new ProjectContext("owner", "repo", "main", "/tmp", "/tmp", "owner", "user", 1),
+            Mode: null,
+            Attempt: 0);
+
+        var refinement = new RefinementResult(
+            "Story",
+            new List<string>(),
+            new List<string> { "Question 1?" },
+            new ComplexityIndicators(new List<string>(), null));
+
+        var workflowContext = new Mock<IWorkflowContext>();
+        workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorkflowJson.Serialize(refinement));
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.SendMessageAsync(It.IsAny<object>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+
+        var output = await executor.HandleAsync(input, workflowContext.Object, CancellationToken.None);
+
+        Assert.False(output.Success); // DoR fails because of open questions
+        github.Verify(g => g.CommentOnWorkItemAsync(workItem.Number, It.IsAny<string>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ContinuesWhenGitCommitFailsWithInvalidOperationException()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = new WorkItem(6, "Title", "Body", "url", new List<string>());
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+        var workspace = new Mock<IRepoWorkspace>();
+        workspace.Setup(w => w.WriteAllText(It.IsAny<string>(), It.IsAny<string>()));
+        var repo = new Mock<IRepoGit>();
+        repo.Setup(r => r.CommitAndPush(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string[]>()))
+            .Throws(new InvalidOperationException("Git operation error"));
+        var llm = new Mock<ILlmClient>();
+        var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
+
+        var executor = new DorExecutor(workContext, config.Workflow);
+        var input = new WorkflowInput(
+            workItem,
+            new ProjectContext("owner", "repo", "main", "/tmp", "/tmp", "owner", "user", 1),
+            Mode: null,
+            Attempt: 0);
+
+        var refinement = new RefinementResult(
+            "Story",
+            new List<string>(),
+            new List<string> { "Question 1?" },
+            new ComplexityIndicators(new List<string>(), null));
+
+        var workflowContext = new Mock<IWorkflowContext>();
+        workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorkflowJson.Serialize(refinement));
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.SendMessageAsync(It.IsAny<object>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+
+        var output = await executor.HandleAsync(input, workflowContext.Object, CancellationToken.None);
+
+        Assert.False(output.Success); // DoR fails because of open questions
+        github.Verify(g => g.CommentOnWorkItemAsync(workItem.Number, It.IsAny<string>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleAsync_HandlesGitHubApiException()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = new WorkItem(7, "Title", "Body", "url", new List<string>());
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
+            .Throws(new Octokit.ApiException("API error", System.Net.HttpStatusCode.BadRequest));
+        var workspace = new Mock<IRepoWorkspace>();
+        workspace.Setup(w => w.WriteAllText(It.IsAny<string>(), It.IsAny<string>()));
+        var repo = new Mock<IRepoGit>();
+        repo.Setup(r => r.CommitAndPush(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string[]>()))
+            .Returns(false);
+        var llm = new Mock<ILlmClient>();
+        var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
+
+        var executor = new DorExecutor(workContext, config.Workflow);
+        var input = new WorkflowInput(
+            workItem,
+            new ProjectContext("owner", "repo", "main", "/tmp", "/tmp", "owner", "user", 1),
+            Mode: null,
+            Attempt: 0);
+
+        var refinement = new RefinementResult(
+            "Story",
+            new List<string>(),
+            new List<string> { "Question 1?" },
+            new ComplexityIndicators(new List<string>(), null));
+
+        var workflowContext = new Mock<IWorkflowContext>();
+        workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorkflowJson.Serialize(refinement));
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.SendMessageAsync(It.IsAny<object>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+
+        var output = await executor.HandleAsync(input, workflowContext.Object, CancellationToken.None);
+
+        Assert.False(output.Success); // DoR fails, but doesn't throw
+    }
+
+    [Fact]
+    public async Task HandleAsync_HandlesHttpRequestException()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = new WorkItem(8, "Title", "Body", "url", new List<string>());
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
+            .Throws(new System.Net.Http.HttpRequestException("Network error"));
+        var workspace = new Mock<IRepoWorkspace>();
+        workspace.Setup(w => w.WriteAllText(It.IsAny<string>(), It.IsAny<string>()));
+        var repo = new Mock<IRepoGit>();
+        repo.Setup(r => r.CommitAndPush(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string[]>()))
+            .Returns(false);
+        var llm = new Mock<ILlmClient>();
+        var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
+
+        var executor = new DorExecutor(workContext, config.Workflow);
+        var input = new WorkflowInput(
+            workItem,
+            new ProjectContext("owner", "repo", "main", "/tmp", "/tmp", "owner", "user", 1),
+            Mode: null,
+            Attempt: 0);
+
+        var refinement = new RefinementResult(
+            "Story",
+            new List<string>(),
+            new List<string> { "Question 1?" },
+            new ComplexityIndicators(new List<string>(), null));
+
+        var workflowContext = new Mock<IWorkflowContext>();
+        workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorkflowJson.Serialize(refinement));
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.SendMessageAsync(It.IsAny<object>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+
+        var output = await executor.HandleAsync(input, workflowContext.Object, CancellationToken.None);
+
+        Assert.False(output.Success); // DoR fails, but doesn't throw
+    }
+
+    [Fact]
+    public async Task HandleAsync_HandlesOperationCanceledException()
+    {
+        var config = MockWorkContext.CreateConfig();
+        var workItem = new WorkItem(9, "Title", "Body", "url", new List<string>());
+        var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>()))
+            .Throws(new OperationCanceledException("Timeout"));
+        var workspace = new Mock<IRepoWorkspace>();
+        workspace.Setup(w => w.WriteAllText(It.IsAny<string>(), It.IsAny<string>()));
+        var repo = new Mock<IRepoGit>();
+        repo.Setup(r => r.CommitAndPush(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string[]>()))
+            .Returns(false);
+        var llm = new Mock<ILlmClient>();
+        var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
+
+        var executor = new DorExecutor(workContext, config.Workflow);
+        var input = new WorkflowInput(
+            workItem,
+            new ProjectContext("owner", "repo", "main", "/tmp", "/tmp", "owner", "user", 1),
+            Mode: null,
+            Attempt: 0);
+
+        var refinement = new RefinementResult(
+            "Story",
+            new List<string>(),
+            new List<string> { "Question 1?" },
+            new ComplexityIndicators(new List<string>(), null));
+
+        var workflowContext = new Mock<IWorkflowContext>();
+        workflowContext.Setup(c => c.ReadOrInitStateAsync(WorkflowStateKeys.RefinementResult, It.IsAny<Func<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorkflowJson.Serialize(refinement));
+        workflowContext.Setup(c => c.QueueStateUpdateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        workflowContext.Setup(c => c.SendMessageAsync(It.IsAny<object>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+
+        var output = await executor.HandleAsync(input, workflowContext.Object, CancellationToken.None);
+
+        Assert.False(output.Success); // DoR fails, but doesn't throw
+    }
 }
