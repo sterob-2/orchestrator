@@ -169,21 +169,52 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
         }
     }
 
-    private static string BuildReviewMarkdown(CodeReviewResult result)
+    private string BuildReviewMarkdown(CodeReviewResult result)
     {
-        var builder = new System.Text.StringBuilder();
-        builder.AppendLine($"# Code Review");
-        builder.AppendLine();
-        builder.AppendLine($"STATUS: {(result.Approved ? "APPROVED" : "CHANGES_REQUESTED")}");
-        builder.AppendLine($"UPDATED: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
-        builder.AppendLine();
-        builder.AppendLine("## Summary");
-        builder.AppendLine(result.Summary);
-        builder.AppendLine();
-        builder.AppendLine("## Findings");
+        // Try to load template, fallback to hardcoded if not found
+        string content;
+        try
+        {
+            if (WorkContext.Workspace.Exists(WorkflowPaths.ReviewTemplatePath))
+            {
+                var template = WorkContext.Workspace.ReadOrTemplate(
+                    WorkflowPaths.ReviewTemplatePath,
+                    WorkflowPaths.ReviewTemplatePath,
+                    TemplateUtil.BuildTokens(WorkContext));
+
+                if (!string.IsNullOrWhiteSpace(template))
+                {
+                    content = template;
+                }
+                else
+                {
+                    // Template file exists but is empty or ReadOrTemplate returned null - use fallback
+                    content = ApplyTokensToTemplate(DefaultReviewTemplate);
+                }
+            }
+            else
+            {
+                // Use hardcoded template and manually replace tokens
+                content = ApplyTokensToTemplate(DefaultReviewTemplate);
+            }
+        }
+        catch
+        {
+            // Any error reading template - use fallback
+            content = ApplyTokensToTemplate(DefaultReviewTemplate);
+        }
+
+        // Replace decision status
+        var decision = result.Approved ? "APPROVED" : "CHANGES_REQUESTED";
+        content = content.Replace("APPROVED | CHANGES_REQUESTED", decision);
+        content = content.Replace("STATUS: PENDING", $"STATUS: {decision}");
+
+        // Build findings section
+        var findingsSection = new System.Text.StringBuilder();
+        findingsSection.AppendLine("## Findings");
         if (result.Findings.Count == 0)
         {
-            builder.AppendLine("- None");
+            findingsSection.AppendLine("- None");
         }
         else
         {
@@ -192,10 +223,50 @@ internal sealed class CodeReviewExecutor : WorkflowStageExecutor
                 var location = string.IsNullOrWhiteSpace(finding.File)
                     ? ""
                     : $" ({finding.File}{(finding.Line.HasValue ? $":{finding.Line}" : "")})";
-                builder.AppendLine($"- [{finding.Severity}] {finding.Category}: {finding.Message}{location}");
+                findingsSection.AppendLine($"- [{finding.Severity}] {finding.Category}: {finding.Message}{location}");
             }
         }
 
-        return builder.ToString();
+        // Build summary section
+        var summarySection = new System.Text.StringBuilder();
+        summarySection.AppendLine("## Summary");
+        summarySection.AppendLine(result.Summary);
+
+        // Replace sections in template
+        content = System.Text.RegularExpressions.Regex.Replace(
+            content,
+            @"## Findings\s*\n- None",
+            findingsSection.ToString().TrimEnd(),
+            System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        content = System.Text.RegularExpressions.Regex.Replace(
+            content,
+            @"## Summary\s*\n- Review notes here\.",
+            summarySection.ToString().TrimEnd(),
+            System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        return content;
     }
+
+    private string ApplyTokensToTemplate(string template)
+    {
+        var content = template;
+        var tokens = TemplateUtil.BuildTokens(WorkContext);
+        foreach (var pair in tokens)
+        {
+            content = content.Replace(pair.Key, pair.Value, StringComparison.OrdinalIgnoreCase);
+        }
+        return content;
+    }
+
+    private const string DefaultReviewTemplate =
+        "# Code Review: Issue {{ISSUE_NUMBER}} - {{ISSUE_TITLE}}\n\n" +
+        "STATUS: PENDING\n" +
+        "UPDATED: {{UPDATED_AT_UTC}}\n\n" +
+        "## Decision\n" +
+        "APPROVED | CHANGES_REQUESTED\n\n" +
+        "## Findings\n" +
+        "- None\n\n" +
+        "## Notes\n" +
+        "- Review notes here.\n";
 }
