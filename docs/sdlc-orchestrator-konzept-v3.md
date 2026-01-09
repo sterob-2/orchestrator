@@ -150,6 +150,15 @@ src/Orchestrator.App/
 
 **Begründung:** Infrastructure ist solide. Orchestrierung muss neu wegen Paradigmenwechsel (Label-State-Machine → Workflow Graph).
 
+### 3.4 MCP Server Integration (SonarQube)
+
+Das System wird um einen **SonarQube MCP Server** erweitert, der als "Sibling Container" neben dem Orchestrator läuft (ähnlich wie Git/GitHub MCP).
+
+**Architektur:**
+- `McpClientManager` startet den SonarQube MCP Container via Docker Socket.
+- Der Container verbindet sich mit SonarQube Cloud/Server (konfiguriert via Env-Vars).
+- Agenten (CodeReview, DoD) rufen Tools wie `sonarqube_get_new_issues` auf.
+
 ---
 
 ## 4. Workflow Pipeline
@@ -375,6 +384,8 @@ record DevResult(
 
 **Aufgabe:** AI Code Review vor menschlichem Review
 
+**Integration:** Nutzt SonarQube MCP Tools (`sonarqube_get_new_issues`), um statische Analyseergebnisse in das Review einzubeziehen.
+
 | Prüft | Severity |
 |-------|----------|
 | Correctness (Logikfehler, Null Refs) | BLOCKER |
@@ -464,14 +475,15 @@ record ReleaseResult(
 
 ### 7.3 DoD Gate (Definition of Done)
 
-**Designprinzip:** CI als Source of Truth - kein eigener Build/Test, nur API-Abfragen.
+**Designprinzip:** CI als Source of Truth - kein eigener Build/Test.
+**NEU:** SonarQube Quality Gate wird direkt via MCP Server (`sonarqube_get_quality_gate_status`) abgefragt.
 
 **5 Prüfkategorien:**
 
 | Kategorie | Quelle | Kriterien |
 |-----------|--------|-----------|
 | CI Status | GitHub Checks API | DoD-01 bis DoD-03 |
-| Quality Gate | SonarQube API | DoD-10 bis DoD-15 |
+| Quality Gate | SonarQube MCP | DoD-10 bis DoD-15 |
 | Spec Compliance | Eigene Prüfung | DoD-20 bis DoD-23 |
 | Code Review | Workflow State | DoD-30, DoD-31 |
 | Cleanup | Eigene Prüfung | DoD-40 bis DoD-42 |
