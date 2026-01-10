@@ -86,11 +86,15 @@ internal sealed class GitHubIssueWatcher
             }
             catch (System.Net.Http.HttpRequestException ex)
             {
-                Logger.WriteLine(ex.ToString());
+                Logger.WriteLine($"[Watcher] HTTP request error: {ex}");
             }
             catch (TimeoutException ex)
             {
-                Logger.WriteLine(ex.ToString());
+                Logger.WriteLine($"[Watcher] Timeout error: {ex}");
+            }
+            catch (Exception ex)
+            {
+                Logger.WriteLine($"[Watcher] Unexpected error during workflow execution: {ex}");
             }
         }
 

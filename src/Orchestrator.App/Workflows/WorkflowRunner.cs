@@ -108,6 +108,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner
 
             return output;
         }
+        catch (Exception ex)
+        {
+            Logger.WriteLine($"[WorkflowRunner] Error executing {stage} for issue #{context.WorkItem.Number}: {ex}");
+            throw;
+        }
         finally
         {
             // Always mark workflow as complete, even if it fails or is cancelled
