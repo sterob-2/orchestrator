@@ -48,8 +48,13 @@ internal static class TechLeadPrompt
         builder.AppendLine("- Will implementation fit file size limits? (Executors 200-400 LOC max)");
         builder.AppendLine("- IMPORTANT: If adding new files (Operation: Add in Touch List), reference at least one allowed framework ID (e.g., FW-01) and pattern ID (e.g., PAT-02) from the playbook in your spec.");
         builder.AppendLine();
-        builder.AppendLine("Write the spec in markdown using the template sections. " +
-                           "Include at least 3 Gherkin scenarios and a Touch List table with specific file paths or directories (e.g., 'tests/' for test packages).");
+        builder.AppendLine("TOUCH LIST REQUIREMENTS:");
+        builder.AppendLine("- Use ACTUAL file paths (e.g., 'src/App.cs') or directory paths (e.g., 'tests/')");
+        builder.AppendLine("- DO NOT use glob patterns like 'tests/**' or 'src/**/*.cs' - these will fail validation");
+        builder.AppendLine("- For test files, use 'tests/' to indicate the entire test directory");
+        builder.AppendLine("- Paths must exist in the repository or validation will fail");
+        builder.AppendLine();
+        builder.AppendLine("Write the spec in markdown using the template sections with at least 3 Gherkin scenarios.");
 
         return (system, builder.ToString());
     }
