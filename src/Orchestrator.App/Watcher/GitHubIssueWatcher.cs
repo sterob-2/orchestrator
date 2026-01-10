@@ -247,39 +247,11 @@ internal sealed class GitHubIssueWatcher
 
     private WorkflowStage? GetStageFromLabels(WorkItem item)
     {
-        if (HasLabel(item, _config.Labels.WorkItemLabel))
+        // Check stage-specific labels FIRST before generic ready-for-agents
+        // This prevents race conditions where both labels might be present temporarily
+        if (HasLabel(item, _config.Labels.ReleaseLabel))
         {
-            return WorkflowStage.ContextBuilder;
-        }
-
-        if (HasLabel(item, _config.Labels.PlannerLabel))
-        {
-            return WorkflowStage.Refinement;
-        }
-
-        if (HasLabel(item, _config.Labels.DorLabel))
-        {
-            return WorkflowStage.DoR;
-        }
-
-        if (HasLabel(item, _config.Labels.TechLeadLabel))
-        {
-            return WorkflowStage.TechLead;
-        }
-
-        if (HasLabel(item, _config.Labels.SpecGateLabel))
-        {
-            return WorkflowStage.SpecGate;
-        }
-
-        if (HasLabel(item, _config.Labels.DevLabel))
-        {
-            return WorkflowStage.Dev;
-        }
-
-        if (HasLabel(item, _config.Labels.TestLabel))
-        {
-            return WorkflowStage.DoD;
+            return WorkflowStage.Release;
         }
 
         if (HasLabel(item, _config.Labels.CodeReviewNeededLabel) || HasLabel(item, _config.Labels.CodeReviewChangesRequestedLabel))
@@ -287,9 +259,40 @@ internal sealed class GitHubIssueWatcher
             return WorkflowStage.CodeReview;
         }
 
-        if (HasLabel(item, _config.Labels.ReleaseLabel))
+        if (HasLabel(item, _config.Labels.TestLabel))
         {
-            return WorkflowStage.Release;
+            return WorkflowStage.DoD;
+        }
+
+        if (HasLabel(item, _config.Labels.DevLabel))
+        {
+            return WorkflowStage.Dev;
+        }
+
+        if (HasLabel(item, _config.Labels.SpecGateLabel))
+        {
+            return WorkflowStage.SpecGate;
+        }
+
+        if (HasLabel(item, _config.Labels.TechLeadLabel))
+        {
+            return WorkflowStage.TechLead;
+        }
+
+        if (HasLabel(item, _config.Labels.DorLabel))
+        {
+            return WorkflowStage.DoR;
+        }
+
+        if (HasLabel(item, _config.Labels.PlannerLabel))
+        {
+            return WorkflowStage.Refinement;
+        }
+
+        // Check generic ready-for-agents label LAST as fallback
+        if (HasLabel(item, _config.Labels.WorkItemLabel))
+        {
+            return WorkflowStage.ContextBuilder;
         }
 
         return null;
