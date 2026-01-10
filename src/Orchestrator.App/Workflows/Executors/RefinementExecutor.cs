@@ -25,7 +25,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             Logger.Info($"[Refinement] Starting refinement for issue #{input.WorkItem.Number}");
             Logger.Debug($"[Refinement] Checking for existing spec at: {WorkflowPaths.SpecPath(input.WorkItem.Number)}");
 
-            var refinement = await BuildRefinementAsync(input, cancellationToken);
+            var refinement = await BuildRefinementAsync(input, context, cancellationToken);
 
             Logger.Info($"[Refinement] Refinement complete: {refinement.AcceptanceCriteria.Count} criteria, {refinement.OpenQuestions.Count} questions");
             Logger.Debug($"[Refinement] Storing refinement result in workflow state");
@@ -39,6 +39,20 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             Logger.Debug($"[Refinement] Writing refinement output to {refinementPath}");
             await WriteRefinementFileAsync(input.WorkItem, refinement, refinementPath);
             Logger.Info($"[Refinement] Wrote refinement output to {refinementPath}");
+
+            // Check if we should block workflow due to ambiguous questions
+            var ambiguousCount = refinement.AmbiguousQuestions?.Count ?? 0;
+            if (refinement.OpenQuestions.Count == 0 && ambiguousCount > 0)
+            {
+                Logger.Warning($"[Refinement] No more answerable questions, but {ambiguousCount} ambiguous question(s) require human clarification");
+                Logger.Info($"[Refinement] Posting GitHub comment and blocking workflow");
+
+                // Post informational GitHub comment
+                await PostAmbiguousQuestionsCommentAsync(refinement.AmbiguousQuestions!, cancellationToken);
+
+                var blockingSummary = $"Blocked: {ambiguousCount} ambiguous question(s) require clarification.";
+                return (false, blockingSummary);
+            }
 
             // Commit the refinement file (best effort - don't fail workflow if git fails)
             try
@@ -80,7 +94,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         }
     }
 
-    private async Task<RefinementResult> BuildRefinementAsync(WorkflowInput input, CancellationToken cancellationToken)
+    private async Task<RefinementResult> BuildRefinementAsync(WorkflowInput input, IWorkflowContext context, CancellationToken cancellationToken)
     {
         var workItem = input.WorkItem;
         var existingSpec = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, WorkflowPaths.SpecPath(workItem.Number));
@@ -105,40 +119,52 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
 
         // Load ambiguous questions from previous refinement result
         var previousAmbiguousQuestions = new List<OpenQuestion>();
-        if (WorkContext.State.TryGetValue(WorkflowStateKeys.RefinementResult, out var prevRefinementJson))
+        var prevRefinementJson = await context.ReadOrInitStateAsync(
+            WorkflowStateKeys.RefinementResult,
+            () => "",
+            cancellationToken);
+
+        if (!string.IsNullOrEmpty(prevRefinementJson) &&
+            WorkflowJson.TryDeserialize(prevRefinementJson, out RefinementResult? prevResult) &&
+            prevResult?.AmbiguousQuestions != null)
         {
-            if (WorkflowJson.TryDeserialize(prevRefinementJson, out RefinementResult? prevResult))
-            {
-                if (prevResult?.AmbiguousQuestions != null)
-                {
-                    previousAmbiguousQuestions.AddRange(prevResult.AmbiguousQuestions);
-                    Logger.Debug($"[Refinement] Loaded {previousAmbiguousQuestions.Count} ambiguous question(s)");
-                }
-            }
+            previousAmbiguousQuestions.AddRange(prevResult.AmbiguousQuestions);
+            Logger.Debug($"[Refinement] Loaded {previousAmbiguousQuestions.Count} ambiguous question(s)");
         }
 
         // Check if we have an answer from ProductOwner or TechnicalAdvisor
-        if (WorkContext.State.TryGetValue(WorkflowStateKeys.CurrentQuestionAnswer, out var answer) && !string.IsNullOrWhiteSpace(answer))
+        var answer = await context.ReadOrInitStateAsync(
+            WorkflowStateKeys.CurrentQuestionAnswer,
+            () => "",
+            cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(answer))
         {
             // Determine which executor provided the answer
-            var answerSource = "unknown";
-            if (WorkContext.State.ContainsKey(WorkflowStateKeys.ProductOwnerResult))
-            {
-                answerSource = "ProductOwner";
-            }
-            else if (WorkContext.State.ContainsKey(WorkflowStateKeys.TechnicalAdvisorResult))
-            {
-                answerSource = "TechnicalAdvisor";
-            }
+            var productOwnerResult = await context.ReadOrInitStateAsync(
+                WorkflowStateKeys.ProductOwnerResult,
+                () => "",
+                cancellationToken);
+            var techAdvisorResult = await context.ReadOrInitStateAsync(
+                WorkflowStateKeys.TechnicalAdvisorResult,
+                () => "",
+                cancellationToken);
+
+            var answerSource = !string.IsNullOrEmpty(productOwnerResult) ? "ProductOwner"
+                : !string.IsNullOrEmpty(techAdvisorResult) ? "TechnicalAdvisor"
+                : "unknown";
 
             // Get the question number that was answered
-            var questionNumber = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestionNumber, out var qNum) && int.TryParse(qNum, out var qNumInt)
-                ? qNumInt
-                : 0;
+            var qNumStr = await context.ReadOrInitStateAsync(
+                WorkflowStateKeys.LastProcessedQuestionNumber,
+                () => "0",
+                cancellationToken);
+            var questionNumber = int.TryParse(qNumStr, out var qNumInt) ? qNumInt : 0;
 
-            var answeredQuestion = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestion, out var question)
-                ? question
-                : "unknown question";
+            var answeredQuestion = await context.ReadOrInitStateAsync(
+                WorkflowStateKeys.LastProcessedQuestion,
+                () => "unknown question",
+                cancellationToken);
 
             Logger.Info($"[Refinement] Incorporating answer from {answerSource}");
             Logger.Info($"[Refinement] Question #{questionNumber}: {answeredQuestion.Substring(0, Math.Min(80, answeredQuestion.Length))}...");
@@ -159,23 +185,22 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             }
 
             // Clear the answer from state after incorporating
+            await context.QueueStateUpdateAsync(WorkflowStateKeys.CurrentQuestionAnswer, "", cancellationToken);
             WorkContext.State.Remove(WorkflowStateKeys.CurrentQuestionAnswer, out _);
             Logger.Debug($"[Refinement] Cleared CurrentQuestionAnswer from state");
         }
         // Check if the last question was classified as Ambiguous
-        else if (WorkContext.State.TryGetValue(WorkflowStateKeys.QuestionClassificationResult, out var classificationJson))
+        var classificationJson = await context.ReadOrInitStateAsync(WorkflowStateKeys.QuestionClassificationResult, () => "", cancellationToken);
+        if (!string.IsNullOrEmpty(classificationJson))
         {
             if (WorkflowJson.TryDeserialize(classificationJson, out QuestionClassificationResult? classificationResult) &&
                 classificationResult?.Classification.Type == QuestionType.Ambiguous)
             {
                 // Get the ambiguous question details
-                var questionNumber = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestionNumber, out var qNum) && int.TryParse(qNum, out var qNumInt)
-                    ? qNumInt
-                    : 0;
+                var qNumStr = await context.ReadOrInitStateAsync(WorkflowStateKeys.LastProcessedQuestionNumber, () => "0", cancellationToken);
+                var questionNumber = int.TryParse(qNumStr, out var qNumInt) ? qNumInt : 0;
 
-                var questionText = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestion, out var question)
-                    ? question
-                    : "";
+                var questionText = await context.ReadOrInitStateAsync(WorkflowStateKeys.LastProcessedQuestion, () => "", cancellationToken);
 
                 if (questionNumber > 0 && !string.IsNullOrEmpty(questionText))
                 {
@@ -191,7 +216,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
                 }
 
                 // Clear classification from state
-                WorkContext.State.Remove(WorkflowStateKeys.QuestionClassificationResult, out _);
+                await context.QueueStateUpdateAsync(WorkflowStateKeys.QuestionClassificationResult, "", cancellationToken);
                 Logger.Debug($"[Refinement] Cleared QuestionClassificationResult from state");
             }
         }
@@ -230,9 +255,10 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             .ToList();
 
         // Load previous OpenQuestions to get existing question numbers
+        // Reuse prevRefinementJson that was already read from IWorkflowContext
         var previousOpenQuestions = new List<OpenQuestion>();
-        if (WorkContext.State.TryGetValue(WorkflowStateKeys.RefinementResult, out var prevRefinementJson2) &&
-            WorkflowJson.TryDeserialize(prevRefinementJson2, out RefinementResult? prevResult2) &&
+        if (!string.IsNullOrEmpty(prevRefinementJson) &&
+            WorkflowJson.TryDeserialize(prevRefinementJson, out RefinementResult? prevResult2) &&
             prevResult2?.OpenQuestions != null)
         {
             previousOpenQuestions.AddRange(prevResult2.OpenQuestions);
@@ -294,6 +320,38 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         return result;
     }
 
+    private async Task PostAmbiguousQuestionsCommentAsync(
+        IReadOnlyList<OpenQuestion> ambiguousQuestions,
+        CancellationToken cancellationToken)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("## ⚠️ Ambiguous Questions Require Clarification");
+        sb.AppendLine();
+        sb.AppendLine($"The following {ambiguousQuestions.Count} question(s) mix product and technical concerns:");
+        sb.AppendLine();
+
+        foreach (var question in ambiguousQuestions)
+        {
+            sb.AppendLine($"**Question #{question.QuestionNumber}:** {question.Question}");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("---");
+        sb.AppendLine("**Next Steps:**");
+        sb.AppendLine("1. Review the questions in the refinement markdown file");
+        sb.AppendLine("2. Provide answers using the checkbox format:");
+        sb.AppendLine("   ```");
+        sb.AppendLine("   - [x] Your answer here");
+        sb.AppendLine("   ```");
+        sb.AppendLine("3. Remove the `blocked` label when ready");
+        sb.AppendLine();
+        sb.AppendLine("Workflow will resume automatically once `blocked` label is removed.");
+
+        await WorkContext.GitHub.CommentOnWorkItemAsync(
+            WorkContext.WorkItem.Number,
+            sb.ToString());
+    }
+
     private async Task WriteRefinementFileAsync(WorkItem workItem, RefinementResult refinement, string filePath)
     {
         var content = new System.Text.StringBuilder();
@@ -352,15 +410,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         // Check if there are open questions
         if (refinement.OpenQuestions.Count == 0)
         {
-            // No more open questions - check if we have ambiguous questions
-            var ambiguousCount = refinement.AmbiguousQuestions?.Count ?? 0;
-            if (ambiguousCount > 0)
-            {
-                Logger.Warning($"[Refinement] No more answerable questions, but {ambiguousCount} ambiguous question(s) require human clarification");
-                Logger.Info($"[Refinement] Blocking workflow - human intervention required for ambiguous questions");
-                return null; // Block for human intervention
-            }
-
+            // No more open questions - ambiguous question blocking is handled in ExecuteAsync
             Logger.Info($"[Refinement] No open questions, proceeding to DoR");
             return WorkflowStage.DoR;
         }
