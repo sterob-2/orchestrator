@@ -19,44 +19,74 @@ internal static class FileOperationHelper
 
     /// <summary>
     /// Checks if a file exists using MCP if available, otherwise Workspace.
+    /// Falls back to Workspace if MCP fails.
     /// </summary>
     public static async Task<bool> ExistsAsync(WorkContext ctx, string path)
     {
         EnsureSafeRelativePath(path);
         if (ctx.McpFiles != null)
         {
-            return await ctx.McpFiles.ExistsAsync(path);
+            try
+            {
+                return await ctx.McpFiles.ExistsAsync(path);
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug($"[FileOp] MCP error checking existence of {path}, falling back to Workspace: {ex.Message}");
+                // Fallback to Workspace if MCP has any error
+            }
         }
         return ctx.Workspace.Exists(path);
     }
 
     /// <summary>
     /// Reads file content using MCP if available, otherwise Workspace.
+    /// Falls back to Workspace if MCP fails.
     /// </summary>
     public static async Task<string> ReadAllTextAsync(WorkContext ctx, string path)
     {
         EnsureSafeRelativePath(path);
         if (ctx.McpFiles != null)
         {
-            return await ctx.McpFiles.ReadAllTextAsync(path);
+            try
+            {
+                return await ctx.McpFiles.ReadAllTextAsync(path);
+            }
+            catch (FileNotFoundException ex)
+            {
+                Logger.Debug($"[FileOp] MCP failed to read {path}, falling back to Workspace: {ex.Message}");
+                // Fallback to Workspace if MCP cannot find the file
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"[FileOp] MCP error reading {path}, falling back to Workspace: {ex.Message}");
+                // Fallback to Workspace if MCP has any other error
+            }
         }
         return ctx.Workspace.ReadAllText(path);
     }
 
     /// <summary>
     /// Writes file content using MCP if available, otherwise Workspace.
+    /// Falls back to Workspace if MCP fails.
     /// </summary>
     public static async Task WriteAllTextAsync(WorkContext ctx, string path, string content)
     {
         EnsureSafeRelativePath(path);
         if (ctx.McpFiles != null)
         {
-            await ctx.McpFiles.WriteAllTextAsync(path, content);
+            try
+            {
+                await ctx.McpFiles.WriteAllTextAsync(path, content);
+                return;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"[FileOp] MCP error writing {path}, falling back to Workspace: {ex.Message}");
+                // Fallback to Workspace if MCP has any error
+            }
         }
-        else
-        {
-            ctx.Workspace.WriteAllText(path, content);
-        }
+        ctx.Workspace.WriteAllText(path, content);
     }
 
     /// <summary>
@@ -91,13 +121,23 @@ internal static class FileOperationHelper
 
     /// <summary>
     /// Deletes a file using MCP if available, otherwise Workspace.
+    /// Falls back to Workspace if MCP fails.
     /// </summary>
     public static async Task DeleteAsync(WorkContext ctx, string path)
     {
         EnsureSafeRelativePath(path);
         if (ctx.McpFiles != null)
         {
-            await ctx.McpFiles.DeleteAsync(path);
+            try
+            {
+                await ctx.McpFiles.DeleteAsync(path);
+                return;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"[FileOp] MCP error deleting {path}, falling back to Workspace: {ex.Message}");
+                // Fallback to Workspace if MCP has any error
+            }
         }
 
         var fullPath = ctx.Workspace.ResolvePath(path);
