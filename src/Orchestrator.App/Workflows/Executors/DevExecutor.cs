@@ -61,23 +61,31 @@ internal sealed class DevExecutor : WorkflowStageExecutor
             {
                 case TouchOperation.Add:
                 case TouchOperation.Modify:
+                    Logger.Debug($"[Dev] Reading existing content for: {entry.Path}");
                     var existing = entry.Operation == TouchOperation.Modify
                         ? await FileOperationHelper.ReadAllTextAsync(WorkContext, entry.Path)
                         : null;
+                    Logger.Debug($"[Dev] Building prompt for: {entry.Path}");
                     var prompt = DevPrompt.Build(mode, parsedSpec, entry, existing);
+                    Logger.Debug($"[Dev] Calling LLM for: {entry.Path}");
                     var updated = await CallLlmAsync(
                         WorkContext.Config.DevModel,
                         prompt.System,
                         prompt.User,
                         cancellationToken);
+                    Logger.Debug($"[Dev] LLM response received for: {entry.Path} (length: {updated?.Length ?? 0})");
                     if (string.IsNullOrWhiteSpace(updated))
                     {
+                        Logger.Warning($"[Dev] Empty LLM output for: {entry.Path}");
                         return (false, $"Dev blocked: empty output for {entry.Path}.");
                     }
+                    Logger.Debug($"[Dev] Writing updated content to: {entry.Path}");
                     await FileOperationHelper.WriteAllTextAsync(WorkContext, entry.Path, updated);
+                    Logger.Debug($"[Dev] File written successfully: {entry.Path}");
                     changedFiles.Add(entry.Path);
                     break;
                 case TouchOperation.Delete:
+                    Logger.Debug($"[Dev] Deleting file: {entry.Path}");
                     await FileOperationHelper.DeleteAsync(WorkContext, entry.Path);
                     changedFiles.Add(entry.Path);
                     break;
