@@ -42,9 +42,19 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         var changedFiles = new List<string>();
         foreach (var entry in parsedSpec.TouchList)
         {
+            Logger.Debug($"[Dev] Processing touch list entry: {entry.Operation} | {entry.Path}");
+
             if (!WorkItemParsers.IsSafeRelativePath(entry.Path))
             {
+                Logger.Warning($"[Dev] Unsafe path detected: {entry.Path}");
                 return (false, $"Dev blocked: unsafe path {entry.Path}.");
+            }
+
+            // Skip directory entries - only process files
+            if (entry.Path.EndsWith('/') || entry.Path.EndsWith('\\'))
+            {
+                Logger.Debug($"[Dev] Skipping directory entry: {entry.Path}");
+                continue;
             }
 
             switch (entry.Operation)
@@ -81,9 +91,15 @@ internal sealed class DevExecutor : WorkflowStageExecutor
             changedFiles.Add(specPath);
         }
 
+        Logger.Info($"[Dev] Processed {changedFiles.Count} file(s)");
+
         var branchName = WorkItemBranch.BuildBranchName(input.WorkItem);
+        Logger.Debug($"[Dev] Ensuring branch: {branchName}");
         WorkContext.Repo.EnsureBranch(branchName, WorkContext.Config.Workflow.DefaultBaseBranch);
+
+        Logger.Debug($"[Dev] Committing and pushing {changedFiles.Count} changed file(s)");
         var commitOk = WorkContext.Repo.CommitAndPush(branchName, $"feat: issue {input.WorkItem.Number}", changedFiles);
+        Logger.Info($"[Dev] Commit result: {(commitOk ? "SUCCESS" : "FAILED")}");
 
         var result = new DevResult(commitOk, input.WorkItem.Number, changedFiles, "");
         var serializedResult = WorkflowJson.Serialize(result);
