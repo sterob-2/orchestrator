@@ -130,6 +130,13 @@ internal sealed class GitHubIssueWatcher
             return workItem;
         }
 
+        // Check if this workflow is already in progress
+        if (_checkpointStore.IsWorkflowInProgress(workItem.Number))
+        {
+            Logger.WriteLine($"[Watcher] Issue #{workItem.Number} already has a workflow in progress, skipping");
+            return workItem;
+        }
+
         var stage = GetStageFromLabels(workItem);
         if (stage is null)
         {

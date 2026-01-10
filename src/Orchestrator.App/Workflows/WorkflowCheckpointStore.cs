@@ -7,6 +7,9 @@ internal interface IWorkflowCheckpointStore
     int IncrementStage(int issueNumber, WorkflowStage stage);
     int GetStageAttempts(int issueNumber, WorkflowStage stage);
     void Reset(int issueNumber);
+    bool TryBeginWorkflow(int issueNumber);
+    void CompleteWorkflow(int issueNumber);
+    bool IsWorkflowInProgress(int issueNumber);
 }
 
 internal sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
@@ -47,6 +50,40 @@ internal sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
         }
     }
 
+    public bool TryBeginWorkflow(int issueNumber)
+    {
+        lock (_lock)
+        {
+            var checkpoint = GetOrCreate(issueNumber);
+            if (checkpoint.IsInProgress)
+            {
+                return false; // Already in progress
+            }
+
+            checkpoint.IsInProgress = true;
+            return true; // Successfully started
+        }
+    }
+
+    public void CompleteWorkflow(int issueNumber)
+    {
+        lock (_lock)
+        {
+            if (_store.TryGetValue(issueNumber, out var checkpoint))
+            {
+                checkpoint.IsInProgress = false;
+            }
+        }
+    }
+
+    public bool IsWorkflowInProgress(int issueNumber)
+    {
+        lock (_lock)
+        {
+            return _store.TryGetValue(issueNumber, out var checkpoint) && checkpoint.IsInProgress;
+        }
+    }
+
     private WorkflowCheckpoint GetOrCreate(int issueNumber)
     {
         if (!_store.TryGetValue(issueNumber, out var checkpoint))
@@ -67,5 +104,6 @@ internal sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
 
         public int IssueNumber { get; }
         public Dictionary<WorkflowStage, int> StageAttempts { get; } = new();
+        public bool IsInProgress { get; set; }
     }
 }

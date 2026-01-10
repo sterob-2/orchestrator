@@ -27,23 +27,67 @@ internal sealed class WorkflowRunner : IWorkflowRunner
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var mode = ResolveMode(context.WorkItem);
-        var recorder = _metricsStore is not null ? new WorkflowMetricsRecorder(_metricsStore, context.Config) : null;
-        var runContext = context with { Metrics = recorder };
-
-        recorder?.BeginRun(context.WorkItem, stage, mode);
-
-        var attempt = _checkpointStore.IncrementStage(context.WorkItem.Number, stage);
-        var limit = MaxIterationsForStage(context.Config.Workflow, stage);
-        if (attempt > limit)
+        // Try to begin workflow - if already in progress, skip
+        if (!_checkpointStore.TryBeginWorkflow(context.WorkItem.Number))
         {
-            var blocked = new WorkflowOutput(
-                Success: false,
-                Notes: $"Iteration limit reached for {stage} ({attempt}/{limit}).",
-                NextStage: null);
+            Logger.WriteLine($"[WorkflowRunner] Issue #{context.WorkItem.Number} already has a workflow in progress, skipping");
+            return null;
+        }
 
-            await _labelSync.ApplyAsync(runContext.WorkItem, blocked);
-            await _humanInLoop.ApplyAsync(runContext.WorkItem, blocked);
+        try
+        {
+            var mode = ResolveMode(context.WorkItem);
+            var recorder = _metricsStore is not null ? new WorkflowMetricsRecorder(_metricsStore, context.Config) : null;
+            var runContext = context with { Metrics = recorder };
+
+            recorder?.BeginRun(context.WorkItem, stage, mode);
+
+            var attempt = _checkpointStore.IncrementStage(context.WorkItem.Number, stage);
+            var limit = MaxIterationsForStage(context.Config.Workflow, stage);
+            if (attempt > limit)
+            {
+                var blocked = new WorkflowOutput(
+                    Success: false,
+                    Notes: $"Iteration limit reached for {stage} ({attempt}/{limit}).",
+                    NextStage: null);
+
+                await _labelSync.ApplyAsync(runContext.WorkItem, blocked);
+                await _humanInLoop.ApplyAsync(runContext.WorkItem, blocked);
+
+                if (recorder is not null)
+                {
+                    var iterations = new Dictionary<WorkflowStage, int> { [stage] = attempt };
+                    await recorder.CompleteRunAsync(
+                        runContext.WorkItem,
+                        stage,
+                        mode,
+                        success: false,
+                        nextStage: null,
+                        iterations,
+                        cancellationToken);
+                }
+
+                return blocked;
+            }
+
+            var workflow = WorkflowFactory.BuildGraph(runContext, stage);
+            var input = new WorkflowInput(
+                runContext.WorkItem,
+                BuildProjectContext(runContext.Config),
+                Mode: mode,
+                Attempt: 0);
+
+            var output = await SDLCWorkflow.RunWorkflowAsync(
+                workflow,
+                input,
+                async stageOutput =>
+                {
+                    await _labelSync.ApplyAsync(runContext.WorkItem, stageOutput);
+                    if (!stageOutput.Success && stageOutput.NextStage is null)
+                    {
+                        await _humanInLoop.ApplyAsync(runContext.WorkItem, stageOutput);
+                    }
+                });
 
             if (recorder is not null)
             {
@@ -52,48 +96,19 @@ internal sealed class WorkflowRunner : IWorkflowRunner
                     runContext.WorkItem,
                     stage,
                     mode,
-                    success: false,
-                    nextStage: null,
+                    output?.Success ?? false,
+                    output?.NextStage,
                     iterations,
                     cancellationToken);
             }
 
-            return blocked;
+            return output;
         }
-
-        var workflow = WorkflowFactory.BuildGraph(runContext, stage);
-        var input = new WorkflowInput(
-            runContext.WorkItem,
-            BuildProjectContext(runContext.Config),
-            Mode: mode,
-            Attempt: 0);
-
-        var output = await SDLCWorkflow.RunWorkflowAsync(
-            workflow,
-            input,
-            async stageOutput =>
-            {
-                await _labelSync.ApplyAsync(runContext.WorkItem, stageOutput);
-                if (!stageOutput.Success && stageOutput.NextStage is null)
-                {
-                    await _humanInLoop.ApplyAsync(runContext.WorkItem, stageOutput);
-                }
-            });
-
-        if (recorder is not null)
+        finally
         {
-            var iterations = new Dictionary<WorkflowStage, int> { [stage] = attempt };
-            await recorder.CompleteRunAsync(
-                runContext.WorkItem,
-                stage,
-                mode,
-                output?.Success ?? false,
-                output?.NextStage,
-                iterations,
-                cancellationToken);
+            // Always mark workflow as complete, even if it fails or is cancelled
+            _checkpointStore.CompleteWorkflow(context.WorkItem.Number);
         }
-
-        return output;
     }
 
     private static ProjectContext BuildProjectContext(OrchestratorConfig cfg)
