@@ -41,9 +41,6 @@ Integrate a SonarQube MCP Server as a sibling Docker container managed by McpCli
 - [x] **Question #4:** What default MCP container image name and tag should be used if no explicit image is provided (the spec currently references sonarsource/sonarqube-mcp-server but image name/tag is TBC)? Should the image default be pinned to a specific tag in OrchestratorConfig or must it always be explicitly supplied?
   **Answer (ProductOwner):** Require the image to be explicitly configurable in OrchestratorConfig and prefer a pinned image reference (ideally an immutable digest) rather than an unpinned implicit default. Concretely: add a nullable config property (e.g. SonarMcpImage) populated from an env var (SONAR_MCP_IMAGE). On startup validate the value. Behavior policy: - Production/CI: fail-fast if SonarMcpImage is missing. - Development/local: allow a documented fallback (only) such as sonarsource/sonarqube-mcp-server:latest or a pinned dev tag, but log a strong warning. Implementation recommendations: store and document a pinned tag or image@sha256 digest as the canonical value used by releases, and update that value in release notes when you bump the MCP image. Never hardcode or silently default to :latest for production; prefer an explicit pinned tag or digest.
 
-- [ ] **Question #5:** What default MCP container image name and tag should be used if no explicit image is provided? Should OrchestratorConfig require SONAR_MCP_IMAGE in production and allow a documented dev fallback (for example sonarsource/sonarqube-mcp-server:latest) only for local development?
-  **Answer:** _[Pending]_
-
 ## Ambiguous Questions (1)
 
 **These questions require human clarification:**
@@ -54,5 +51,6 @@ They mix product and technical concerns and need stakeholder input to determine 
 2. Remove `blocked` and `user-review-required` labels
 3. Add the `dor` label to re-trigger refinement
 
-- **Question #1:** Do we need to support multiple Sonar instances (multiple SONAR_HOST_URL/SONAR_TOKEN pairs)? If yes, how should credentials and instance selection be specified (per-repo config file, multi-entry OrchestratorConfig map, or an external credential store)?
+- [x] **Question #1:** Do we need to support multiple Sonar instances (multiple SONAR_HOST_URL/SONAR_TOKEN pairs)? If yes, how should credentials and instance selection be specified (per-repo config file, multi-entry OrchestratorConfig map, or an external credential store)?
+   **Answer (User):** No, it is not needed
 
