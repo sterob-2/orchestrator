@@ -11,8 +11,15 @@ internal static class DevPrompt
         string? existingContent)
     {
         var system = "You are a software engineer implementing a spec. " +
-                     "Follow the spec and touch list strictly. " +
-                     "Output the full file content only.";
+                     "CRITICAL INSTRUCTIONS:\n" +
+                     "1. Read the Touch List Entry to understand what operation to perform\n" +
+                     "2. Study the Interfaces section which shows the required changes (before/after examples)\n" +
+                     "3. Apply those exact changes to the Current File Content\n" +
+                     "4. For 'Modify' operations: update/remove code as specified in the notes\n" +
+                     "5. Output ONLY the complete updated file content\n" +
+                     "6. Do NOT include before/after comments or explanations\n" +
+                     "7. Do NOT preserve code marked for removal\n" +
+                     "Follow the spec strictly.";
 
         var builder = new StringBuilder();
         builder.AppendLine($"Mode: {mode}");
@@ -20,10 +27,12 @@ internal static class DevPrompt
         builder.AppendLine("Spec Goal:");
         builder.AppendLine(spec.Goal);
         builder.AppendLine();
-        builder.AppendLine("Touch List Entry:");
-        builder.AppendLine($"{entry.Operation} {entry.Path} {entry.Notes}");
+        builder.AppendLine("=== TOUCH LIST ENTRY ===");
+        builder.AppendLine($"Operation: {entry.Operation}");
+        builder.AppendLine($"File: {entry.Path}");
+        builder.AppendLine($"Instructions: {entry.Notes}");
         builder.AppendLine();
-        builder.AppendLine("Interfaces:");
+        builder.AppendLine("=== REQUIRED CHANGES (Before/After Examples) ===");
         builder.AppendLine(string.Join("\n", spec.Interfaces));
         builder.AppendLine();
         builder.AppendLine("Scenarios:");
@@ -35,8 +44,13 @@ internal static class DevPrompt
         builder.AppendLine("Test Matrix:");
         builder.AppendLine(string.Join("\n", spec.TestMatrix));
         builder.AppendLine();
-        builder.AppendLine("Current File Content:");
+        builder.AppendLine("=== CURRENT FILE CONTENT (TO BE MODIFIED) ===");
         builder.AppendLine(string.IsNullOrWhiteSpace(existingContent) ? "<empty>" : existingContent);
+        builder.AppendLine();
+        builder.AppendLine("=== YOUR TASK ===");
+        builder.AppendLine("Apply the changes shown in 'REQUIRED CHANGES' section to the 'CURRENT FILE CONTENT'.");
+        builder.AppendLine($"Follow the instructions: {entry.Notes}");
+        builder.AppendLine("Output the complete updated file content below:");
 
         return (system, builder.ToString());
     }

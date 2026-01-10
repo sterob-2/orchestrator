@@ -74,7 +74,20 @@ internal static class FileOperationHelper
         EnsureSafeRelativePath(path);
 
         // Always write to Workspace first (git operates on this)
+        Logger.Debug($"[FileOp] Writing {content.Length} bytes to Workspace: {path}");
         ctx.Workspace.WriteAllText(path, content);
+        Logger.Debug($"[FileOp] Workspace write completed for: {path}");
+
+        // Verify the write succeeded by reading it back
+        var verifyContent = ctx.Workspace.ReadAllText(path);
+        if (verifyContent.Length != content.Length)
+        {
+            Logger.Warning($"[FileOp] Workspace write verification FAILED for {path}: wrote {content.Length} bytes but read back {verifyContent.Length} bytes");
+        }
+        else
+        {
+            Logger.Debug($"[FileOp] Workspace write verified for {path}: {verifyContent.Length} bytes");
+        }
 
         // Also try to write to MCP if available (keep MCP in sync)
         if (ctx.McpFiles != null)
@@ -82,6 +95,7 @@ internal static class FileOperationHelper
             try
             {
                 await ctx.McpFiles.WriteAllTextAsync(path, content);
+                Logger.Debug($"[FileOp] MCP write succeeded for: {path}");
             }
             catch (Exception ex)
             {
