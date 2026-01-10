@@ -231,6 +231,10 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             await context.QueueStateUpdateAsync(WorkflowStateKeys.CurrentQuestionAnswer, "", cancellationToken);
             WorkContext.State.Remove(WorkflowStateKeys.CurrentQuestionAnswer, out _);
             Logger.Debug($"[Refinement] Cleared CurrentQuestionAnswer from state");
+
+            // Reset stage attempt counter - we made progress by incorporating an answer
+            await context.QueueStateUpdateAsync($"attempt:{WorkflowStage.Refinement}", 0, cancellationToken);
+            Logger.Debug($"[Refinement] Reset stage attempt counter after incorporating answer");
         }
         // Check if the last question was classified as Ambiguous
         // Within-workflow: check WorkContext.State first (set by previous stage in same workflow run)
@@ -279,6 +283,10 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
                 WorkContext.State.Remove(WorkflowStateKeys.LastProcessedQuestion, out _);
                 WorkContext.State.Remove(WorkflowStateKeys.LastProcessedQuestionNumber, out _);
                 Logger.Debug($"[Refinement] Cleared QuestionClassificationResult from state");
+
+                // Reset stage attempt counter - we made progress by classifying a question as ambiguous
+                await context.QueueStateUpdateAsync($"attempt:{WorkflowStage.Refinement}", 0, cancellationToken);
+                Logger.Debug($"[Refinement] Reset stage attempt counter after classifying question as ambiguous");
             }
         }
         else
