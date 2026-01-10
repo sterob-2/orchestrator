@@ -86,6 +86,20 @@ internal sealed class DevExecutor : WorkflowStageExecutor
                         prompt.User,
                         cancellationToken);
                     Logger.Debug($"[Dev] LLM response received for: {entry.Path} (length: {updated?.Length ?? 0})");
+
+                    // Debug: Log first and last 500 chars of LLM response for inspection
+                    if (updated != null && updated.Length > 0)
+                    {
+                        var preview = updated.Length > 500 ? updated.Substring(0, 500) + "..." : updated;
+                        Logger.Debug($"[Dev] LLM response preview for {entry.Path}: {preview}");
+
+                        var endPreview = updated.Length > 500 ? "..." + updated.Substring(updated.Length - 500) : "";
+                        if (!string.IsNullOrEmpty(endPreview))
+                        {
+                            Logger.Debug($"[Dev] LLM response end for {entry.Path}: {endPreview}");
+                        }
+                    }
+
                     if (string.IsNullOrWhiteSpace(updated))
                     {
                         Logger.Warning($"[Dev] Empty LLM output for: {entry.Path}");
@@ -94,6 +108,20 @@ internal sealed class DevExecutor : WorkflowStageExecutor
                     Logger.Debug($"[Dev] Writing updated content to: {entry.Path}");
                     await FileOperationHelper.WriteAllTextAsync(WorkContext, entry.Path, updated);
                     Logger.Debug($"[Dev] File written successfully: {entry.Path}");
+
+                    // Debug: Check if specific methods were actually removed
+                    if (entry.Path.Contains("IGitHubClient.cs") || entry.Path.Contains("OctokitGitHubClient.cs"))
+                    {
+                        var hasCreateBranch = updated.Contains("CreateBranchAsync");
+                        var hasDeleteBranch = updated.Contains("DeleteBranchAsync");
+                        Logger.Warning($"[Dev] Method check for {entry.Path}: CreateBranchAsync={hasCreateBranch}, DeleteBranchAsync={hasDeleteBranch}");
+
+                        if (hasCreateBranch || hasDeleteBranch)
+                        {
+                            Logger.Warning($"[Dev] LLM FAILED to remove methods from {entry.Path}!");
+                        }
+                    }
+
                     changedFiles.Add(entry.Path);
                     break;
                 case TouchOperation.Delete:
