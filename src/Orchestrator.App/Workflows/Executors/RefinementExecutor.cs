@@ -124,12 +124,36 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             () => "",
             cancellationToken);
 
-        if (!string.IsNullOrEmpty(prevRefinementJson) &&
-            WorkflowJson.TryDeserialize(prevRefinementJson, out RefinementResult? prevResult) &&
-            prevResult?.AmbiguousQuestions != null)
+        Logger.Debug($"[Refinement] Previous refinement JSON from state: {(string.IsNullOrEmpty(prevRefinementJson) ? "EMPTY" : $"{prevRefinementJson.Length} chars")}");
+
+        if (!string.IsNullOrEmpty(prevRefinementJson))
         {
-            previousAmbiguousQuestions.AddRange(prevResult.AmbiguousQuestions);
-            Logger.Debug($"[Refinement] Loaded {previousAmbiguousQuestions.Count} ambiguous question(s)");
+            if (WorkflowJson.TryDeserialize(prevRefinementJson, out RefinementResult? prevResult))
+            {
+                Logger.Debug($"[Refinement] Deserialized previous refinement: {prevResult?.OpenQuestions.Count ?? 0} open, {prevResult?.AnsweredQuestions?.Count ?? 0} answered, {prevResult?.AmbiguousQuestions?.Count ?? 0} ambiguous");
+
+                if (prevResult?.AmbiguousQuestions != null)
+                {
+                    previousAmbiguousQuestions.AddRange(prevResult.AmbiguousQuestions);
+                    Logger.Info($"[Refinement] Loaded {previousAmbiguousQuestions.Count} ambiguous question(s) from previous state");
+                    foreach (var aq in previousAmbiguousQuestions)
+                    {
+                        Logger.Debug($"[Refinement]   - Ambiguous Q#{aq.QuestionNumber}: {aq.Question.Substring(0, Math.Min(60, aq.Question.Length))}...");
+                    }
+                }
+                else
+                {
+                    Logger.Debug($"[Refinement] No ambiguous questions in previous refinement result");
+                }
+            }
+            else
+            {
+                Logger.Warning($"[Refinement] Failed to deserialize previous refinement JSON");
+            }
+        }
+        else
+        {
+            Logger.Debug($"[Refinement] No previous refinement result in state");
         }
 
         // Check if we have an answer from ProductOwner or TechnicalAdvisor
@@ -211,7 +235,12 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
                     {
                         previousAmbiguousQuestions.Add(ambiguousQuestion);
                         Logger.Info($"[Refinement] Question #{questionNumber} classified as Ambiguous, moving to ambiguous questions list");
+                        Logger.Info($"[Refinement] Total ambiguous questions now: {previousAmbiguousQuestions.Count}");
                         Logger.Debug($"[Refinement] Reasoning: {classificationResult.Classification.Reasoning}");
+                    }
+                    else
+                    {
+                        Logger.Debug($"[Refinement] Question #{questionNumber} already in ambiguous list, skipping");
                     }
                 }
 
@@ -281,6 +310,12 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             AnsweredQuestions: previousAnsweredQuestions,
             AmbiguousQuestions: previousAmbiguousQuestions
         );
+
+        Logger.Info($"[Refinement] Final result: {openQuestionsWithNumbers.Count} open, {previousAnsweredQuestions.Count} answered, {previousAmbiguousQuestions.Count} ambiguous");
+        foreach (var oq in openQuestionsWithNumbers)
+        {
+            Logger.Debug($"[Refinement]   - Open Q#{oq.QuestionNumber}: {oq.Question.Substring(0, Math.Min(60, oq.Question.Length))}...");
+        }
 
         return result;
     }
