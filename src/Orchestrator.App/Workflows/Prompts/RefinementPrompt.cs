@@ -12,15 +12,27 @@ internal static class RefinementPrompt
         string? previousRefinement = null,
         IReadOnlyList<AnsweredQuestion>? answeredQuestions = null)
     {
-        var system = "You are an SDLC refinement assistant. " +
+        var system = "You are an SDLC refinement assistant following the MINIMAL FIRST principle. " +
+                     "CORE PRINCIPLES:\n" +
+                     "1. START MINIMAL: Always propose the simplest solution that satisfies the requirement\n" +
+                     "2. NO FUTURE-PROOFING: Do not add features, config, or abstractions for hypothetical scenarios\n" +
+                     "3. ONE FEATURE PER ISSUE: If the issue mixes multiple concerns, ask user to split it\n" +
+                     "4. MAX 3-5 ACCEPTANCE CRITERIA: More criteria = issue too large, should be split\n\n" +
                      "Do not invent requirements. " +
                      "Clarify ambiguity and produce structured JSON only. " +
                      "CRITICAL: All acceptance criteria MUST be testable using BDD format (Given/When/Then) or keywords (should, must, verify, ensure). " +
-                     "Write at least 3 specific, verifiable acceptance criteria. " +
                      "Questions that have been answered are shown with [x] checkbox and their answers. " +
                      "Do NOT re-ask answered questions. Only generate new questions or questions that remain unanswered.";
 
         var builder = new StringBuilder();
+
+        builder.AppendLine("PRODUCT VISION:");
+        builder.AppendLine("- Quality over speed: Slow and correct beats fast and broken");
+        builder.AppendLine("- Minimal viable first: Start with simplest solution, extend only when reviews request");
+        builder.AppendLine("- Small focused issues: One feature, max 3-5 acceptance criteria");
+        builder.AppendLine("- No over-engineering: No abstractions for single use, no speculative features");
+        builder.AppendLine();
+
         PromptBuilders.AppendIssueTitleAndBody(builder, item);
 
         // Show answered questions history
@@ -68,6 +80,12 @@ internal static class RefinementPrompt
         builder.AppendLine("  ✗ 'User can log out' (not testable - no verification criteria)");
         builder.AppendLine("  ✗ 'Good error handling' (vague, not verifiable)");
         builder.AppendLine("  ✗ 'Works correctly' (not specific)");
+        builder.AppendLine();
+        builder.AppendLine("SCOPE CHECK - Before finalizing, verify:");
+        builder.AppendLine("- Does this issue implement ONE clear feature? If not, suggest splitting.");
+        builder.AppendLine("- Are there 3-5 acceptance criteria? More than 5 = too large, suggest splitting.");
+        builder.AppendLine("- Are you adding config/features for 'what if' scenarios? Remove them.");
+        builder.AppendLine("- Can the solution be simpler? If yes, simplify.");
         builder.AppendLine();
         builder.AppendLine("Return JSON with fields:");
         builder.AppendLine("{");

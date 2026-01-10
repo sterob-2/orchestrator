@@ -1,26 +1,98 @@
 project: Orchestrator
-version: 2.0
+version: 3.0
 
+# Core architectural principles enforced across all code
+core_principles:
+  - id: PRIN-01
+    name: Minimal First
+    description: Always start with simplest solution that satisfies requirements
+    rationale: Prevent over-engineering and AI drift
+
+  - id: PRIN-02
+    name: No Future-Proofing
+    description: Do not add features, config, or abstractions for hypothetical scenarios
+    rationale: Build what's needed now, extend when reviews request
+
+  - id: PRIN-03
+    name: Small Focused Issues
+    description: One feature per issue, max 3-5 acceptance criteria
+    rationale: Large issues lead to complexity explosion and drift
+
+  - id: PRIN-04
+    name: Follow Existing Patterns
+    description: Copy structure from similar code in codebase before inventing new patterns
+    rationale: Consistency over creativity
+
+  - id: PRIN-05
+    name: Quality Over Speed
+    description: Slow and correct beats fast and broken
+    rationale: SDLC structure prevents drift through human checkpoints
+
+# Tech stack - frozen unless explicit approval
 allowed_frameworks:
   - id: FW-01
     name: .NET 8
     version: 8.x
+
   - id: FW-02
     name: xUnit
     version: 2.x
 
+  - id: FW-03
+    name: Moq
+    version: 4.x
+    note: For test mocking only
+
 forbidden_frameworks:
   - name: Newtonsoft.Json
     use_instead: System.Text.Json
+    reason: Use built-in .NET JSON serialization
 
+# Allowed design patterns
 allowed_patterns:
   - id: PAT-01
     name: Clean Architecture
-    reference: docs/architecture/clean-architecture.md
+    description: Core/Infrastructure/Workflows separation with interfaces
+
   - id: PAT-02
     name: Repository Pattern
-    reference: docs/architecture/repository-pattern.md
+    description: IGitHubClient, IRepoGit, IRepoWorkspace abstractions
 
+  - id: PAT-03
+    name: Records for DTOs
+    description: Immutable records for WorkItem, RefinementResult, etc.
+
+  - id: PAT-04
+    name: Dependency Injection
+    description: Constructor injection, explicit dependencies
+
+# Forbidden patterns and anti-patterns
 forbidden_patterns:
-  - id: PAT-99
+  - id: ANTI-01
     name: Singleton
+    reason: Use dependency injection instead
+
+  - id: ANTI-02
+    name: God Objects
+    reason: Max 9 dependencies (current WorkContext limit)
+
+  - id: ANTI-03
+    name: Premature Abstraction
+    reason: Concrete implementations first, add interface at 2nd implementation
+
+  - id: ANTI-04
+    name: Config Overload
+    reason: Hard-code sane defaults, config only for environment-specific values
+
+  - id: ANTI-05
+    name: Speculative Features
+    reason: Build what's needed now, not hypothetical future needs
+
+# File size limits (lines of code)
+file_size_limits:
+  executors: 400
+  validators: 200
+  prompts: 300
+  models: 100
+  utilities: 150
+  note: If exceeded, split the class
