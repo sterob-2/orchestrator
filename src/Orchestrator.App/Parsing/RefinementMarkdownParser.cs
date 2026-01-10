@@ -14,6 +14,86 @@ internal static partial class RefinementMarkdownParser
     [GeneratedRegex(@"^\s*\*\*Answer\s*\(([^)]+)\):\*\*\s*(.+)$", RegexOptions.IgnoreCase, 2000)]
     private static partial Regex AnswerLineRegex();
 
+    [GeneratedRegex(@"^-\s*\[\s*\]\s*\*\*Question\s+#(\d+):\*\*\s*(.+)$", RegexOptions.IgnoreCase, 2000)]
+    private static partial Regex OpenQuestionHeaderRegex();
+
+    /// <summary>
+    /// Parse open questions (unchecked) from markdown content
+    /// </summary>
+    public static List<OpenQuestion> ParseOpenQuestions(string markdown)
+    {
+        var results = new List<OpenQuestion>();
+        if (string.IsNullOrWhiteSpace(markdown))
+        {
+            return results;
+        }
+
+        var lines = markdown.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i].Trim();
+
+            // Look for open question header: - [ ] **Question #1:** Question text
+            var match = OpenQuestionHeaderRegex().Match(line);
+            if (match.Success)
+            {
+                var questionNumber = int.Parse(match.Groups[1].Value);
+                var questionText = match.Groups[2].Value.Trim();
+
+                results.Add(new OpenQuestion(questionNumber, questionText));
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Parse ambiguous questions from markdown content (from "Ambiguous Questions" section)
+    /// </summary>
+    public static List<OpenQuestion> ParseAmbiguousQuestions(string markdown)
+    {
+        var results = new List<OpenQuestion>();
+        if (string.IsNullOrWhiteSpace(markdown))
+        {
+            return results;
+        }
+
+        var lines = markdown.Split('\n');
+        bool inAmbiguousSection = false;
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i].Trim();
+
+            // Check if entering ambiguous questions section
+            if (line.StartsWith("## Ambiguous Questions", StringComparison.OrdinalIgnoreCase))
+            {
+                inAmbiguousSection = true;
+                continue;
+            }
+
+            // Check if leaving section (next section header)
+            if (inAmbiguousSection && line.StartsWith("##"))
+            {
+                break;
+            }
+
+            // Parse ambiguous questions: - **Question #1:** Question text
+            if (inAmbiguousSection && line.StartsWith("- **Question #"))
+            {
+                var match = Regex.Match(line, @"^-\s*\*\*Question\s+#(\d+):\*\*\s*(.+)$", RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    var questionNumber = int.Parse(match.Groups[1].Value);
+                    var questionText = match.Groups[2].Value.Trim();
+                    results.Add(new OpenQuestion(questionNumber, questionText));
+                }
+            }
+        }
+
+        return results;
+    }
+
     /// <summary>
     /// Parse answered questions from markdown content
     /// </summary>

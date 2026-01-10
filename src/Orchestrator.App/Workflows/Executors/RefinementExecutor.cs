@@ -119,6 +119,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
 
         // Load ambiguous questions from previous refinement result
         var previousAmbiguousQuestions = new List<OpenQuestion>();
+        var previousOpenQuestions = new List<OpenQuestion>();
         var prevRefinementJson = await context.ReadOrInitStateAsync(
             WorkflowStateKeys.RefinementResult,
             () => "",
@@ -145,15 +146,34 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
                 {
                     Logger.Debug($"[Refinement] No ambiguous questions in previous refinement result");
                 }
+
+                if (prevResult?.OpenQuestions != null)
+                {
+                    previousOpenQuestions.AddRange(prevResult.OpenQuestions);
+                    Logger.Debug($"[Refinement] Loaded {previousOpenQuestions.Count} open question(s) from previous state");
+                }
             }
             else
             {
                 Logger.Warning($"[Refinement] Failed to deserialize previous refinement JSON");
             }
         }
+        else if (previousRefinement != null)
+        {
+            // State is empty but markdown file exists - parse it to recover state
+            Logger.Info($"[Refinement] State empty but markdown exists, parsing to recover state");
+
+            var parsedOpenQuestions = RefinementMarkdownParser.ParseOpenQuestions(previousRefinement);
+            previousOpenQuestions.AddRange(parsedOpenQuestions);
+            Logger.Info($"[Refinement] Parsed {parsedOpenQuestions.Count} open question(s) from markdown");
+
+            var parsedAmbiguousQuestions = RefinementMarkdownParser.ParseAmbiguousQuestions(previousRefinement);
+            previousAmbiguousQuestions.AddRange(parsedAmbiguousQuestions);
+            Logger.Info($"[Refinement] Parsed {parsedAmbiguousQuestions.Count} ambiguous question(s) from markdown");
+        }
         else
         {
-            Logger.Debug($"[Refinement] No previous refinement result in state");
+            Logger.Debug($"[Refinement] No previous refinement result in state or markdown file");
         }
 
         // Check if we have an answer from ProductOwner or TechnicalAdvisor
@@ -295,15 +315,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             .Select(q => System.Text.RegularExpressions.Regex.Replace(q.Trim(), @"^Question\s+#\d+:\s*", "", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             .ToList();
 
-        // Load previous OpenQuestions to get existing question numbers
-        // Reuse prevRefinementJson that was already read from IWorkflowContext
-        var previousOpenQuestions = new List<OpenQuestion>();
-        if (!string.IsNullOrEmpty(prevRefinementJson) &&
-            WorkflowJson.TryDeserialize(prevRefinementJson, out RefinementResult? prevResult2) &&
-            prevResult2?.OpenQuestions != null)
-        {
-            previousOpenQuestions.AddRange(prevResult2.OpenQuestions);
-        }
+        // previousOpenQuestions already loaded earlier from state or markdown file
 
         // Filter out questions that match ambiguous questions (to prevent duplicates)
         var ambiguousQuestionTexts = previousAmbiguousQuestions.Select(q => q.Question.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
