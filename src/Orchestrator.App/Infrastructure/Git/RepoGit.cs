@@ -223,7 +223,19 @@ internal sealed class RepoGit : IRepoGit
             // Ignore fetch errors
         }
 
-        // Rebase local branch onto remote if remote has new commits (BEFORE staging)
+        // Stash changes before rebase (rebase requires clean working tree)
+        Stash? stash = null;
+        var signature = new Signature(_cfg.GitAuthorName, _cfg.GitAuthorEmail, DateTimeOffset.Now);
+        try
+        {
+            stash = repo.Stashes.Add(signature, "Pre-rebase stash", StashModifiers.IncludeUntracked);
+        }
+        catch
+        {
+            // Ignore stash errors (might be nothing to stash)
+        }
+
+        // Rebase local branch onto remote if remote has new commits
         var localBranch = repo.Branches[branchName];
         if (localBranch != null)
         {
@@ -251,8 +263,33 @@ internal sealed class RepoGit : IRepoGit
                 catch (Exception ex)
                 {
                     Logger.WriteLine($"Rebase before commit failed: {ex.Message}");
-                    // Continue anyway - will attempt push and handle conflict there
+                    // Pop stash and abort - don't create divergent history
+                    if (stash != null)
+                    {
+                        try
+                        {
+                            repo.Stashes.Pop(0);
+                        }
+                        catch
+                        {
+                            // Ignore pop errors
+                        }
+                    }
+                    throw new InvalidOperationException($"git rebase failed for {branchName}: {ex.Message}", ex);
                 }
+            }
+        }
+
+        // Pop stash after successful rebase
+        if (stash != null)
+        {
+            try
+            {
+                repo.Stashes.Pop(0);
+            }
+            catch (Exception ex)
+            {
+                Logger.WriteLine($"Warning: Failed to pop stash: {ex.Message}");
             }
         }
 
@@ -263,7 +300,6 @@ internal sealed class RepoGit : IRepoGit
         }
 
         // Commit
-        var signature = new Signature(_cfg.GitAuthorName, _cfg.GitAuthorEmail, DateTimeOffset.Now);
         repo.Commit(message, signature, signature);
 
         // Push
