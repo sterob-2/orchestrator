@@ -42,8 +42,7 @@ internal static class DorGateValidator
             }
         }
 
-        var openQuestions = refinement.OpenQuestions ?? Array.Empty<string>();
-        if (openQuestions.Count > 0)
+        if (refinement.OpenQuestions.Count > 0)
         {
             failures.Add("DoR-05: Open questions must be resolved.");
         }

@@ -36,7 +36,7 @@ public class DorExecutorTests
                 "Given valid input, when processing, then it should succeed.",
                 "Given invalid input, when processing, then an error should be returned."
             },
-            new List<string>(), // No open questions
+            new List<OpenQuestion>(), // No open questions
             new ComplexityIndicators(new List<string> { "signal" }, null));
 
         var workflowContext = new Mock<IWorkflowContext>();
@@ -79,7 +79,7 @@ public class DorExecutorTests
         var refinement = new RefinementResult(
             "Clarified story",
             new List<string> { "Criterion 1" },
-            new List<string> { "Question 1?", "Question 2?" },
+            new List<OpenQuestion> { new OpenQuestion(1, "Question 1?"), new OpenQuestion(2, "Question 2?") },
             new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
@@ -155,7 +155,7 @@ public class DorExecutorTests
         var refinement = new RefinementResult(
             "Story",
             new List<string>(),
-            new List<string> { "Open question?" },
+            new List<OpenQuestion> { new OpenQuestion(1, "Open question?") },
             new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
@@ -202,7 +202,7 @@ public class DorExecutorTests
         var refinement = new RefinementResult(
             "Story",
             new List<string>(),
-            new List<string> { "Question 1?" },
+            new List<OpenQuestion> { new OpenQuestion(1, "Question 1?") },
             new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
@@ -245,7 +245,7 @@ public class DorExecutorTests
         var refinement = new RefinementResult(
             "Story",
             new List<string>(),
-            new List<string> { "Question 1?" },
+            new List<OpenQuestion> { new OpenQuestion(1, "Question 1?") },
             new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
@@ -288,7 +288,7 @@ public class DorExecutorTests
         var refinement = new RefinementResult(
             "Story",
             new List<string>(),
-            new List<string> { "Question 1?" },
+            new List<OpenQuestion> { new OpenQuestion(1, "Question 1?") },
             new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
@@ -330,7 +330,7 @@ public class DorExecutorTests
         var refinement = new RefinementResult(
             "Story",
             new List<string>(),
-            new List<string> { "Question 1?" },
+            new List<OpenQuestion> { new OpenQuestion(1, "Question 1?") },
             new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();
@@ -372,7 +372,7 @@ public class DorExecutorTests
         var refinement = new RefinementResult(
             "Story",
             new List<string>(),
-            new List<string> { "Question 1?" },
+            new List<OpenQuestion> { new OpenQuestion(1, "Question 1?") },
             new ComplexityIndicators(new List<string>(), null));
 
         var workflowContext = new Mock<IWorkflowContext>();

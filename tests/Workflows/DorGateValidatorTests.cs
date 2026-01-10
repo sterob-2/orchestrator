@@ -23,7 +23,7 @@ public class DorGateValidatorTests
                 "Given a valid card, when payment is submitted, then a receipt is shown.",
                 "Given a failed payment, when retrying, then an error is surfaced."
             },
-            new List<string>(),
+            new List<OpenQuestion>(),
             new ComplexityIndicators(new List<string>(), null));
 
         var result = DorGateValidator.Evaluate(workItem, refinement, config.Labels);
@@ -46,7 +46,7 @@ public class DorGateValidatorTests
         var refinement = new RefinementResult(
             "Clarified story",
             new List<string> { "Must handle errors." },
-            new List<string> { "Open question" },
+            new List<OpenQuestion> { new OpenQuestion(1, "Open question") },
             new ComplexityIndicators(new List<string>(), null));
 
         var result = DorGateValidator.Evaluate(workItem, refinement, config.Labels);

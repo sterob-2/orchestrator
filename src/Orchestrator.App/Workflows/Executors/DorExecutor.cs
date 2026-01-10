@@ -110,7 +110,7 @@ internal sealed class DorExecutor : GateExecutor<(RefinementResult Refinement, W
             content.AppendLine();
             content.AppendLine("*These questions must be answered before the DoR gate can pass.*");
             content.AppendLine();
-            RefinementMarkdownBuilder.AppendOpenQuestions(content, refinement.OpenQuestions);
+            RefinementMarkdownBuilder.AppendQuestions(content, refinement.OpenQuestions, refinement.AnsweredQuestions);
         }
 
         RefinementMarkdownBuilder.AppendClarifiedStory(content, refinement.ClarifiedStory);

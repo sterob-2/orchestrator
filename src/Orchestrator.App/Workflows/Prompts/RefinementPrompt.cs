@@ -10,37 +10,38 @@ internal static class RefinementPrompt
         Playbook playbook,
         string? existingSpec,
         string? previousRefinement = null,
-        IReadOnlyList<IssueComment>? comments = null)
+        IReadOnlyList<AnsweredQuestion>? answeredQuestions = null)
     {
         var system = "You are an SDLC refinement assistant. " +
                      "Do not invent requirements. " +
                      "Clarify ambiguity and produce structured JSON only. " +
                      "CRITICAL: All acceptance criteria MUST be testable using BDD format (Given/When/Then) or keywords (should, must, verify, ensure). " +
                      "Write at least 3 specific, verifiable acceptance criteria. " +
-                     "If previous refinement questions exist and issue comments contain answers, incorporate those answers and do NOT re-ask those questions. " +
-                     "Only ask new questions or questions that remain unanswered.";
+                     "Questions that have been answered are shown with [x] checkbox and their answers. " +
+                     "Do NOT re-ask answered questions. Only generate new questions or questions that remain unanswered.";
 
         var builder = new StringBuilder();
         PromptBuilders.AppendIssueTitleAndBody(builder, item);
 
+        // Show answered questions history
+        if (answeredQuestions != null && answeredQuestions.Count > 0)
+        {
+            builder.AppendLine("Previously Answered Questions (DO NOT re-ask these):");
+            builder.AppendLine();
+            foreach (var aq in answeredQuestions)
+            {
+                builder.AppendLine($"- [x] **Question #{aq.QuestionNumber}:** {aq.Question}");
+                builder.AppendLine($"  **Answer ({aq.AnsweredBy}):** {aq.Answer}");
+                builder.AppendLine();
+            }
+        }
+
         // Include previous refinement to avoid re-asking same questions
         if (!string.IsNullOrWhiteSpace(previousRefinement))
         {
-            builder.AppendLine("Previous Refinement (contains questions previously asked):");
+            builder.AppendLine("Previous Refinement:");
             builder.AppendLine(previousRefinement);
             builder.AppendLine();
-        }
-
-        // Include issue comments where answers might be
-        if (comments != null && comments.Count > 0)
-        {
-            builder.AppendLine("Issue Comments (may contain answers to questions):");
-            foreach (var comment in comments)
-            {
-                builder.AppendLine($"--- Comment by {comment.Author} ---");
-                builder.AppendLine(comment.Body);
-                builder.AppendLine();
-            }
         }
 
         builder.AppendLine("Playbook Constraints:");
@@ -72,9 +73,10 @@ internal static class RefinementPrompt
         builder.AppendLine("{");
         builder.AppendLine("  \"clarifiedStory\": string,");
         builder.AppendLine("  \"acceptanceCriteria\": [string],");
-        builder.AppendLine("  \"openQuestions\": [string],");
+        builder.AppendLine("  \"openQuestions\": [string],  // IMPORTANT: Do NOT include 'Question #X:' prefix - just the question text");
         builder.AppendLine("  \"complexitySignals\": [string],");
-        builder.AppendLine("  \"complexitySummary\": string");
+        builder.AppendLine("  \"complexitySummary\": string,");
+        builder.AppendLine("  \"answeredQuestions\": [{ \"questionNumber\": int, \"question\": string, \"answer\": string, \"answeredBy\": string }] (optional)");
         builder.AppendLine("}");
 
         return (system, builder.ToString());
@@ -87,7 +89,7 @@ internal static class RefinementPrompt
         return new RefinementResult(
             clarifiedStory,
             acceptanceCriteria,
-            new List<string> { "Refinement output was invalid; please clarify requirements." },
+            new List<OpenQuestion> { new OpenQuestion(1, "Refinement output was invalid; please clarify requirements.") },
             new ComplexityIndicators(new List<string>(), null));
     }
 

@@ -38,7 +38,7 @@ public class WorkflowFactoryTests
         var refinementJson = WorkflowJson.Serialize(new RefinementResult(
             "Clarified story",
             new List<string> { "Acceptance criteria 1" },
-            new List<string>(),
+            new List<OpenQuestion>(),
             new ComplexityIndicators(new List<string>(), null)));
         llm.Setup(l => l.GetUpdatedFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .Returns(Task.FromResult(refinementJson));

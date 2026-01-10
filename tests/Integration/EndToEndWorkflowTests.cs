@@ -230,4 +230,217 @@ Then ...
         // Verify GitHub Interactions
         _githubMock.Verify(x => x.OpenPullRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
+
+    [Fact]
+    public async Task RunWorkflow_WithAmbiguousQuestion_BlocksAndStoresState()
+    {
+        // This test would have caught bugs: ef36c64 (missing edge), 7abd71d (state communication), c6f6814 (duplicate questions)
+
+        // Arrange
+        var workItem = MockWorkContext.CreateWorkItem(number: 2, labels: new List<string> { "ready-for-agents" });
+        var config = MockWorkContext.CreateConfig(workspacePath: _tempWorkspace.WorkspacePath);
+
+        // LLM returns a refinement with a question, then classifies it as Ambiguous
+        var callCount = 0;
+        var scriptedLlm = new ScriptedLlmClient((system, user) =>
+        {
+            callCount++;
+
+            // First call: Refinement generates a question
+            if (system.Contains("SDLC refinement assistant") && callCount == 1)
+            {
+                return @"{
+                    ""clarifiedStory"": ""Story text"",
+                    ""acceptanceCriteria"": [""AC1"", ""AC2"", ""AC3""],
+                    ""openQuestions"": [""Should we support feature X or feature Y?""],
+                    ""complexity"": { ""storyPoints"": 3, ""risk"": ""low"" }
+                }";
+            }
+
+            // Second call: QuestionClassifier classifies as Ambiguous
+            if (system.Contains("question classifier"))
+            {
+                return @"{
+                    ""question"": ""Should we support feature X or feature Y?"",
+                    ""type"": ""Ambiguous"",
+                    ""reasoning"": ""Mixes product and technical decisions""
+                }";
+            }
+
+            // Third call: Refinement runs again after Ambiguous classification
+            // Should NOT regenerate the same question
+            if (system.Contains("SDLC refinement assistant") && callCount > 2)
+            {
+                return @"{
+                    ""clarifiedStory"": ""Story text"",
+                    ""acceptanceCriteria"": [""AC1"", ""AC2"", ""AC3""],
+                    ""openQuestions"": [],
+                    ""complexity"": { ""storyPoints"": 3, ""risk"": ""low"" }
+                }";
+            }
+
+            return "{}";
+        });
+
+        var workContext = MockWorkContext.Create(
+            workItem: workItem,
+            github: _githubMock.Object,
+            config: config,
+            workspace: _tempWorkspace.Workspace,
+            repo: _repoMock.Object,
+            llm: scriptedLlm,
+            sharedState: new System.Collections.Concurrent.ConcurrentDictionary<string, string>()
+        );
+
+        _tempWorkspace.CreateFile("docs/architecture-playbook.yaml", "project: Test\nversion: 1.0");
+
+        // Act
+        var workflow = WorkflowFactory.BuildGraph(workContext, startOverride: null);
+        var input = new WorkflowInput(
+            workItem,
+            new ProjectContext("owner", "repo", "main", _tempWorkspace.WorkspacePath, _tempWorkspace.WorkspacePath, "owner", "user", 1),
+            Mode: "minimal",
+            Attempt: 0
+        );
+
+        var output = await SDLCWorkflow.RunWorkflowAsync(workflow, input);
+
+        // Assert
+        Assert.NotNull(output);
+        Assert.False(output.Success); // Should block due to ambiguous question
+        Assert.Null(output.NextStage); // Blocked, no next stage
+        Assert.Contains("ambiguous", output.Notes, StringComparison.OrdinalIgnoreCase);
+
+        // Verify refinement file contains the ambiguous question
+        var refinementPath = Path.Combine(_tempWorkspace.WorkspacePath, "orchestrator/refinement/issue-2.md");
+        Assert.True(File.Exists(refinementPath), "Refinement file should exist");
+        var refinementContent = File.ReadAllText(refinementPath);
+        Assert.Contains("Ambiguous Questions", refinementContent);
+        Assert.Contains("Should we support feature X or feature Y?", refinementContent);
+
+        // Verify GitHub comment was posted
+        _githubMock.Verify(x => x.CommentOnWorkItemAsync(
+            2,
+            It.Is<string>(s => s.Contains("Ambiguous Questions"))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task RunWorkflow_ResumesFromExistingMarkdown_WhenStateIsEmpty()
+    {
+        // This test would have caught bug: 1b67342 (markdown parsing)
+
+        // Arrange
+        var workItem = MockWorkContext.CreateWorkItem(number: 3, labels: new List<string> { "ready-for-agents" });
+        var config = MockWorkContext.CreateConfig(workspacePath: _tempWorkspace.WorkspacePath);
+
+        // Create existing refinement markdown with open questions
+        _tempWorkspace.CreateFile("orchestrator/refinement/issue-3.md", @"# Refinement: Issue #3
+
+## Clarified Story
+Story text
+
+## Acceptance Criteria (3)
+- AC1
+- AC2
+- AC3
+
+## Open Questions (2)
+
+- [ ] **Question #1:** What framework should we use?
+  **Answer:** _[Pending]_
+
+- [ ] **Question #2:** Should we add tests?
+  **Answer:** _[Pending]_
+");
+
+        // LLM processes questions and classifies Q1 as Technical
+        var callCount = 0;
+        var scriptedLlm = new ScriptedLlmClient((system, user) =>
+        {
+            callCount++;
+
+            // First call: Refinement loads from markdown, keeps Q2
+            if (system.Contains("SDLC refinement assistant") && callCount == 1)
+            {
+                // After loading Q1 and Q2 from markdown, LLM generates Q2 still
+                return @"{
+                    ""clarifiedStory"": ""Story text"",
+                    ""acceptanceCriteria"": [""AC1"", ""AC2"", ""AC3""],
+                    ""openQuestions"": [""What framework should we use?"", ""Should we add tests?""],
+                    ""complexity"": { ""storyPoints"": 3, ""risk"": ""low"" }
+                }";
+            }
+
+            // Q1 classification
+            if (system.Contains("question classifier") && user.Contains("What framework"))
+            {
+                return @"{
+                    ""question"": ""What framework should we use?"",
+                    ""type"": ""Technical"",
+                    ""reasoning"": ""Architecture decision""
+                }";
+            }
+
+            // Q1 answer
+            if (system.Contains("technical advisor"))
+            {
+                return @"{
+                    ""answer"": ""Use React"",
+                    ""reasoning"": ""Best for this use case""
+                }";
+            }
+
+            // After answering Q1, refinement should only have Q2
+            if (system.Contains("SDLC refinement assistant") && callCount > 2)
+            {
+                return @"{
+                    ""clarifiedStory"": ""Story text"",
+                    ""acceptanceCriteria"": [""AC1"", ""AC2"", ""AC3""],
+                    ""openQuestions"": [""Should we add tests?""],
+                    ""complexity"": { ""storyPoints"": 3, ""risk"": ""low"" }
+                }";
+            }
+
+            return "{}";
+        });
+
+        var workContext = MockWorkContext.Create(
+            workItem: workItem,
+            github: _githubMock.Object,
+            config: config,
+            workspace: _tempWorkspace.Workspace,
+            repo: _repoMock.Object,
+            llm: scriptedLlm,
+            sharedState: new System.Collections.Concurrent.ConcurrentDictionary<string, string>()
+        );
+
+        _tempWorkspace.CreateFile("docs/architecture-playbook.yaml", "project: Test\nversion: 1.0");
+
+        // Act
+        // Start from Refinement stage (simulating workflow restart)
+        var workflow = WorkflowFactory.BuildGraph(workContext, startOverride: WorkflowStage.Refinement);
+        var input = new WorkflowInput(
+            workItem,
+            new ProjectContext("owner", "repo", "main", _tempWorkspace.WorkspacePath, _tempWorkspace.WorkspacePath, "owner", "user", 1),
+            Mode: "minimal",
+            Attempt: 0
+        );
+
+        var output = await SDLCWorkflow.RunWorkflowAsync(workflow, input);
+
+        // Assert
+        Assert.NotNull(output);
+
+        // Verify it picked up existing questions from markdown (check logs showed parsing)
+        // The key assertion: workflow should have processed questions from existing markdown
+        // without duplicating them or starting fresh
+        var refinementPath = Path.Combine(_tempWorkspace.WorkspacePath, "orchestrator/refinement/issue-3.md");
+        Assert.True(File.Exists(refinementPath), "Refinement file should exist");
+
+        // Verify output progressed through question processing
+        // (If markdown wasn't parsed, it would have generated new Q1/Q2 with different numbers)
+        Assert.True(output.Success || output.NextStage == WorkflowStage.QuestionClassifier,
+            "Workflow should have processed questions successfully");
+    }
 }

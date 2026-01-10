@@ -153,7 +153,7 @@ public class WorkflowIntegrationTests
                 "Given a valid request, when processed, then it succeeds.",
                 "Given an invalid request, when processed, then it returns an error."
             },
-            new List<string>(),
+            new List<OpenQuestion>(),
             new ComplexityIndicators(new List<string> { "API" }, null));
 
         return WorkflowJson.Serialize(refinement);

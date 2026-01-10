@@ -40,12 +40,13 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
             return (false, "Question classification failed: no open questions.");
         }
 
-        // Get first question
-        var question = refinement.OpenQuestions[0];
-        Logger.Info($"[QuestionClassifier] Classifying: {question}");
+        // Get first question (index 0) - questions now have stable numbers
+        var questionIndex = 0;
+        var openQuestion = refinement.OpenQuestions[questionIndex];
+        Logger.Info($"[QuestionClassifier] Classifying question #{openQuestion.QuestionNumber}: {openQuestion.Question}");
 
         // Build prompt for classification
-        var (systemPrompt, userPrompt) = BuildClassificationPrompt(question, input.WorkItem, refinement);
+        var (systemPrompt, userPrompt) = BuildClassificationPrompt(openQuestion.Question, input.WorkItem, refinement);
 
         // Call LLM
         Logger.Debug($"[QuestionClassifier] Calling LLM for classification");
@@ -61,7 +62,7 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
         if (!WorkflowJson.TryDeserialize(response, out QuestionClassification? classification) || classification is null)
         {
             Logger.Warning($"[QuestionClassifier] Failed to parse LLM response, defaulting to Ambiguous");
-            classification = new QuestionClassification(question, QuestionType.Ambiguous, "Failed to parse LLM response");
+            classification = new QuestionClassification(openQuestion.Question, QuestionType.Ambiguous, "Failed to parse LLM response");
         }
 
         Logger.Info($"[QuestionClassifier] Question classified as: {classification.Type}");
@@ -73,11 +74,15 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
         await context.QueueStateUpdateAsync(WorkflowStateKeys.QuestionClassificationResult, serialized, cancellationToken);
         WorkContext.State[WorkflowStateKeys.QuestionClassificationResult] = serialized;
 
-        // Store the question itself for tracking
-        await context.QueueStateUpdateAsync(WorkflowStateKeys.LastProcessedQuestion, question, cancellationToken);
-        WorkContext.State[WorkflowStateKeys.LastProcessedQuestion] = question;
+        // Store the question and its stable number for tracking
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.LastProcessedQuestion, openQuestion.Question, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.LastProcessedQuestion] = openQuestion.Question;
 
-        return (true, $"Question classified as {classification.Type}.");
+        var questionNumber = openQuestion.QuestionNumber.ToString();
+        await context.QueueStateUpdateAsync(WorkflowStateKeys.LastProcessedQuestionNumber, questionNumber, cancellationToken);
+        WorkContext.State[WorkflowStateKeys.LastProcessedQuestionNumber] = questionNumber;
+
+        return (true, $"Question #{questionNumber} classified as {classification.Type}.");
     }
 
     protected override WorkflowStage? DetermineNextStage(bool success, WorkflowInput input)
@@ -105,7 +110,7 @@ internal sealed class QuestionClassifierExecutor : WorkflowStageExecutor
         {
             QuestionType.Technical => WorkflowStage.TechnicalAdvisor,
             QuestionType.Product => WorkflowStage.ProductOwner,
-            QuestionType.Ambiguous => null, // Block - needs human intervention
+            QuestionType.Ambiguous => WorkflowStage.Refinement, // Return to Refinement to skip and continue with next question
             _ => null
         };
     }

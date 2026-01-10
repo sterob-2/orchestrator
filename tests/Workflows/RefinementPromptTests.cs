@@ -62,23 +62,27 @@ public class RefinementPromptTests
     }
 
     [Fact]
-    public void Build_WithComments_IncludesComments()
+    public void Build_WithAnsweredQuestions_IncludesAnswersWithCheckboxes()
     {
         var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
         var playbook = new Playbook();
-        var comments = new List<IssueComment>
+        var answeredQuestions = new List<AnsweredQuestion>
         {
-            new IssueComment("user1", "Answer to question 1"),
-            new IssueComment("user2", "Answer to question 2")
+            new AnsweredQuestion(1, "What is the target user?", "Enterprise users", "ProductOwner"),
+            new AnsweredQuestion(2, "Which database to use?", "PostgreSQL 15", "TechnicalAdvisor")
         };
 
-        var (_, user) = RefinementPrompt.Build(workItem, playbook, null, null, comments);
+        var (system, user) = RefinementPrompt.Build(workItem, playbook, null, null, answeredQuestions);
 
-        Assert.Contains("Issue Comments", user);
-        Assert.Contains("user1", user);
-        Assert.Contains("Answer to question 1", user);
-        Assert.Contains("user2", user);
-        Assert.Contains("Answer to question 2", user);
+        // System prompt should remind not to re-ask answered questions
+        Assert.Contains("Do NOT re-ask answered questions", system);
+
+        // User prompt should show answered questions with checkboxes
+        Assert.Contains("Previously Answered Questions", user);
+        Assert.Contains("- [x] **Question #1:** What is the target user?", user);
+        Assert.Contains("**Answer (ProductOwner):** Enterprise users", user);
+        Assert.Contains("- [x] **Question #2:** Which database to use?", user);
+        Assert.Contains("**Answer (TechnicalAdvisor):** PostgreSQL 15", user);
     }
 
     [Fact]
@@ -141,7 +145,7 @@ public class RefinementPromptTests
         Assert.Equal(3, result.AcceptanceCriteria.Count);
         Assert.Contains("Given X", result.AcceptanceCriteria);
         Assert.Single(result.OpenQuestions);
-        Assert.Contains("invalid", result.OpenQuestions[0], StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("invalid", result.OpenQuestions[0].Question, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
