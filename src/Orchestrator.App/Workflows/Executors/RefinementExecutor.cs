@@ -293,11 +293,26 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             previousOpenQuestions.AddRange(prevResult2.OpenQuestions);
         }
 
+        // Filter out questions that match ambiguous questions (to prevent duplicates)
+        var ambiguousQuestionTexts = previousAmbiguousQuestions.Select(q => q.Question.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var filteredQuestionStrings = cleanedQuestionStrings
+            .Where(q => !ambiguousQuestionTexts.Contains(q.Trim()))
+            .ToList();
+
+        Logger.Debug($"[Refinement] Filtered {cleanedQuestionStrings.Count - filteredQuestionStrings.Count} question(s) matching ambiguous questions");
+
+        // Exclude ambiguous questions from previousOpenQuestions (they've moved to ambiguous list)
+        var ambiguousQuestionNumbers = previousAmbiguousQuestions.Select(q => q.QuestionNumber).ToHashSet();
+        var filteredPreviousOpenQuestions = previousOpenQuestions
+            .Where(q => !ambiguousQuestionNumbers.Contains(q.QuestionNumber))
+            .ToList();
+
         // Assign stable question numbers
         var openQuestionsWithNumbers = AssignStableQuestionNumbers(
-            cleanedQuestionStrings,
-            previousOpenQuestions,
-            previousAnsweredQuestions);
+            filteredQuestionStrings,
+            filteredPreviousOpenQuestions,
+            previousAnsweredQuestions,
+            previousAmbiguousQuestions);
 
         Logger.Debug($"[Refinement] Assigned question numbers: {string.Join(", ", openQuestionsWithNumbers.Select(q => $"#{q.QuestionNumber}"))}");
 
@@ -323,7 +338,8 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
     private static List<OpenQuestion> AssignStableQuestionNumbers(
         List<string> questionTexts,
         List<OpenQuestion> previousOpenQuestions,
-        List<AnsweredQuestion> answeredQuestions)
+        List<AnsweredQuestion> answeredQuestions,
+        List<OpenQuestion> ambiguousQuestions)
     {
         // Find the highest question number used so far
         var maxNumber = 0;
@@ -331,6 +347,8 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             maxNumber = Math.Max(maxNumber, previousOpenQuestions.Max(q => q.QuestionNumber));
         if (answeredQuestions.Count > 0)
             maxNumber = Math.Max(maxNumber, answeredQuestions.Max(q => q.QuestionNumber));
+        if (ambiguousQuestions.Count > 0)
+            maxNumber = Math.Max(maxNumber, ambiguousQuestions.Max(q => q.QuestionNumber));
 
         var result = new List<OpenQuestion>();
         foreach (var questionText in questionTexts)
