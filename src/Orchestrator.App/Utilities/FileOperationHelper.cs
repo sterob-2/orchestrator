@@ -67,26 +67,28 @@ internal static class FileOperationHelper
     }
 
     /// <summary>
-    /// Writes file content using MCP if available, otherwise Workspace.
-    /// Falls back to Workspace if MCP fails.
+    /// Writes file content to both MCP and Workspace to ensure git operations see the changes.
     /// </summary>
     public static async Task WriteAllTextAsync(WorkContext ctx, string path, string content)
     {
         EnsureSafeRelativePath(path);
+
+        // Always write to Workspace first (git operates on this)
+        ctx.Workspace.WriteAllText(path, content);
+
+        // Also try to write to MCP if available (keep MCP in sync)
         if (ctx.McpFiles != null)
         {
             try
             {
                 await ctx.McpFiles.WriteAllTextAsync(path, content);
-                return;
             }
             catch (Exception ex)
             {
-                Logger.Warning($"[FileOp] MCP error writing {path}, falling back to Workspace: {ex.Message}");
-                // Fallback to Workspace if MCP has any error
+                Logger.Debug($"[FileOp] MCP write failed for {path}, but Workspace write succeeded: {ex.Message}");
+                // Continue - Workspace write succeeded which is what matters for git
             }
         }
-        ctx.Workspace.WriteAllText(path, content);
     }
 
     /// <summary>
