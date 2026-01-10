@@ -59,7 +59,8 @@ internal static class PromptBuilders
     /// </summary>
     public static string RenderPlaybook(Playbook playbook)
     {
-        if (playbook.AllowedFrameworks.Count == 0 &&
+        if (playbook.CorePrinciples.Count == 0 &&
+            playbook.AllowedFrameworks.Count == 0 &&
             playbook.AllowedPatterns.Count == 0 &&
             playbook.ForbiddenFrameworks.Count == 0 &&
             playbook.ForbiddenPatterns.Count == 0)
@@ -68,6 +69,16 @@ internal static class PromptBuilders
         }
 
         var builder = new StringBuilder();
+
+        if (playbook.CorePrinciples.Count > 0)
+        {
+            builder.AppendLine("- Core Principles:");
+            foreach (var principle in playbook.CorePrinciples)
+            {
+                builder.AppendLine($"  - {principle.Name}: {principle.Description}");
+            }
+        }
+
         if (playbook.AllowedFrameworks.Count > 0)
         {
             builder.AppendLine("- Allowed Frameworks:");
