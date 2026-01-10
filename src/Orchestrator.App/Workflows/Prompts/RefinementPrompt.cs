@@ -12,17 +12,20 @@ internal static class RefinementPrompt
         string? previousRefinement = null,
         IReadOnlyList<AnsweredQuestion>? answeredQuestions = null)
     {
+        var hasAnsweredQuestions = answeredQuestions != null && answeredQuestions.Count > 0;
+
         var system = "You are an SDLC refinement assistant following the MINIMAL FIRST principle. " +
                      "CORE PRINCIPLES:\n" +
                      "1. START MINIMAL: Always propose the simplest solution that satisfies the requirement\n" +
                      "2. NO FUTURE-PROOFING: Do not add features, config, or abstractions for hypothetical scenarios\n" +
                      "3. ONE FEATURE PER ISSUE: If the issue mixes multiple concerns, ask user to split it\n" +
-                     "4. MAX 3-5 ACCEPTANCE CRITERIA: More criteria = issue too large, should be split\n\n" +
+                     "4. MAX 3-5 ACCEPTANCE CRITERIA: More criteria = issue too large, should be split\n" +
+                     (hasAnsweredQuestions
+                         ? "5. AFTER INCORPORATING ANSWERS: Return ZERO open questions. Do not generate new questions.\n\n"
+                         : "5. MAX 3-5 QUESTIONS: Only ask essential questions to clarify requirements\n\n") +
                      "Do not invent requirements. " +
                      "Clarify ambiguity and produce structured JSON only. " +
-                     "CRITICAL: All acceptance criteria MUST be testable using BDD format (Given/When/Then) or keywords (should, must, verify, ensure). " +
-                     "Questions that have been answered are shown with [x] checkbox and their answers. " +
-                     "Do NOT re-ask answered questions. Only generate new questions or questions that remain unanswered.";
+                     "CRITICAL: All acceptance criteria MUST be testable using BDD format (Given/When/Then) or keywords (should, must, verify, ensure).";
 
         var builder = new StringBuilder();
 
@@ -38,7 +41,7 @@ internal static class RefinementPrompt
         // Show answered questions history
         if (answeredQuestions != null && answeredQuestions.Count > 0)
         {
-            builder.AppendLine("Previously Answered Questions (DO NOT re-ask these):");
+            builder.AppendLine($"Answered Questions ({answeredQuestions.Count} total):");
             builder.AppendLine();
             foreach (var aq in answeredQuestions)
             {
@@ -46,6 +49,10 @@ internal static class RefinementPrompt
                 builder.AppendLine($"  **Answer ({aq.AnsweredBy}):** {aq.Answer}");
                 builder.AppendLine();
             }
+
+            builder.AppendLine("IMPORTANT: Incorporate these answers into your refinement.");
+            builder.AppendLine("Return openQuestions: [] (empty array) in your JSON response.");
+            builder.AppendLine();
         }
 
         // Include previous refinement to avoid re-asking same questions
