@@ -1,7 +1,7 @@
 # Refinement: Issue #34 - [FEATURE] SonarQube MCP Server Integration
 
 **Status**: Refinement Complete
-**Generated**: 2026-01-10 08:52:44 UTC
+**Generated**: 2026-01-10 08:53:16 UTC
 
 ## Clarified Story
 
@@ -33,9 +33,6 @@ Integrate a SonarQube MCP Server as a sibling Docker container managed by McpCli
 3. Commit and push changes
 4. Remove `blocked` label and add `dor` label to re-trigger
 
-- [ ] **Question #1:** Do we need to support multiple Sonar instances (multiple SONAR_HOST_URL/SONAR_TOKEN pairs)? If yes, how should credentials and instance selection be specified (per-repo config file, multi-entry OrchestratorConfig map, or an external credential store)?
-  **Answer:** _[Pending]_
-
 - [ ] **Question #2:** What level of integration test coverage is required for CI: are mocked MCP server smoke tests acceptable in CI pipelines, or must CI include full scenario tests that run against a real Sonar instance and sample project analysis? If real-instance tests are required, will a hosted SonarCloud account/test project be provided or must a local Sonar instance be run in CI?
   **Answer:** _[Pending]_
 
@@ -44,4 +41,16 @@ Integrate a SonarQube MCP Server as a sibling Docker container managed by McpCli
 
 - [ ] **Question #4:** What default MCP container image name and tag should be used if no explicit image is provided (the spec currently references sonarsource/sonarqube-mcp-server but image name/tag is TBC)? Should the image default be pinned to a specific tag in OrchestratorConfig or must it always be explicitly supplied?
   **Answer:** _[Pending]_
+
+## Ambiguous Questions (1)
+
+**These questions require human clarification:**
+They mix product and technical concerns and need stakeholder input to determine the correct approach.
+
+**How to clarify:**
+1. Add a comment to the GitHub issue with clarifications
+2. Remove `blocked` and `user-review-required` labels
+3. Add the `dor` label to re-trigger refinement
+
+- **Question #1:** Do we need to support multiple Sonar instances (multiple SONAR_HOST_URL/SONAR_TOKEN pairs)? If yes, how should credentials and instance selection be specified (per-repo config file, multi-entry OrchestratorConfig map, or an external credential store)?
 
