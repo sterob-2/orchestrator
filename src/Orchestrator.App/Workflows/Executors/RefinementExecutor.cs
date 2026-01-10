@@ -157,38 +157,37 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         }
 
         // Check if we have an answer from ProductOwner or TechnicalAdvisor
-        var answer = await context.ReadOrInitStateAsync(
-            WorkflowStateKeys.CurrentQuestionAnswer,
-            () => "",
-            cancellationToken);
+        // Within-workflow: check WorkContext.State first (set by previous stage in same workflow run)
+        // Cross-workflow: fall back to IWorkflowContext (persisted from previous workflow run)
+        var answer = WorkContext.State.TryGetValue(WorkflowStateKeys.CurrentQuestionAnswer, out var inMemoryAnswer)
+            ? inMemoryAnswer
+            : await context.ReadOrInitStateAsync(WorkflowStateKeys.CurrentQuestionAnswer, () => "", cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(answer))
         {
+            Logger.Debug($"[Refinement] Found answer from previous stage ({answer.Length} chars)");
+
             // Determine which executor provided the answer
-            var productOwnerResult = await context.ReadOrInitStateAsync(
-                WorkflowStateKeys.ProductOwnerResult,
-                () => "",
-                cancellationToken);
-            var techAdvisorResult = await context.ReadOrInitStateAsync(
-                WorkflowStateKeys.TechnicalAdvisorResult,
-                () => "",
-                cancellationToken);
+            var productOwnerResult = WorkContext.State.TryGetValue(WorkflowStateKeys.ProductOwnerResult, out var inMemoryPO)
+                ? inMemoryPO
+                : await context.ReadOrInitStateAsync(WorkflowStateKeys.ProductOwnerResult, () => "", cancellationToken);
+            var techAdvisorResult = WorkContext.State.TryGetValue(WorkflowStateKeys.TechnicalAdvisorResult, out var inMemoryTA)
+                ? inMemoryTA
+                : await context.ReadOrInitStateAsync(WorkflowStateKeys.TechnicalAdvisorResult, () => "", cancellationToken);
 
             var answerSource = !string.IsNullOrEmpty(productOwnerResult) ? "ProductOwner"
                 : !string.IsNullOrEmpty(techAdvisorResult) ? "TechnicalAdvisor"
                 : "unknown";
 
             // Get the question number that was answered
-            var qNumStr = await context.ReadOrInitStateAsync(
-                WorkflowStateKeys.LastProcessedQuestionNumber,
-                () => "0",
-                cancellationToken);
+            var qNumStr = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestionNumber, out var inMemoryQNumAns)
+                ? inMemoryQNumAns
+                : await context.ReadOrInitStateAsync(WorkflowStateKeys.LastProcessedQuestionNumber, () => "0", cancellationToken);
             var questionNumber = int.TryParse(qNumStr, out var qNumInt) ? qNumInt : 0;
 
-            var answeredQuestion = await context.ReadOrInitStateAsync(
-                WorkflowStateKeys.LastProcessedQuestion,
-                () => "unknown question",
-                cancellationToken);
+            var answeredQuestion = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestion, out var inMemoryQTextAns)
+                ? inMemoryQTextAns
+                : await context.ReadOrInitStateAsync(WorkflowStateKeys.LastProcessedQuestion, () => "unknown question", cancellationToken);
 
             Logger.Info($"[Refinement] Incorporating answer from {answerSource}");
             Logger.Info($"[Refinement] Question #{questionNumber}: {answeredQuestion.Substring(0, Math.Min(80, answeredQuestion.Length))}...");
@@ -214,17 +213,27 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             Logger.Debug($"[Refinement] Cleared CurrentQuestionAnswer from state");
         }
         // Check if the last question was classified as Ambiguous
-        var classificationJson = await context.ReadOrInitStateAsync(WorkflowStateKeys.QuestionClassificationResult, () => "", cancellationToken);
+        // Within-workflow: check WorkContext.State first (set by previous stage in same workflow run)
+        // Cross-workflow: fall back to IWorkflowContext (persisted from previous workflow run)
+        var classificationJson = WorkContext.State.TryGetValue(WorkflowStateKeys.QuestionClassificationResult, out var inMemoryClassification)
+            ? inMemoryClassification
+            : await context.ReadOrInitStateAsync(WorkflowStateKeys.QuestionClassificationResult, () => "", cancellationToken);
+
         if (!string.IsNullOrEmpty(classificationJson))
         {
+            Logger.Debug($"[Refinement] Found classification result ({classificationJson.Length} chars)");
             if (WorkflowJson.TryDeserialize(classificationJson, out QuestionClassificationResult? classificationResult) &&
                 classificationResult?.Classification.Type == QuestionType.Ambiguous)
             {
                 // Get the ambiguous question details
-                var qNumStr = await context.ReadOrInitStateAsync(WorkflowStateKeys.LastProcessedQuestionNumber, () => "0", cancellationToken);
+                var qNumStr = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestionNumber, out var inMemoryQNum)
+                    ? inMemoryQNum
+                    : await context.ReadOrInitStateAsync(WorkflowStateKeys.LastProcessedQuestionNumber, () => "0", cancellationToken);
                 var questionNumber = int.TryParse(qNumStr, out var qNumInt) ? qNumInt : 0;
 
-                var questionText = await context.ReadOrInitStateAsync(WorkflowStateKeys.LastProcessedQuestion, () => "", cancellationToken);
+                var questionText = WorkContext.State.TryGetValue(WorkflowStateKeys.LastProcessedQuestion, out var inMemoryQText)
+                    ? inMemoryQText
+                    : await context.ReadOrInitStateAsync(WorkflowStateKeys.LastProcessedQuestion, () => "", cancellationToken);
 
                 if (questionNumber > 0 && !string.IsNullOrEmpty(questionText))
                 {
@@ -244,8 +253,11 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
                     }
                 }
 
-                // Clear classification from state
+                // Clear classification from state (both in-memory and persistent)
                 await context.QueueStateUpdateAsync(WorkflowStateKeys.QuestionClassificationResult, "", cancellationToken);
+                WorkContext.State.Remove(WorkflowStateKeys.QuestionClassificationResult, out _);
+                WorkContext.State.Remove(WorkflowStateKeys.LastProcessedQuestion, out _);
+                WorkContext.State.Remove(WorkflowStateKeys.LastProcessedQuestionNumber, out _);
                 Logger.Debug($"[Refinement] Cleared QuestionClassificationResult from state");
             }
         }
