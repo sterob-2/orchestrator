@@ -15,7 +15,7 @@ internal static class SpecGateValidator
         AddMissingTouchFilesFailures(failures, spec, workspace);
         AddPlaybookFailures(failures, playbook);
         AddForbiddenReferencesFailures(failures, playbook, specText);
-        AddAllowedReferencesFailures(failures, playbook, specText);
+        AddAllowedReferencesFailures(failures, spec, playbook, specText);
 
         return new GateResult(
             Passed: failures.Count == 0,
@@ -159,8 +159,17 @@ internal static class SpecGateValidator
         }
     }
 
-    private static void AddAllowedReferencesFailures(List<string> failures, Playbook playbook, string specText)
+    private static void AddAllowedReferencesFailures(List<string> failures, ParsedSpec spec, Playbook playbook, string specText)
     {
+        // Only require framework/pattern references when adding new code
+        // Simple deletions or modifications don't need to reference frameworks/patterns
+        var hasAddOperations = spec.TouchList.Any(entry => entry.Operation == TouchOperation.Add);
+
+        if (!hasAddOperations)
+        {
+            return; // Skip framework/pattern validation for deletion-only or modification-only changes
+        }
+
         if (playbook.AllowedFrameworks.Count > 0 &&
             !playbook.AllowedFrameworks.Any(f => ContainsToken(specText, f.Name) || ContainsToken(specText, f.Id)))
         {

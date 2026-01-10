@@ -46,9 +46,10 @@ internal static class TechLeadPrompt
         builder.AppendLine("- Are you adding config? Hard-code defaults unless environment-specific.");
         builder.AppendLine("- Did you copy patterns from existing similar code?");
         builder.AppendLine("- Will implementation fit file size limits? (Executors 200-400 LOC max)");
+        builder.AppendLine("- IMPORTANT: If adding new files (Operation: Add in Touch List), reference at least one allowed framework ID (e.g., FW-01) and pattern ID (e.g., PAT-02) from the playbook in your spec.");
         builder.AppendLine();
         builder.AppendLine("Write the spec in markdown using the template sections. " +
-                           "Include at least 3 Gherkin scenarios and a Touch List table with ONLY files needed for acceptance criteria.");
+                           "Include at least 3 Gherkin scenarios and a Touch List table with SPECIFIC file paths (not directories).");
 
         return (system, builder.ToString());
     }
