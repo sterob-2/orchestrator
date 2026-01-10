@@ -49,7 +49,7 @@ internal static class TechLeadPrompt
         builder.AppendLine("- IMPORTANT: If adding new files (Operation: Add in Touch List), reference at least one allowed framework ID (e.g., FW-01) and pattern ID (e.g., PAT-02) from the playbook in your spec.");
         builder.AppendLine();
         builder.AppendLine("Write the spec in markdown using the template sections. " +
-                           "Include at least 3 Gherkin scenarios and a Touch List table with SPECIFIC file paths (not directories).");
+                           "Include at least 3 Gherkin scenarios and a Touch List table with specific file paths or directories (e.g., 'tests/' for test packages).");
 
         return (system, builder.ToString());
     }

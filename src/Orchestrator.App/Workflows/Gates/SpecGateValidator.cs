@@ -121,16 +121,36 @@ internal static class SpecGateValidator
 
     private static void AddMissingTouchFilesFailures(List<string> failures, ParsedSpec spec, IRepoWorkspace workspace)
     {
-        var missingFiles = spec.TouchList
+        var missingPaths = spec.TouchList
             .Where(entry => entry.Operation is TouchOperation.Modify or TouchOperation.Delete)
             .Where(entry => !string.IsNullOrWhiteSpace(entry.Path))
-            .Where(entry => !workspace.Exists(entry.Path))
+            .Where(entry => !FileOrDirectoryExists(workspace, entry.Path))
             .Select(entry => entry.Path)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        if (missingFiles.Count > 0)
+        if (missingPaths.Count > 0)
         {
-            failures.Add($"Spec-12: Missing files for touch list entries: {string.Join(", ", missingFiles)}.");
+            failures.Add($"Spec-12: Missing files or directories for touch list entries: {string.Join(", ", missingPaths)}.");
+        }
+    }
+
+    private static bool FileOrDirectoryExists(IRepoWorkspace workspace, string relativePath)
+    {
+        // First check if workspace.Exists returns true (for files and backward compatibility)
+        if (workspace.Exists(relativePath))
+        {
+            return true;
+        }
+
+        // If not found as a file, check if it's a directory
+        try
+        {
+            var fullPath = workspace.ResolvePath(relativePath);
+            return System.IO.Directory.Exists(fullPath);
+        }
+        catch
+        {
+            return false;
         }
     }
 
