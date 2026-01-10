@@ -74,15 +74,18 @@ public class RefinementPromptTests
 
         var (system, user) = RefinementPrompt.Build(workItem, playbook, null, null, answeredQuestions);
 
-        // System prompt should remind not to re-ask answered questions
-        Assert.Contains("Do NOT re-ask answered questions", system);
+        // System prompt should enforce no new questions after answers
+        Assert.Contains("AFTER INCORPORATING ANSWERS: Return ZERO open questions", system);
 
         // User prompt should show answered questions with checkboxes
-        Assert.Contains("Previously Answered Questions", user);
+        Assert.Contains("Answered Questions", user);
         Assert.Contains("- [x] **Question #1:** What is the target user?", user);
         Assert.Contains("**Answer (ProductOwner):** Enterprise users", user);
         Assert.Contains("- [x] **Question #2:** Which database to use?", user);
         Assert.Contains("**Answer (TechnicalAdvisor):** PostgreSQL 15", user);
+
+        // User prompt should explicitly instruct to return empty questions array
+        Assert.Contains("Return openQuestions: [] (empty array)", user);
     }
 
     [Fact]
