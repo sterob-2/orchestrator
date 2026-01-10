@@ -195,6 +195,53 @@ internal sealed class RepoGit : IRepoGit
 
         using var repo = new Repository(_root);
 
+        // Fetch from remote BEFORE committing to avoid rebase conflicts
+        try
+        {
+            var remote = repo.Network.Remotes["origin"];
+            if (remote != null)
+            {
+                Commands.Fetch(repo, remote.Name, Array.Empty<string>(), GetFetchOptions(), null);
+            }
+        }
+        catch
+        {
+            // Ignore fetch errors
+        }
+
+        // Rebase local branch onto remote if remote has new commits
+        var localBranch = repo.Branches[branchName];
+        if (localBranch != null)
+        {
+            var remoteBranchName = $"origin/{branchName}";
+            var remoteBranch = repo.Branches[remoteBranchName];
+
+            if (remoteBranch != null && localBranch.Tip.Sha != remoteBranch.Tip.Sha)
+            {
+                try
+                {
+                    var rebaseOptions = new RebaseOptions
+                    {
+                        FileConflictStrategy = CheckoutFileConflictStrategy.Theirs
+                    };
+
+                    var identity = new Identity(_cfg.GitAuthorName, _cfg.GitAuthorEmail);
+                    var rebaseResult = repo.Rebase.Start(localBranch, remoteBranch, null, identity, rebaseOptions);
+
+                    if (rebaseResult.Status != RebaseStatus.Complete)
+                    {
+                        repo.Rebase.Abort();
+                        throw new InvalidOperationException($"Rebase failed for {branchName} before commit");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.WriteLine($"Rebase before commit failed: {ex.Message}");
+                    // Continue anyway - will attempt push and handle conflict there
+                }
+            }
+        }
+
         // Stage files
         foreach (var path in pathList)
         {
@@ -216,7 +263,6 @@ internal sealed class RepoGit : IRepoGit
         // Push
         try
         {
-            var localBranch = repo.Branches[branchName];
             if (localBranch == null)
             {
                 throw new InvalidOperationException($"Branch {branchName} not found");
@@ -229,10 +275,9 @@ internal sealed class RepoGit : IRepoGit
         }
         catch (NonFastForwardException)
         {
-            // Pull with rebase and retry push
+            // Pull with rebase and retry push (fallback if pre-commit rebase failed)
             try
             {
-                var localBranch = repo.Branches[branchName];
                 var remoteBranchName = $"origin/{branchName}";
 
                 // Fetch

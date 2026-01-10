@@ -47,11 +47,6 @@ internal static class DorGateValidator
             failures.Add("DoR-05: Open questions must be resolved.");
         }
 
-        if (!item.Labels.Any(label => label.StartsWith("estimate:", StringComparison.OrdinalIgnoreCase)))
-        {
-            failures.Add("DoR-06: Estimate label is missing.");
-        }
-
         if (item.Labels.Any(label => string.Equals(label, labels.BlockedLabel, StringComparison.OrdinalIgnoreCase)))
         {
             failures.Add("DoR-07: Work item is blocked.");
