@@ -27,13 +27,13 @@ internal sealed class ContextBuilderExecutor : WorkflowStageExecutor
         var workItem = input.WorkItem;
         var branchName = $"issue-{workItem.Number}";
 
-        Logger.Info($"[ContextBuilder] Creating branch '{branchName}' for issue #{workItem.Number}");
+        Logger.Info($"[ContextBuilder] Ensuring branch '{branchName}' exists for issue #{workItem.Number}");
 
         try
         {
             // Ensure branch exists and is checked out
             WorkContext.Repo.EnsureBranch(branchName, WorkContext.Config.Workflow.DefaultBaseBranch);
-            Logger.Info($"[ContextBuilder] Branch '{branchName}' created and checked out");
+            Logger.Info($"[ContextBuilder] Branch '{branchName}' ready (created or checked out)");
 
             return (true, $"Branch '{branchName}' ready for work.");
         }
