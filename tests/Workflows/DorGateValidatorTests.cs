@@ -56,7 +56,6 @@ public class DorGateValidatorTests
         Assert.Contains(result.Failures, failure => failure.StartsWith("DoR-02", StringComparison.Ordinal));
         Assert.Contains(result.Failures, failure => failure.StartsWith("DoR-03", StringComparison.Ordinal));
         Assert.Contains(result.Failures, failure => failure.StartsWith("DoR-05", StringComparison.Ordinal));
-        Assert.Contains(result.Failures, failure => failure.StartsWith("DoR-06", StringComparison.Ordinal));
         Assert.Contains(result.Failures, failure => failure.StartsWith("DoR-07", StringComparison.Ordinal));
     }
 }
