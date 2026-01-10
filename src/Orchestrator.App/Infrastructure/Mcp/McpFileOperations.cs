@@ -93,12 +93,25 @@ public sealed class McpFileOperations
     }
 
     /// <summary>
-    /// Ensures a directory exists, creating it if necessary.
+    /// Ensures a directory exists, creating it recursively if necessary (like mkdir -p).
     /// </summary>
     private async Task EnsureDirectoryExistsAsync(string path)
     {
+        if (string.IsNullOrWhiteSpace(path) || path == "/" || path == ".")
+        {
+            return;
+        }
+
         try
         {
+            // First ensure parent directory exists (recursive)
+            var parent = Path.GetDirectoryName(path)?.Replace('\\', '/');
+            if (!string.IsNullOrWhiteSpace(parent) && parent != "/" && parent != ".")
+            {
+                await EnsureDirectoryExistsAsync(parent);
+            }
+
+            // Then create this directory
             var args = new Dictionary<string, object?>
             {
                 ["path"] = path
