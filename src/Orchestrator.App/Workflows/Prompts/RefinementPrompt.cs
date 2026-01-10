@@ -88,7 +88,8 @@ internal static class RefinementPrompt
             clarifiedStory,
             acceptanceCriteria,
             new List<string> { "Refinement output was invalid; please clarify requirements." },
-            new ComplexityIndicators(new List<string>(), null));
+            new ComplexityIndicators(new List<string>(), null),
+            new List<string>());
     }
 
     private static string RenderPlaybook(Playbook playbook)
