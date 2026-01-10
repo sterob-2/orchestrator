@@ -20,7 +20,11 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
+        Logger.Info($"[Dev] Starting development for issue #{input.WorkItem.Number}");
+        Logger.Debug($"[Dev] Mode: {input.Mode}, Attempt: {input.Attempt}");
+
         var specPath = WorkflowPaths.SpecPath(input.WorkItem.Number);
+        Logger.Debug($"[Dev] Reading spec from: {specPath}");
         var specContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, specPath);
         if (string.IsNullOrWhiteSpace(specContent))
         {

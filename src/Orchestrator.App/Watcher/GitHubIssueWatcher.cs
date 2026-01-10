@@ -254,6 +254,10 @@ internal sealed class GitHubIssueWatcher
 
     private WorkflowStage? GetStageFromLabels(WorkItem item)
     {
+        Logger.Debug($"[Watcher] Determining stage from labels for issue #{item.Number}");
+        Logger.Debug($"[Watcher] Labels: {string.Join(", ", item.Labels)}");
+        Logger.Debug($"[Watcher] Checking DevLabel='{_config.Labels.DevLabel}', HasLabel={HasLabel(item, _config.Labels.DevLabel)}");
+
         // Check stage-specific labels FIRST before generic ready-for-agents
         // This prevents race conditions where both labels might be present temporarily
         if (HasLabel(item, _config.Labels.ReleaseLabel))
@@ -273,6 +277,7 @@ internal sealed class GitHubIssueWatcher
 
         if (HasLabel(item, _config.Labels.DevLabel))
         {
+            Logger.Debug($"[Watcher] Selected stage: Dev (from DevLabel='{_config.Labels.DevLabel}')");
             return WorkflowStage.Dev;
         }
 
@@ -299,9 +304,11 @@ internal sealed class GitHubIssueWatcher
         // Check generic ready-for-agents label LAST as fallback
         if (HasLabel(item, _config.Labels.WorkItemLabel))
         {
+            Logger.Debug($"[Watcher] Selected stage: ContextBuilder (from WorkItemLabel='{_config.Labels.WorkItemLabel}')");
             return WorkflowStage.ContextBuilder;
         }
 
+        Logger.Debug($"[Watcher] No matching stage label found, returning null");
         return null;
     }
 }
