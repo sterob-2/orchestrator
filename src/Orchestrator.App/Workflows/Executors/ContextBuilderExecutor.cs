@@ -25,7 +25,7 @@ internal sealed class ContextBuilderExecutor : WorkflowStageExecutor
         CancellationToken cancellationToken)
     {
         var workItem = input.WorkItem;
-        var branchName = $"issue-{workItem.Number}";
+        var branchName = WorkItemBranch.BuildBranchName(workItem);
 
         Logger.Info($"[ContextBuilder] Creating branch '{branchName}' for issue #{workItem.Number}");
 

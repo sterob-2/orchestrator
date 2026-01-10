@@ -35,8 +35,8 @@ public class ContextBuilderExecutorTests
         var output = await executor.HandleAsync(input, workflowContext.Object, CancellationToken.None);
 
         Assert.True(output.Success);
-        Assert.Contains("Branch 'issue-1' ready for work", output.Notes);
-        repo.Verify(r => r.EnsureBranch("issue-1", config.Workflow.DefaultBaseBranch), Times.Once);
+        Assert.Contains("Branch 'agent/issue-1-title' ready for work", output.Notes);
+        repo.Verify(r => r.EnsureBranch("agent/issue-1-title", config.Workflow.DefaultBaseBranch), Times.Once);
     }
 
     [Fact]
