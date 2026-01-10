@@ -64,11 +64,29 @@ internal static class FileOperationHelper
     /// </summary>
     public static async Task<string?> ReadAllTextIfExistsAsync(WorkContext ctx, string path)
     {
-        if (!await ExistsAsync(ctx, path))
+        try
         {
+            if (!await ExistsAsync(ctx, path))
+            {
+                Logger.Debug($"[FileOp] File does not exist: {path}");
+                return null;
+            }
+
+            Logger.Debug($"[FileOp] Reading file: {path}");
+            return await ReadAllTextAsync(ctx, path);
+        }
+        catch (FileNotFoundException ex)
+        {
+            // File was deleted between ExistsAsync and ReadAllTextAsync, or permission issue
+            Logger.Debug($"[FileOp] File not found during read (race condition or permissions): {path} - {ex.Message}");
             return null;
         }
-        return await ReadAllTextAsync(ctx, path);
+        catch (UnauthorizedAccessException ex)
+        {
+            // Permission denied
+            Logger.Debug($"[FileOp] Access denied reading file: {path} - {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>
