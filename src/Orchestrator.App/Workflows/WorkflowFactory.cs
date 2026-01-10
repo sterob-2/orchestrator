@@ -53,6 +53,7 @@ internal static class WorkflowFactory
             .AddEdge(contextBuilder, release)
             .AddEdge(refinement, dorGate)
             .AddEdge(refinement, questionClassifier)
+            .AddEdge(questionClassifier, refinement)
             .AddEdge(questionClassifier, technicalAdvisor)
             .AddEdge(questionClassifier, productOwner)
             .AddEdge(productOwner, refinement)
