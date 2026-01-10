@@ -70,7 +70,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner
                 return blocked;
             }
 
-            var workflow = WorkflowFactory.BuildGraph(runContext, stage);
+            // Use single-stage workflow for direct stage execution
+            // Only use BuildGraph for ContextBuilder (which might route to other stages)
+            var workflow = stage == WorkflowStage.ContextBuilder
+                ? WorkflowFactory.BuildGraph(runContext, null)
+                : WorkflowFactory.Build(stage, runContext);
             var input = new WorkflowInput(
                 runContext.WorkItem,
                 BuildProjectContext(runContext.Config),
