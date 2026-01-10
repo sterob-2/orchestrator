@@ -195,21 +195,21 @@ internal sealed class RepoGit : IRepoGit
 
         using var repo = new Repository(_root);
 
-        // Stage files FIRST (before fetch & rebase)
-        foreach (var path in pathList)
-        {
-            Commands.Stage(repo, path);
-        }
-
-        // Check if there are staged changes
+        // Check if there are changes to commit BEFORE staging
         var status = repo.RetrieveStatus();
-        if (!status.Any(s => s.State != FileStatus.Ignored && s.State != FileStatus.Unaltered))
+        var hasChanges = pathList.Any(path =>
+        {
+            var item = status.FirstOrDefault(s => s.FilePath == path);
+            return item != null && item.State != FileStatus.Ignored && item.State != FileStatus.Unaltered;
+        });
+
+        if (!hasChanges)
         {
             Logger.WriteLine("No changes to commit.");
             return false;
         }
 
-        // Fetch from remote BEFORE committing to avoid rebase conflicts
+        // Fetch from remote BEFORE staging/committing to avoid rebase conflicts
         try
         {
             var remote = repo.Network.Remotes["origin"];
@@ -223,7 +223,7 @@ internal sealed class RepoGit : IRepoGit
             // Ignore fetch errors
         }
 
-        // Rebase local branch onto remote if remote has new commits
+        // Rebase local branch onto remote if remote has new commits (BEFORE staging)
         var localBranch = repo.Branches[branchName];
         if (localBranch != null)
         {
@@ -254,6 +254,12 @@ internal sealed class RepoGit : IRepoGit
                     // Continue anyway - will attempt push and handle conflict there
                 }
             }
+        }
+
+        // Stage files AFTER fetch & rebase
+        foreach (var path in pathList)
+        {
+            Commands.Stage(repo, path);
         }
 
         // Commit
