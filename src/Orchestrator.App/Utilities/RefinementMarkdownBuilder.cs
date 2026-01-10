@@ -91,15 +91,23 @@ internal static class RefinementMarkdownBuilder
         content.AppendLine("**These questions require human clarification:**");
         content.AppendLine("They mix product and technical concerns and need stakeholder input to determine the correct approach.");
         content.AppendLine();
-        content.AppendLine("**How to clarify:**");
-        content.AppendLine("1. Add a comment to the GitHub issue with clarifications");
-        content.AppendLine("2. Remove `blocked` and `user-review-required` labels");
-        content.AppendLine("3. Add the `dor` label to re-trigger refinement");
+        content.AppendLine("**How to answer:**");
+        content.AppendLine("1. Edit this markdown file directly (in your git branch)");
+        content.AppendLine("2. Change `- [ ]` to `- [x]` and add your answer:");
+        content.AppendLine("   ```");
+        content.AppendLine("   - [x] **Question #1:** Your question here?");
+        content.AppendLine("     **Answer:** Your answer here");
+        content.AppendLine("   ```");
+        content.AppendLine("3. Commit and push the changes");
+        content.AppendLine("4. Remove `blocked` label and add `dor` label to re-trigger the workflow");
         content.AppendLine();
+
         foreach (var question in ambiguousQuestions)
         {
-            content.AppendLine($"- **Question #{question.QuestionNumber}:** {question.Question}");
+            content.AppendLine($"- [ ] **Question #{question.QuestionNumber}:** {question.Question}");
+            content.AppendLine($"  **Answer:** _[Pending]_");
+            content.AppendLine();
         }
-        content.AppendLine();
+
     }
 }

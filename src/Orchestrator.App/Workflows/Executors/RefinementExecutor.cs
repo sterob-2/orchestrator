@@ -412,25 +412,34 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("## ⚠️ Ambiguous Questions Require Clarification");
         sb.AppendLine();
-        sb.AppendLine($"The following {ambiguousQuestions.Count} question(s) mix product and technical concerns:");
+        sb.AppendLine($"The following {ambiguousQuestions.Count} question(s) mix product and technical concerns and require human input:");
         sb.AppendLine();
 
         foreach (var question in ambiguousQuestions)
         {
-            sb.AppendLine($"**Question #{question.QuestionNumber}:** {question.Question}");
-            sb.AppendLine();
+            sb.AppendLine($"- **Question #{question.QuestionNumber}:** {question.Question}");
         }
 
+        sb.AppendLine();
         sb.AppendLine("---");
         sb.AppendLine("**Next Steps:**");
-        sb.AppendLine("1. Review the questions in the refinement markdown file");
-        sb.AppendLine("2. Provide answers using the checkbox format:");
-        sb.AppendLine("   ```");
-        sb.AppendLine("   - [x] Your answer here");
-        sb.AppendLine("   ```");
-        sb.AppendLine("3. Remove the `blocked` label when ready");
         sb.AppendLine();
-        sb.AppendLine("Workflow will resume automatically once `blocked` label is removed.");
+        sb.AppendLine($"1. **Edit the refinement file:** Check out branch `issue-{WorkContext.WorkItem.Number}` and open:");
+        sb.AppendLine($"   ```");
+        sb.AppendLine($"   orchestrator/refinement/issue-{WorkContext.WorkItem.Number}.md");
+        sb.AppendLine($"   ```");
+        sb.AppendLine();
+        sb.AppendLine("2. **Answer the questions** in the \"Ambiguous Questions\" section:");
+        sb.AppendLine("   - Change `- [ ]` to `- [x]`");
+        sb.AppendLine("   - Replace `_[Pending]_` with your answer");
+        sb.AppendLine();
+        sb.AppendLine("3. **Commit and push** your changes");
+        sb.AppendLine();
+        sb.AppendLine("4. **Re-trigger workflow:**");
+        sb.AppendLine("   - Remove the `blocked` label");
+        sb.AppendLine("   - Add the `dor` label");
+        sb.AppendLine();
+        sb.AppendLine("The workflow will automatically resume and incorporate your answers.");
 
         await WorkContext.GitHub.CommentOnWorkItemAsync(
             WorkContext.WorkItem.Number,
