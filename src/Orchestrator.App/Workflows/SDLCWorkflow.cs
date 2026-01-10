@@ -28,35 +28,43 @@ internal static class SDLCWorkflow
 
         Logger.WriteLine($"[Workflow] Starting workflow for issue #{input.WorkItem.Number}...");
 
-        // Execute workflow
-        Run run = await InProcessExecution.RunAsync(workflow, input);
-
-        // Process events
-        foreach (WorkflowEvent evt in run.NewEvents)
+        try
         {
-            switch (evt)
-            {
-                case ExecutorCompletedEvent completedEvt:
-                    Logger.WriteLine($"[Workflow] Executor completed: {completedEvt.ExecutorId}");
-                    if (completedEvt.Data is WorkflowOutput output)
-                    {
-                        finalOutput = output;
-                        if (onOutput != null)
-                        {
-                            await onOutput(output);
-                        }
-                        Logger.WriteLine($"   Success: {output.Success}");
-                        Logger.WriteLine($"   Notes: {output.Notes}");
-                        if (output.NextStage is not null)
-                        {
-                            Logger.WriteLine($"   Next Stage: {output.NextStage}");
-                        }
-                    }
-                    break;
-            }
-        }
+            // Execute workflow
+            Run run = await InProcessExecution.RunAsync(workflow, input);
 
-        Logger.WriteLine($"[Workflow] Workflow completed!");
-        return finalOutput;
+            // Process events
+            foreach (WorkflowEvent evt in run.NewEvents)
+            {
+                switch (evt)
+                {
+                    case ExecutorCompletedEvent completedEvt:
+                        Logger.WriteLine($"[Workflow] Executor completed: {completedEvt.ExecutorId}");
+                        if (completedEvt.Data is WorkflowOutput output)
+                        {
+                            finalOutput = output;
+                            if (onOutput != null)
+                            {
+                                await onOutput(output);
+                            }
+                            Logger.WriteLine($"   Success: {output.Success}");
+                            Logger.WriteLine($"   Notes: {output.Notes}");
+                            if (output.NextStage is not null)
+                            {
+                                Logger.WriteLine($"   Next Stage: {output.NextStage}");
+                            }
+                        }
+                        break;
+                }
+            }
+
+            Logger.WriteLine($"[Workflow] Workflow completed!");
+            return finalOutput;
+        }
+        catch (Exception ex)
+        {
+            Logger.WriteLine($"[Workflow] EXCEPTION during workflow execution for issue #{input.WorkItem.Number}: {ex}");
+            throw;
+        }
     }
 }

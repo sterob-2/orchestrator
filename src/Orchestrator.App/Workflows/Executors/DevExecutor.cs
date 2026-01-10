@@ -20,27 +20,29 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
-        Logger.Info($"[Dev] Starting development for issue #{input.WorkItem.Number}");
-        Logger.Debug($"[Dev] Mode: {input.Mode}, Attempt: {input.Attempt}");
-
-        var specPath = WorkflowPaths.SpecPath(input.WorkItem.Number);
-        Logger.Debug($"[Dev] Reading spec from: {specPath}");
-        var specContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, specPath);
-        if (string.IsNullOrWhiteSpace(specContent))
+        try
         {
-            return (false, $"Dev blocked: missing spec at {specPath}.");
-        }
+            Logger.Info($"[Dev] Starting development for issue #{input.WorkItem.Number}");
+            Logger.Debug($"[Dev] Mode: {input.Mode}, Attempt: {input.Attempt}");
 
-        var parsedSpec = new SpecParser().Parse(specContent);
-        var forbidden = parsedSpec.TouchList.FirstOrDefault(entry => entry.Operation == TouchOperation.Forbidden);
-        if (forbidden != null)
-        {
-            return (false, $"Dev blocked: forbidden path in touch list ({forbidden.Path}).");
-        }
+            var specPath = WorkflowPaths.SpecPath(input.WorkItem.Number);
+            Logger.Debug($"[Dev] Reading spec from: {specPath}");
+            var specContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, specPath);
+            if (string.IsNullOrWhiteSpace(specContent))
+            {
+                return (false, $"Dev blocked: missing spec at {specPath}.");
+            }
 
-        var mode = ResolveMode(input);
-        var changedFiles = new List<string>();
-        foreach (var entry in parsedSpec.TouchList)
+            var parsedSpec = new SpecParser().Parse(specContent);
+            var forbidden = parsedSpec.TouchList.FirstOrDefault(entry => entry.Operation == TouchOperation.Forbidden);
+            if (forbidden != null)
+            {
+                return (false, $"Dev blocked: forbidden path in touch list ({forbidden.Path}).");
+            }
+
+            var mode = ResolveMode(input);
+            var changedFiles = new List<string>();
+            foreach (var entry in parsedSpec.TouchList)
         {
             Logger.Debug($"[Dev] Processing touch list entry: {entry.Operation} | {entry.Path}");
 
@@ -62,9 +64,19 @@ internal sealed class DevExecutor : WorkflowStageExecutor
                 case TouchOperation.Add:
                 case TouchOperation.Modify:
                     Logger.Debug($"[Dev] Reading existing content for: {entry.Path}");
-                    var existing = entry.Operation == TouchOperation.Modify
-                        ? await FileOperationHelper.ReadAllTextAsync(WorkContext, entry.Path)
-                        : null;
+                    string? existing = null;
+                    try
+                    {
+                        existing = entry.Operation == TouchOperation.Modify
+                            ? await FileOperationHelper.ReadAllTextAsync(WorkContext, entry.Path)
+                            : null;
+                        Logger.Debug($"[Dev] Read {existing?.Length ?? 0} characters from: {entry.Path}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.WriteLine($"[Dev] ERROR reading file {entry.Path}: {ex}");
+                        throw;
+                    }
                     Logger.Debug($"[Dev] Building prompt for: {entry.Path}");
                     var prompt = DevPrompt.Build(mode, parsedSpec, entry, existing);
                     Logger.Debug($"[Dev] Calling LLM for: {entry.Path}");
@@ -114,9 +126,15 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         await context.QueueStateUpdateAsync(WorkflowStateKeys.DevResult, serializedResult, cancellationToken);
         WorkContext.State[WorkflowStateKeys.DevResult] = serializedResult;
 
-        return commitOk
-            ? (true, $"Dev changes committed on {branchName}.")
-            : (false, "Dev changes could not be committed.");
+            return commitOk
+                ? (true, $"Dev changes committed on {branchName}.")
+                : (false, "Dev changes could not be committed.");
+        }
+        catch (Exception ex)
+        {
+            Logger.WriteLine($"[Dev] EXCEPTION during execution for issue #{input.WorkItem.Number}: {ex}");
+            throw;
+        }
     }
 
     private string ResolveMode(WorkflowInput input)
