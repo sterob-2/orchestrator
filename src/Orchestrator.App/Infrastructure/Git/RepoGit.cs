@@ -89,6 +89,10 @@ internal sealed class RepoGit : IRepoGit
 
         MoveUntrackedGeneratedFiles();
 
+        // Clean working tree before checkout to prevent conflicts
+        repo.Reset(ResetMode.Hard);
+        repo.RemoveUntrackedFiles();
+
         // Check if remote branch exists
         var remoteBranchName = $"origin/{branchName}";
         var remoteBranch = repo.Branches[remoteBranchName];
