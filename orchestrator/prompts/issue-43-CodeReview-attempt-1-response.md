@@ -1,11 +1,11 @@
 {
   "approved": false,
-  "summary": "The diff cleanly removes the two unused branch methods from the internal IGitHubClient and deletes their implementations from OctokitGitHubClient, which reduces dead surface area. I cannot approve merging yet: there is no evidence of a full build/test run, and the repo-wide impact (callers, tests, mocks, other implementations, packaging) has not been demonstrated. Please run a full build and test run, search the repository for remaining references (including tests/mocks and reflection), and perform small cleanups (potentially unused config fields/usings) before merging.",
+  "summary": "The change cleanly removes the two unused branch methods from IGitHubClient and deletes their implementations from OctokitGitHubClient, which reduces dead surface area. I cannot approve merging yet: there is no evidence of a full build/test run and the repo-wide impact (callers, tests, mocks, other implementations, packaging) has not been demonstrated. Please run a full build and test run, search the repository for remaining references (including tests/mocks and reflection), and perform small cleanups (potentially unused config fields/usings) before merging.",
   "findings": [
     {
       "severity": "MAJOR",
       "category": "BUILD_AND_TEST_VERIFICATION",
-      "message": "No CI/build/test results are included with this change. Removing interface members and implementations can surface compile-time and test failures in other code, test doubles, or downstream consumers. Run 'dotnet build' and the full test suite ('dotnet test' / CI) and attach the results or ensure branch CI is green before merging.",
+      "message": "No build or test results are included with this change. Removing interface members and implementations can surface compile-time and test failures in other code, test doubles, or downstream consumers. Run 'dotnet build' and the full test suite ('dotnet test' / CI) and attach the results or ensure branch CI is green before merging.",
       "file": null,
       "line": null
     },
@@ -19,21 +19,21 @@
     {
       "severity": "MAJOR",
       "category": "IMPLEMENTATION_UPDATES_REQUIRED",
-      "message": "All types that implemented IGitHubClient must be verified. OctokitGitHubClient had the implementations removed, but other implementations or test doubles (mocks, fakes) may still expect those members. Search for 'CreateBranchAsync' and 'DeleteBranchAsync' in 'tests/' and in the repo to update/remove mocks and explicit interface implementations.",
+      "message": "All types that implemented IGitHubClient must be verified. OctokitGitHubClient had the implementations removed, but other implementations or test doubles (mocks, fakes) may still expect those members. Search for 'CreateBranchAsync' and 'DeleteBranchAsync' in tests/ and the repo to update/remove mocks and explicit interface implementations.",
       "file": "tests/",
       "line": null
     },
     {
       "severity": "MINOR",
       "category": "POTENTIAL_BREAKING_CHANGE",
-      "message": "IGitHubClient is declared internal, which reduces external compatibility risk but does not eliminate it. Verify whether the assembly is packaged/published, referenced by other repos, or exposed via InternalsVisibleTo. If external consumers exist, removing interface members is a breaking change and needs a compatibility plan (deprecation, migration guidance or version bump).",
+      "message": "IGitHubClient is declared internal which reduces external compatibility risk but does not eliminate it. Verify whether the assembly is packaged/published, referenced by other repos, or exposed via InternalsVisibleTo. If external consumers exist, removing interface members is a breaking change and needs a compatibility plan (deprecation/Obsolete then removal or a version bump).",
       "file": "src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs",
       "line": 1
     },
     {
       "severity": "MINOR",
       "category": "IMPLEMENTATION_CLEANUP",
-      "message": "The OctokitGitHubClient implementations for CreateBranchAsync/DeleteBranchAsync were deleted. Check for now-unused private members, configuration keys or fields referenced only by those methods (for example _cfg.Workflow.DefaultBaseBranch) and remove them if no longer used. Also run an analyzer/IDE cleanup to remove unused using directives introduced by deletion.",
+      "message": "Deleted OctokitGitHubClient.CreateBranchAsync/DeleteBranchAsync. Check for now-unused private members, configuration keys or fields referenced only by those methods (for example _cfg.Workflow.DefaultBaseBranch) and remove them if no longer used. Also run an analyzer/IDE cleanup to remove unused using directives introduced by deletion.",
       "file": "src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs",
       "line": 244
     },
@@ -61,7 +61,7 @@
     {
       "severity": "MINOR",
       "category": "SECURITY",
-      "message": "Removing unused methods does not introduce a direct security vulnerability. However, verify that any authorization, auditing, or logging responsibilities previously performed by those API paths (if any) remain enforced in the current call flows so consumers do not implement insecure workarounds.",
+      "message": "Removing unused methods does not introduce an obvious security vulnerability. However, verify that any authorization, auditing, or logging responsibilities previously performed by those API paths (if any) remain enforced elsewhere so consumers do not implement insecure workarounds.",
       "file": null,
       "line": null
     }
