@@ -93,6 +93,29 @@ internal sealed class DevExecutor : WorkflowStageExecutor
                         cancellationToken);
                     Logger.Debug($"[Dev] LLM response received for: {entry.Path} (length: {updated?.Length ?? 0})");
 
+                    // Reflection loop: If LLM returned unchanged file, try again with explicit feedback
+                    if (entry.Operation == TouchOperation.Modify && existing != null &&
+                        !string.IsNullOrWhiteSpace(updated) &&
+                        string.Equals(updated.Trim(), existing.Trim(), StringComparison.Ordinal))
+                    {
+                        Logger.Warning($"[Dev] LLM returned unchanged file on first attempt for: {entry.Path}");
+                        Logger.Warning($"[Dev] Retrying with explicit feedback about the failure");
+
+                        var reflectionPrompt = $"CRITICAL ERROR: Your previous response was IDENTICAL to the original file.\n" +
+                                             $"You MUST make the changes specified in the instructions.\n" +
+                                             $"Instructions: {entry.Notes}\n\n" +
+                                             $"BEFORE (original file - DO NOT return this):\n{existing}\n\n" +
+                                             $"You must output the MODIFIED version with the required changes applied.\n" +
+                                             $"If removing methods, those methods MUST BE ABSENT from your output.";
+
+                        updated = await CallLlmAsync(
+                            WorkContext.Config.DevModel,
+                            prompt.System,
+                            reflectionPrompt,
+                            cancellationToken);
+                        Logger.Debug($"[Dev] Reflection attempt response received for: {entry.Path} (length: {updated?.Length ?? 0})");
+                    }
+
                     // Debug: Log first and last 500 chars of LLM response for inspection
                     if (updated != null && updated.Length > 0)
                     {
@@ -110,6 +133,17 @@ internal sealed class DevExecutor : WorkflowStageExecutor
                     {
                         Logger.Warning($"[Dev] Empty LLM output for: {entry.Path}");
                         return (false, $"Dev blocked: empty output for {entry.Path}.");
+                    }
+
+                    // Validate: For MODIFY operations, check if LLM actually made changes
+                    if (entry.Operation == TouchOperation.Modify && existing != null)
+                    {
+                        if (string.Equals(updated.Trim(), existing.Trim(), StringComparison.Ordinal))
+                        {
+                            Logger.Warning($"[Dev] LLM returned unchanged file for: {entry.Path}");
+                            Logger.Warning($"[Dev] Expected: Code removal/modification, Got: Identical content");
+                            return (false, $"Dev blocked: LLM did not modify {entry.Path} as instructed. File content unchanged.");
+                        }
                     }
                     Logger.Debug($"[Dev] Writing updated content to: {entry.Path}");
                     await FileOperationHelper.WriteAllTextAsync(WorkContext, entry.Path, updated);
