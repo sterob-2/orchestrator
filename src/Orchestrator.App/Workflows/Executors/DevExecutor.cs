@@ -201,17 +201,25 @@ internal sealed class DevExecutor : WorkflowStageExecutor
 
         if (commitOk)
         {
-            Logger.Info($"[Dev] Creating Pull Request for branch {branchName}");
-            var prTitle = $"{input.WorkItem.Title} (#{input.WorkItem.Number})";
-            var prBody = BuildPullRequestBody(parsedSpec, input.WorkItem);
             try
             {
-                var prUrl = await WorkContext.GitHub.OpenPullRequestAsync(branchName, WorkContext.Config.Workflow.DefaultBaseBranch, prTitle, prBody);
-                Logger.Info($"[Dev] Pull Request created: {prUrl}");
+                var prNumber = await WorkContext.GitHub.GetPullRequestNumberAsync(branchName);
+                if (prNumber.HasValue)
+                {
+                    Logger.Info($"[Dev] Pull Request already exists: #{prNumber.Value}");
+                }
+                else
+                {
+                    Logger.Info($"[Dev] Creating Pull Request for branch {branchName}");
+                    var prTitle = $"{input.WorkItem.Title} (#{input.WorkItem.Number})";
+                    var prBody = BuildPullRequestBody(parsedSpec, input.WorkItem);
+                    var prUrl = await WorkContext.GitHub.OpenPullRequestAsync(branchName, WorkContext.Config.Workflow.DefaultBaseBranch, prTitle, prBody);
+                    Logger.Info($"[Dev] Pull Request created: {prUrl}");
+                }
             }
             catch (Exception ex)
             {
-                Logger.Warning($"[Dev] Failed to create Pull Request: {ex.Message}");
+                Logger.Warning($"[Dev] Failed to ensure Pull Request: {ex.Message}");
             }
         }
 
