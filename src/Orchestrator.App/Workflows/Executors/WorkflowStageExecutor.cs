@@ -85,6 +85,13 @@ internal abstract class WorkflowStageExecutor : Executor<WorkflowInput, Workflow
         string userPrompt,
         CancellationToken cancellationToken)
     {
+        if (WorkContext.Config.Debug)
+        {
+            var debugPath = $"orchestrator/debug/issue-{WorkContext.WorkItem.Number}-{Stage}-attempt-{CurrentAttempt}-prompt.md";
+            var debugContent = $"# System Prompt\n\n{systemPrompt}\n\n# User Prompt\n\n{userPrompt}";
+            WorkContext.Workspace.WriteAllText(debugPath, debugContent);
+        }
+
         var stopwatch = Stopwatch.StartNew();
         var response = await WorkContext.Llm.GetUpdatedFileAsync(model, systemPrompt, userPrompt);
         stopwatch.Stop();

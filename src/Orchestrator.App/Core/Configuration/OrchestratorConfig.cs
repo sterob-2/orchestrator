@@ -24,7 +24,8 @@ public sealed record OrchestratorConfig(
     string WebhookSecret,
     string ProjectOwner,
     string ProjectOwnerType,
-    int? ProjectNumber
+    int? ProjectNumber,
+    bool Debug
 )
 {
     public static OrchestratorConfig FromEnvironment()
@@ -38,6 +39,12 @@ public sealed record OrchestratorConfig(
             }
 
             return fallback;
+        }
+
+        bool GetBool(string key, bool fallback)
+        {
+            var raw = Get(key, "");
+            return bool.TryParse(raw, out var parsed) ? parsed : fallback;
         }
 
         int GetInt(string key, int fallback)
@@ -107,7 +114,8 @@ public sealed record OrchestratorConfig(
             WebhookSecret: Get("WEBHOOK_SECRET"),
             ProjectOwner: Get("PROJECT_OWNER"),
             ProjectOwnerType: Get("PROJECT_OWNER_TYPE", "user"),
-            ProjectNumber: GetNullableInt("PROJECT_NUMBER")
+            ProjectNumber: GetNullableInt("PROJECT_NUMBER"),
+            Debug: GetBool("DEBUG", false)
         );
     }
 }
