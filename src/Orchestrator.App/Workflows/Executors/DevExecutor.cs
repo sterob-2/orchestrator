@@ -185,7 +185,18 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         Logger.Info($"[Dev] Processed {changedFiles.Count} file(s)");
 
         Logger.Debug($"[Dev] Committing and pushing {changedFiles.Count} changed file(s)");
-        var commitOk = WorkContext.Repo.CommitAndPush(branchName, $"feat: issue {input.WorkItem.Number}", changedFiles);
+        
+        bool commitOk;
+        if (changedFiles.Count == 0)
+        {
+            Logger.Info("[Dev] No changes to commit, assuming Dev is complete.");
+            commitOk = true;
+        }
+        else
+        {
+            commitOk = WorkContext.Repo.CommitAndPush(branchName, $"feat: issue {input.WorkItem.Number}", changedFiles);
+        }
+
         Logger.Info($"[Dev] Commit result: {(commitOk ? "SUCCESS" : "FAILED")}");
 
         if (commitOk)
