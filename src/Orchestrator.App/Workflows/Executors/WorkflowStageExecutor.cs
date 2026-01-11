@@ -107,6 +107,22 @@ internal abstract class WorkflowStageExecutor : Executor<WorkflowInput, Workflow
         var response = await WorkContext.Llm.GetUpdatedFileAsync(model, systemPrompt, userPrompt);
         stopwatch.Stop();
 
+        if (WorkContext.Config.Debug)
+        {
+            var responsePath = $"orchestrator/prompts/issue-{WorkContext.WorkItem.Number}-{Stage}-attempt-{CurrentAttempt}-response.md";
+            WorkContext.Workspace.WriteAllText(responsePath, response);
+
+            try
+            {
+                var branchName = WorkItemBranch.BuildBranchName(WorkContext.WorkItem);
+                WorkContext.Repo.CommitAndPush(branchName, $"debug: response for {Stage} attempt {CurrentAttempt}", new[] { responsePath });
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[WARN] Failed to commit debug response file: {ex.Message}");
+            }
+        }
+
         WorkContext.Metrics?.RecordLlmCall(new LlmCallMetrics(
             Model: model,
             PromptChars: systemPrompt.Length + userPrompt.Length,
