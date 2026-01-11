@@ -1,41 +1,55 @@
 {
   "approved": false,
-  "summary": "Removing CreateBranchAsync/DeleteBranchAsync from the public IGitHubClient interface is a breaking change to the library's public API. The change needs explicit deprecation, a migration path, tests and documentation updates, and a versioning plan to avoid surprising downstream consumers.",
+  "summary": "The PR removes CreateBranchAsync and DeleteBranchAsync from the IGitHubClient surface and deletes their implementations from OctokitGitHubClient. The changes themselves are straightforward and align with the stated goal of removing dead code, but I cannot approve merging yet because required verification steps (build, tests, repo-wide usage search, and release/compatibility assessment) are not shown in the diff. Please run CI (dotnet build / dotnet test), ensure no remaining references exist, and document the change (or deprecate first if this is a published API).",
   "findings": [
     {
       "severity": "MAJOR",
-      "category": "API_BREAKING_CHANGE",
-      "message": "Removing public methods from a public interface breaks consumers compiled against previous versions. This must not be done in a patch/minor release without a major version bump or prior deprecation."
+      "category": "BUILD_AND_TEST_VERIFICATION",
+      "message": "No evidence in the PR that a full build and test run were executed after removing the interface members and implementations. Removing methods from an interface can produce compilation errors if callers or implementations reference them; a full 'dotnet build' and 'dotnet test' must be run and the results attached to the PR before merging.",
+      "file": null,
+      "line": null
     },
     {
       "severity": "MAJOR",
-      "category": "RELEASE_MANAGEMENT",
-      "message": "No evidence of a deprecation period, migration guide, or changelog entry. Provide clear upgrade guidance and plan for semantic versioning (major bump) if removal is intended."
+      "category": "POTENTIAL_BREAKING_CHANGE",
+      "message": "Removing methods from a shared contract can be a breaking change for consumers. The interface here is declared as internal, which typically limits impact to the assembly, but you must verify whether IGitHubClient is consumed outside the assembly (e.g., via InternalsVisibleTo or if the assembly is packaged/published). If it is part of a published API/nuget, follow a deprecation strategy or plan a major version bump.",
+      "file": "src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs",
+      "line": 1
     },
     {
       "severity": "MAJOR",
-      "category": "COMPATIBILITY",
-      "message": "Search and update all repository code, samples, and tests that may call these methods. Also notify external consumers; automated build breakages will occur for consumers that implement or call these interface methods."
+      "category": "COMPILATION_IMPACT",
+      "message": "Implementations of IGitHubClient (including any test doubles/mocks or partner implementations) may have explicitly implemented the removed methods or unit tests may reference them. Confirm there are no remaining compile-time references. The Octokit implementation removal starts at approximately line 244 in OctokitGitHubClient.cs; ensure no other types rely on these members.",
+      "file": "src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs",
+      "line": 244
     },
     {
       "severity": "MINOR",
       "category": "TESTS",
-      "message": "Unit/integration tests that referenced CreateBranchAsync/DeleteBranchAsync must be updated or removed. Ensure CI covers the public API surface to detect regressions like this earlier."
+      "message": "The PR does not show tests being updated or removed. Search the test suite for 'CreateBranchAsync' and 'DeleteBranchAsync' and remove or update any tests that reference them. Ensure unit/integration tests continue to pass and add a CI run result to the PR.",
+      "file": "tests/",
+      "line": null
     },
     {
       "severity": "MINOR",
       "category": "DOCUMENTATION",
-      "message": "API docs, README, and changelog should be updated to reflect the removal. If the methods are moved to another API or are intentionally gone, document the recommended alternative."
+      "message": "Update any public docs, CHANGELOG, or READMEs that mention the removed methods. If the methods were exposed in docs or samples, add a migration note explaining the removal and the recommended workflow (RepoGit.EnsureBranch / CommitAndPush).",
+      "file": null,
+      "line": null
     },
     {
       "severity": "MINOR",
       "category": "SECURITY",
-      "message": "No direct security issues introduced by this change, but verify client code that previously created branches now follows the new recommended flow to avoid insecure workarounds."
+      "message": "No direct security issues were introduced by removing these methods. However, verify that any authorization/audit expectations previously associated with branch creation/deletion (if any) are preserved in the remaining flows so callers don't implement insecure workarounds.",
+      "file": null,
+      "line": null
     },
     {
       "severity": "MINOR",
-      "category": "IMPLEMENTATION_DETAIL",
-      "message": "If implementations had explicit interface implementations of these methods, removing them is safe but may leave dead code. Consider cleaning up implementations and marking leftover methods internal or removing them as appropriate."
+      "category": "CLEANUP",
+      "message": "If there are now orphaned helper methods or unused usings related to the branch API, please remove them to keep the codebase clean. Also run an automated repo-wide text search to ensure no stray references remain in examples or infrastructure code.",
+      "file": null,
+      "line": null
     }
   ]
 }
