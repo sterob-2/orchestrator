@@ -1,41 +1,41 @@
 {
-  "approved": true,
-  "summary": "Removing the unused CreateBranchAsync/DeleteBranchAsync from IGitHubClient is safe. OctokitGitHubClient has been updated to match the interface and there are no obvious breaking issues in the shown changes. I recommend running a full build and the test suite to ensure there are no remaining references to the removed methods elsewhere in the codebase.",
+  "approved": false,
+  "summary": "Removing CreateBranchAsync/DeleteBranchAsync from the public IGitHubClient interface is a breaking change to the library's public API. The change needs explicit deprecation, a migration path, tests and documentation updates, and a versioning plan to avoid surprising downstream consumers.",
   "findings": [
     {
-      "severity": "MINOR",
-      "category": "Consistency/Null handling",
-      "message": "GetIssueCommentsAsync maps Octokit comment bodies without normalizing null to empty string. Other methods (e.g. GetOpenWorkItemsAsync) normalize null bodies to string.Empty. Consider making null handling consistent to avoid potential null propagation to callers or to core models that may expect non-null.",
-      "file": "src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs",
-      "line": null
+      "severity": "MAJOR",
+      "category": "API_BREAKING_CHANGE",
+      "message": "Removing public methods from a public interface breaks consumers compiled against previous versions. This must not be done in a patch/minor release without a major version bump or prior deprecation."
+    },
+    {
+      "severity": "MAJOR",
+      "category": "RELEASE_MANAGEMENT",
+      "message": "No evidence of a deprecation period, migration guide, or changelog entry. Provide clear upgrade guidance and plan for semantic versioning (major bump) if removal is intended."
+    },
+    {
+      "severity": "MAJOR",
+      "category": "COMPATIBILITY",
+      "message": "Search and update all repository code, samples, and tests that may call these methods. Also notify external consumers; automated build breakages will occur for consumers that implement or call these interface methods."
     },
     {
       "severity": "MINOR",
-      "category": "Performance/Scalability",
-      "message": "GetPullRequestNumberAsync calls PullRequest.GetAllForRepository and then finds the matching head ref in-memory. For repositories with many pull requests this may be inefficient. If possible, consider using search or filtering APIs (if supported) or applying pagination/limits to avoid enumerating all PRs.",
-      "file": "src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs",
-      "line": null
+      "category": "TESTS",
+      "message": "Unit/integration tests that referenced CreateBranchAsync/DeleteBranchAsync must be updated or removed. Ensure CI covers the public API surface to detect regressions like this earlier."
     },
     {
       "severity": "MINOR",
-      "category": "Security/HttpClient usage",
-      "message": "OctokitGitHubClient creates a new HttpClient when constructed via the default ctor and sets authentication headers directly. Prefer injecting an HttpClient (or using IHttpClientFactory) with appropriate lifetime and timeout settings to avoid socket exhaustion and to centralize timeout/retry configuration. Also consider explicitly setting a reasonable Timeout on the injected HttpClient if appropriate.",
-      "file": "src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs",
-      "line": null
+      "category": "DOCUMENTATION",
+      "message": "API docs, README, and changelog should be updated to reflect the removal. If the methods are moved to another API or are intentionally gone, document the recommended alternative."
     },
     {
       "severity": "MINOR",
-      "category": "Error handling/Diagnostics",
-      "message": "GraphQL responses are validated and on failure the code throws InvalidOperationException including the full response text. This is useful for diagnostics, but ensure that the response text cannot contain sensitive data in your environment before logging/propagating it. Also consider wrapping lower-level failures with typed exceptions to make caller handling easier.",
-      "file": "src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs",
-      "line": null
+      "category": "SECURITY",
+      "message": "No direct security issues introduced by this change, but verify client code that previously created branches now follows the new recommended flow to avoid insecure workarounds."
     },
     {
       "severity": "MINOR",
-      "category": "API/Compatibility",
-      "message": "The interface IGitHubClient is internal and the implementation is internal as well. Removing the branch-related methods is fine if they were unused, but ensure no other internal consumers (or tests using internal types) reference these removed methods. Run a solution-wide search and the test suite to confirm.",
-      "file": "src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs",
-      "line": null
+      "category": "IMPLEMENTATION_DETAIL",
+      "message": "If implementations had explicit interface implementations of these methods, removing them is safe but may leave dead code. Consider cleaning up implementations and marking leftover methods internal or removing them as appropriate."
     }
   ]
 }
