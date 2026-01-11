@@ -7,7 +7,9 @@ internal static class CodeReviewPrompt
     public static (string System, string User) Build(WorkItem item, IReadOnlyList<string> changedFiles, string diffSummary)
     {
         var system = "You are an AI code reviewer. " +
-                     "Focus on correctness, spec compliance, security, and tests. " +
+                     "Focus on correctness, spec compliance, security, and code quality. " +
+                     "Assume that automated build and tests will be run in a subsequent stage (Definition of Done). " +
+                     "Do NOT block approval solely due to missing test execution evidence, unless the code is clearly untested (e.g. new logic without corresponding test changes). " +
                      "Return JSON only.";
 
         var builder = new StringBuilder();
