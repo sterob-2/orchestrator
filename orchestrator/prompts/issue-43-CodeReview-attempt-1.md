@@ -15,49 +15,49 @@ diff --git a/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md b/or
 @@ -0,0 +1,69 @@
 +{
 +  "approved": false,
-+  "summary": "The PR correctly removes the two unused branch methods from IGitHubClient and deletes their implementations from OctokitGitHubClient, reducing dead surface area. I cannot approve merging yet because there is no evidence of a repository-wide build/test run or verification that no remaining callers (including tests, mocks, or other implementations) reference the removed members. Please run a full build and test run, search the repo for remaining references (including strings/reflection, test doubles and CI/publishing consumers), and perform small cleanups (unused config/usings) before merging.",
++  "summary": "The change removes two unused branch methods (CreateBranchAsync, DeleteBranchAsync) from IGitHubClient and deletes their implementations from OctokitGitHubClient, which reduces dead surface area. I cannot approve merging yet because there is no evidence of a full repo build/test run or verification that no remaining callers (including tests, mocks, other implementations, or external consumers) reference the removed members. Please run build/tests and a repository-wide search and perform small cleanups before merging.",
 +  "findings": [
 +    {
 +      "severity": "MAJOR",
 +      "category": "BUILD_AND_TEST_VERIFICATION",
-+      "message": "No build or test results are included with this change. Removing interface members and implementations can surface compile-time and test failures in other code, test doubles, or downstream consumers. Run 'dotnet build' and the full test suite ('dotnet test' / CI) and attach the results or ensure CI is green before merging.",
++      "message": "No build or test results are provided. Removing interface members can cause compile failures in other projects, tests, or mocks. Run 'dotnet build' and 'dotnet test' (full suite) and ensure CI is green before merging.",
 +      "file": null,
 +      "line": null
 +    },
 +    {
 +      "severity": "MAJOR",
 +      "category": "COMPILATION_IMPACT",
-+      "message": "Two members (CreateBranchAsync, DeleteBranchAsync) were removed from IGitHubClient. Perform a repository-wide search for these symbol names (call sites, explicit interface implementations, mocks, generated code, and reflection) and update or remove any remaining references to avoid compile errors.",
++      "message": "Two members were removed from IGitHubClient (CreateBranchAsync, DeleteBranchAsync). Perform a repo-wide search for these symbol names (call sites, explicit interface implementations, test mocks, generated code, reflection usage) and update/remove any remaining references to avoid compilation errors.",
 +      "file": "src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs",
 +      "line": 28
 +    },
 +    {
 +      "severity": "MAJOR",
 +      "category": "IMPLEMENTATION_UPDATES_REQUIRED",
-+      "message": "All types that implemented IGitHubClient must be verified. OctokitGitHubClient had the implementations removed, but other implementations or test doubles (mocks, fakes) may still expect those members. Search for 'CreateBranchAsync' and 'DeleteBranchAsync' in tests/ and the repo and update/remove any references.",
++      "message": "All types that implemented IGitHubClient must be verified. OctokitGitHubClient implementations were removed, but other implementations or test doubles (mocks, fakes) may still expect those members. Search for implementations and update them as needed.",
++      "file": "src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs",
++      "line": 244
++    },
++    {
++      "severity": "MAJOR",
++      "category": "TEST_IMPACT",
++      "message": "The diff does not show any test changes. Any tests that referenced CreateBranchAsync/DeleteBranchAsync must be removed or updated. In particular, Moq setups or compile-time references to the interface will fail until tests are updated.",
 +      "file": "tests/",
 +      "line": null
 +    },
 +    {
 +      "severity": "MINOR",
-+      "category": "POTENTIAL_BREAKING_CHANGE",
-+      "message": "IGitHubClient is declared internal which reduces external compatibility risk but does not eliminate it. Verify whether the assembly is packaged/published, referenced by other repos, or exposed via InternalsVisibleTo. If external consumers exist, removing interface members is a breaking change and needs a compatibility plan (deprecation/Obsolete then removal or a version bump).",
++      "category": "API_COMPATIBILITY",
++      "message": "IGitHubClient is declared internal in the repo which reduces exposure, but verify whether the assembly is packaged/published or referenced by other repos (NuGet, internal feeds) or exposed via InternalsVisibleTo. If external consumers exist, removing interface members is a breaking change and needs a compatibility plan (deprecation/Obsolete then removal or a version bump).",
 +      "file": "src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs",
 +      "line": 1
 +    },
 +    {
 +      "severity": "MINOR",
-+      "category": "IMPLEMENTATION_CLEANUP",
-+      "message": "Deleted OctokitGitHubClient.CreateBranchAsync/DeleteBranchAsync. Check for now-unused private members, configuration keys or fields referenced only by those methods (for example _cfg.Workflow.DefaultBaseBranch) and remove them if no longer used. Also run an analyzer/IDE cleanup to remove unused using directives introduced by deletion.",
++      "category": "CLEANUP",
++      "message": "Deleted CreateBranchAsync/DeleteBranchAsync implementations in OctokitGitHubClient. Check for now-unused private members, fields, or configuration keys referenced only by those methods (for example _cfg.Workflow.DefaultBaseBranch) and remove them if no longer used. Also run an analyzer/IDE cleanup to remove any unused using directives introduced by deletion.",
 +      "file": "src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs",
 +      "line": 244
-+    },
-+    {
-+      "severity": "MINOR",
-+      "category": "TEST_UPDATES",
-+      "message": "The diff does not show test changes. Remove or update any tests referencing the removed methods (unit tests, integration tests, or helper fixtures) so no tests call the deleted members. After edits, run the full test suite to ensure coverage and no regressions.",
-+      "file": "tests/",
-+      "line": null
 +    },
 +    {
 +      "severity": "MINOR",
@@ -68,15 +68,15 @@ diff --git a/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md b/or
 +    },
 +    {
 +      "severity": "MINOR",
-+      "category": "REPO_CLEANUP_AND_PRIVACY",
-+      "message": "This PR adds many orchestrator/prompts and refinement/spec artifacts under 'orchestrator/prompts/'. Confirm these were intentionally committed; they can add noise and may contain internal prompts or sensitive content. Consider moving or excluding from publishable artifacts if accidental.",
++      "category": "REPO_NOISE_AND_PRIVACY",
++      "message": "This PR adds many orchestrator/prompts and refinement/spec artifacts under 'orchestrator/prompts/'. Confirm these were intentionally committed; they may be noisy or contain sensitive/internal prompts and might need to be excluded from published artifacts.",
 +      "file": "orchestrator/prompts/",
 +      "line": null
 +    },
 +    {
 +      "severity": "MINOR",
-+      "category": "SECURITY",
-+      "message": "Removing unused methods does not introduce an obvious security vulnerability. However, verify that any authorization, auditing, or logging responsibilities previously performed by those API paths (if any) remain enforced elsewhere so consumers do not implement insecure workarounds.",
++      "category": "SECURITY_CONSIDERATION",
++      "message": "Removing branch-create/delete API surface does not introduce an obvious vulnerability, but verify that any authorization, auditing, or logging responsibilities previously performed by those API paths (if any) are still enforced elsewhere so consumers do not implement insecure workarounds.",
 +      "file": null,
 +      "line": null
 +    }
