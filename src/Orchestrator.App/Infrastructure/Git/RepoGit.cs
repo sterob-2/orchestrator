@@ -69,6 +69,17 @@ internal sealed class RepoGit : IRepoGit
         }
     }
 
+    public void CleanWorkingTree()
+    {
+        using var repo = new Repository(_root);
+
+        MoveUntrackedGeneratedFiles();
+
+        // Clean working tree - only called by ContextBuilder at workflow start
+        repo.Reset(ResetMode.Hard);
+        repo.RemoveUntrackedFiles();
+    }
+
     public void EnsureBranch(string branchName, string baseBranch)
     {
         using var repo = new Repository(_root);
@@ -88,10 +99,6 @@ internal sealed class RepoGit : IRepoGit
         }
 
         MoveUntrackedGeneratedFiles();
-
-        // Clean working tree before checkout to prevent conflicts
-        repo.Reset(ResetMode.Hard);
-        repo.RemoveUntrackedFiles();
 
         // Check if remote branch exists
         var remoteBranchName = $"origin/{branchName}";
@@ -125,7 +132,6 @@ internal sealed class RepoGit : IRepoGit
                 if (localBranch != null)
                 {
                     Commands.Checkout(repo, localBranch);
-                    repo.Reset(ResetMode.Hard, baseRef.Tip);
                 }
                 else
                 {
@@ -195,7 +201,21 @@ internal sealed class RepoGit : IRepoGit
 
         using var repo = new Repository(_root);
 
-        // Fetch from remote BEFORE committing to avoid rebase conflicts
+        // Check if there are changes to commit BEFORE staging
+        var status = repo.RetrieveStatus();
+        var hasChanges = pathList.Any(path =>
+        {
+            var item = status.FirstOrDefault(s => s.FilePath == path);
+            return item != null && item.State != FileStatus.Ignored && item.State != FileStatus.Unaltered;
+        });
+
+        if (!hasChanges)
+        {
+            Logger.WriteLine("No changes to commit.");
+            return false;
+        }
+
+        // Fetch from remote BEFORE staging/committing to avoid rebase conflicts
         try
         {
             var remote = repo.Network.Remotes["origin"];
@@ -207,6 +227,18 @@ internal sealed class RepoGit : IRepoGit
         catch
         {
             // Ignore fetch errors
+        }
+
+        // Stash changes before rebase (rebase requires clean working tree)
+        Stash? stash = null;
+        var signature = new Signature(_cfg.GitAuthorName, _cfg.GitAuthorEmail, DateTimeOffset.Now);
+        try
+        {
+            stash = repo.Stashes.Add(signature, "Pre-rebase stash", StashModifiers.IncludeUntracked);
+        }
+        catch
+        {
+            // Ignore stash errors (might be nothing to stash)
         }
 
         // Rebase local branch onto remote if remote has new commits
@@ -237,27 +269,43 @@ internal sealed class RepoGit : IRepoGit
                 catch (Exception ex)
                 {
                     Logger.WriteLine($"Rebase before commit failed: {ex.Message}");
-                    // Continue anyway - will attempt push and handle conflict there
+                    // Pop stash and abort - don't create divergent history
+                    if (stash != null)
+                    {
+                        try
+                        {
+                            repo.Stashes.Pop(0);
+                        }
+                        catch
+                        {
+                            // Ignore pop errors
+                        }
+                    }
+                    throw new InvalidOperationException($"git rebase failed for {branchName}: {ex.Message}", ex);
                 }
             }
         }
 
-        // Stage files
+        // Pop stash after successful rebase
+        if (stash != null)
+        {
+            try
+            {
+                repo.Stashes.Pop(0);
+            }
+            catch (Exception ex)
+            {
+                Logger.WriteLine($"Warning: Failed to pop stash: {ex.Message}");
+            }
+        }
+
+        // Stage files AFTER fetch & rebase
         foreach (var path in pathList)
         {
             Commands.Stage(repo, path);
         }
 
-        // Check if there are staged changes
-        var status = repo.RetrieveStatus();
-        if (!status.Any(s => s.State != FileStatus.Ignored && s.State != FileStatus.Unaltered))
-        {
-            Logger.WriteLine("No changes to commit.");
-            return false;
-        }
-
         // Commit
-        var signature = new Signature(_cfg.GitAuthorName, _cfg.GitAuthorEmail, DateTimeOffset.Now);
         repo.Commit(message, signature, signature);
 
         // Push

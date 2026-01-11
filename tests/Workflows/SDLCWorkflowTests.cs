@@ -1,6 +1,7 @@
 using Microsoft.Agents.AI.Workflows;
 using Moq;
 using Orchestrator.App.Tests.TestHelpers;
+using Orchestrator.App.Workflows;
 using Orchestrator.App.Workflows.Executors;
 
 namespace Orchestrator.App.Tests.Workflows;
@@ -8,7 +9,7 @@ namespace Orchestrator.App.Tests.Workflows;
 public class SDLCWorkflowTests
 {
     [Fact]
-    public void BuildStageWorkflow_ReturnsWorkflow()
+    public void BuildGraph_ReturnsWorkflow()
     {
         var config = MockWorkContext.CreateConfig();
         var workItem = new WorkItem(1, "Title", "Body", "url", new List<string>());
@@ -17,7 +18,7 @@ public class SDLCWorkflowTests
         var repo = new Mock<IRepoGit>();
         var llm = new Mock<ILlmClient>();
         var context = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
-        var workflow = SDLCWorkflow.BuildStageWorkflow(WorkflowStage.Refinement, context);
+        var workflow = WorkflowFactory.BuildGraph(context, WorkflowStage.Refinement);
 
         Assert.NotNull(workflow);
     }

@@ -19,7 +19,7 @@ public class WorkflowStageGraphTests
         Assert.Equal(WorkflowStage.DoR, WorkflowStageGraph.StartStageFromLabels(config.Labels, dorLabel));
         Assert.Equal(WorkflowStage.Dev, WorkflowStageGraph.StartStageFromLabels(config.Labels, devLabel));
         Assert.Equal(WorkflowStage.CodeReview, WorkflowStageGraph.StartStageFromLabels(config.Labels, codeReviewLabel));
-        Assert.Equal(WorkflowStage.Release, WorkflowStageGraph.StartStageFromLabels(config.Labels, releaseLabel));
+        Assert.Equal(WorkflowStage.Refinement, WorkflowStageGraph.StartStageFromLabels(config.Labels, releaseLabel));
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public class WorkflowStageGraphTests
         Assert.Equal(WorkflowStage.TechLead, WorkflowStageGraph.NextStageFor(WorkflowStage.DoR, success: true));
         Assert.Equal(WorkflowStage.Refinement, WorkflowStageGraph.NextStageFor(WorkflowStage.DoR, success: false));
         Assert.Equal(WorkflowStage.Dev, WorkflowStageGraph.NextStageFor(WorkflowStage.CodeReview, success: false));
-        Assert.Equal(WorkflowStage.Release, WorkflowStageGraph.NextStageFor(WorkflowStage.DoD, success: true));
+        Assert.Null(WorkflowStageGraph.NextStageFor(WorkflowStage.DoD, success: true));
         Assert.Null(WorkflowStageGraph.NextStageFor(WorkflowStage.Release));
     }
 
@@ -44,7 +44,7 @@ public class WorkflowStageGraphTests
         Assert.Equal("Dev", WorkflowStageGraph.ExecutorIdFor(WorkflowStage.Dev));
         Assert.Equal("CodeReview", WorkflowStageGraph.ExecutorIdFor(WorkflowStage.CodeReview));
         Assert.Equal("DoD", WorkflowStageGraph.ExecutorIdFor(WorkflowStage.DoD));
-        Assert.Equal("Release", WorkflowStageGraph.ExecutorIdFor(WorkflowStage.Release));
+        Assert.Equal("Refinement", WorkflowStageGraph.ExecutorIdFor(WorkflowStage.Release));
         Assert.Equal("Refinement", WorkflowStageGraph.ExecutorIdFor((WorkflowStage)999));
     }
 }

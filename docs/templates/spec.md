@@ -18,8 +18,40 @@ Describe the goal in 2-3 sentences.
 | Modify | src/Example.cs | ... |
 
 ## Interfaces
+
+CRITICAL: Show concrete BEFORE/AFTER examples for each file in the Touch List.
+- For MODIFY operations: Show the exact code being changed with clear before/after
+- For ADD operations: Show the new code to be added
+- For DELETE operations: Show what is being removed
+- Use actual code from the repository, not simplified examples
+- When removing code, show it in BEFORE but completely absent in AFTER
+
+Example for MODIFY operation (removing methods):
 ```csharp
-// Interface stubs or signatures
+// BEFORE: src/Example.cs
+public interface IExample
+{
+    Task DoSomethingAsync();
+    Task ObsoleteMethodAsync();  // ← This method will be removed
+    Task AnotherMethodAsync();
+}
+
+// AFTER: src/Example.cs
+public interface IExample
+{
+    Task DoSomethingAsync();
+    // ObsoleteMethodAsync removed completely
+    Task AnotherMethodAsync();
+}
+```
+
+Example for ADD operation:
+```csharp
+// NEW: src/NewFile.cs
+public class NewClass
+{
+    public void NewMethod() { }
+}
 ```
 
 ## Scenarios

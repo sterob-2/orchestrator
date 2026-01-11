@@ -96,7 +96,8 @@ internal static class MockWorkContext
             WebhookSecret: "test-secret",
             ProjectOwner: "test-owner",
             ProjectOwnerType: "user",
-            ProjectNumber: 1
+            ProjectNumber: 1,
+            Debug: false
         );
     }
 

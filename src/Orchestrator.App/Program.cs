@@ -132,5 +132,6 @@ internal static class Program
         Logger.WriteLine($"Repo: {cfg.RepoOwner}/{cfg.RepoName} base {cfg.Workflow.DefaultBaseBranch}");
         Logger.WriteLine($"OpenAI base url: {cfg.OpenAiBaseUrl}");
         Logger.WriteLine($"Work item label: {cfg.Labels.WorkItemLabel}");
+        Logger.WriteLine($"Debug Mode: {(cfg.Debug ? "Enabled" : "Disabled")}");
     }
 }

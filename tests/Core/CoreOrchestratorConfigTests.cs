@@ -109,7 +109,8 @@ public class CoreOrchestratorConfigTests
             ["WEBHOOK_SECRET"] = "secret",
             ["PROJECT_OWNER"] = "proj-owner",
             ["PROJECT_OWNER_TYPE"] = "org",
-            ["PROJECT_NUMBER"] = "42"
+            ["PROJECT_NUMBER"] = "42",
+            ["DEBUG"] = "true"
         };
 
         using var scope = new EnvScope(values);
@@ -164,7 +165,8 @@ public class CoreOrchestratorConfigTests
             WebhookSecret: "secret",
             ProjectOwner: "proj-owner",
             ProjectOwnerType: "org",
-            ProjectNumber: 42
+            ProjectNumber: 42,
+            Debug: true
         );
 
         var actual = CoreConfig.OrchestratorConfig.FromEnvironment();
@@ -227,7 +229,8 @@ public class CoreOrchestratorConfigTests
             WebhookSecret: "",
             ProjectOwner: "",
             ProjectOwnerType: "user",
-            ProjectNumber: null
+            ProjectNumber: null,
+            Debug: false
         );
 
         var actual = CoreConfig.OrchestratorConfig.FromEnvironment();

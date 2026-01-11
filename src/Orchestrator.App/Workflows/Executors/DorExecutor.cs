@@ -124,9 +124,10 @@ internal sealed class DorExecutor : GateExecutor<(RefinementResult Refinement, W
 
     private async Task PostDorFailurePointerAsync(WorkItem workItem, string dorFilePath, GateResult gateResult)
     {
+        var branchName = WorkItemBranch.BuildBranchName(workItem);
         var comment = $"## 🚧 DoR Gate Failed\n\n" +
                      $"The Definition of Ready gate has {gateResult.Failures.Count} failure(s).\n\n" +
-                     $"**Details**: See [`{dorFilePath}`](../../blob/issue-{workItem.Number}/{dorFilePath})\n\n" +
+                     $"**Details**: See [`{dorFilePath}`](../../blob/{branchName}/{dorFilePath})\n\n" +
                      $"*Once issues are resolved, remove the `blocked` label and add the `dor` label to re-evaluate.*";
 
         try

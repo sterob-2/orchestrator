@@ -20,50 +20,155 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
-        var specPath = WorkflowPaths.SpecPath(input.WorkItem.Number);
-        var specContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, specPath);
-        if (string.IsNullOrWhiteSpace(specContent))
+        try
         {
-            return (false, $"Dev blocked: missing spec at {specPath}.");
-        }
+            Logger.Info($"[Dev] Starting development for issue #{input.WorkItem.Number}");
+            Logger.Debug($"[Dev] Mode: {input.Mode}, Attempt: {input.Attempt}");
 
-        var parsedSpec = new SpecParser().Parse(specContent);
-        var forbidden = parsedSpec.TouchList.FirstOrDefault(entry => entry.Operation == TouchOperation.Forbidden);
-        if (forbidden != null)
-        {
-            return (false, $"Dev blocked: forbidden path in touch list ({forbidden.Path}).");
-        }
+            var specPath = WorkflowPaths.SpecPath(input.WorkItem.Number);
+            Logger.Debug($"[Dev] Reading spec from: {specPath}");
+            var specContent = await FileOperationHelper.ReadAllTextIfExistsAsync(WorkContext, specPath);
+            if (string.IsNullOrWhiteSpace(specContent))
+            {
+                return (false, $"Dev blocked: missing spec at {specPath}.");
+            }
 
-        var mode = ResolveMode(input);
-        var changedFiles = new List<string>();
-        foreach (var entry in parsedSpec.TouchList)
+            var parsedSpec = new SpecParser().Parse(specContent);
+            var forbidden = parsedSpec.TouchList.FirstOrDefault(entry => entry.Operation == TouchOperation.Forbidden);
+            if (forbidden != null)
+            {
+                return (false, $"Dev blocked: forbidden path in touch list ({forbidden.Path}).");
+            }
+
+            var mode = ResolveMode(input);
+
+            // Ensure branch exists BEFORE modifying files
+            var branchName = WorkItemBranch.BuildBranchName(input.WorkItem);
+            Logger.Debug($"[Dev] Ensuring branch: {branchName}");
+            WorkContext.Repo.EnsureBranch(branchName, WorkContext.Config.Workflow.DefaultBaseBranch);
+
+            var changedFiles = new List<string>();
+            foreach (var entry in parsedSpec.TouchList)
         {
+            Logger.Debug($"[Dev] Processing touch list entry: {entry.Operation} | {entry.Path}");
+
             if (!WorkItemParsers.IsSafeRelativePath(entry.Path))
             {
+                Logger.Warning($"[Dev] Unsafe path detected: {entry.Path}");
                 return (false, $"Dev blocked: unsafe path {entry.Path}.");
+            }
+
+            // Skip directory entries - only process files
+            if (entry.Path.EndsWith('/') || entry.Path.EndsWith('\\'))
+            {
+                Logger.Debug($"[Dev] Skipping directory entry: {entry.Path}");
+                continue;
             }
 
             switch (entry.Operation)
             {
                 case TouchOperation.Add:
                 case TouchOperation.Modify:
-                    var existing = entry.Operation == TouchOperation.Modify
-                        ? await FileOperationHelper.ReadAllTextAsync(WorkContext, entry.Path)
-                        : null;
+                    Logger.Debug($"[Dev] Reading existing content for: {entry.Path}");
+                    string? existing = null;
+                    try
+                    {
+                        existing = entry.Operation == TouchOperation.Modify
+                            ? await FileOperationHelper.ReadAllTextAsync(WorkContext, entry.Path)
+                            : null;
+                        Logger.Debug($"[Dev] Read {existing?.Length ?? 0} characters from: {entry.Path}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.WriteLine($"[Dev] ERROR reading file {entry.Path}: {ex}");
+                        throw;
+                    }
+                    Logger.Debug($"[Dev] Building prompt for: {entry.Path}");
                     var prompt = DevPrompt.Build(mode, parsedSpec, entry, existing);
+                    Logger.Debug($"[Dev] Calling LLM for: {entry.Path}");
                     var updated = await CallLlmAsync(
                         WorkContext.Config.DevModel,
                         prompt.System,
                         prompt.User,
                         cancellationToken);
+                    Logger.Debug($"[Dev] LLM response received for: {entry.Path} (length: {updated?.Length ?? 0})");
+
+                    // Reflection loop: If LLM returned unchanged file, try again with explicit feedback
+                    // BUT only if it's for ADD operations - for MODIFY, unchanged might mean already correct
+                    if (entry.Operation == TouchOperation.Add && existing != null &&
+                        !string.IsNullOrWhiteSpace(updated) &&
+                        string.Equals(updated.Trim(), existing.Trim(), StringComparison.Ordinal))
+                    {
+                        Logger.Warning($"[Dev] LLM returned unchanged file on first attempt for ADD operation: {entry.Path}");
+                        Logger.Warning($"[Dev] Retrying with explicit feedback about the failure");
+
+                        var reflectionPrompt = $"CRITICAL ERROR: Your previous response was IDENTICAL to the original file.\n" +
+                                             $"You MUST make the changes specified in the instructions.\n" +
+                                             $"Instructions: {entry.Notes}\n\n" +
+                                             $"BEFORE (original file - DO NOT return this):\n{existing}\n\n" +
+                                             $"You must output the MODIFIED version with the required changes applied.\n" +
+                                             $"If removing methods, those methods MUST BE ABSENT from your output.";
+
+                        updated = await CallLlmAsync(
+                            WorkContext.Config.DevModel,
+                            prompt.System,
+                            reflectionPrompt,
+                            cancellationToken);
+                        Logger.Debug($"[Dev] Reflection attempt response received for: {entry.Path} (length: {updated?.Length ?? 0})");
+                    }
+
+                    // Debug: Log first and last 500 chars of LLM response for inspection
+                    if (updated != null && updated.Length > 0)
+                    {
+                        var preview = updated.Length > 500 ? updated.Substring(0, 500) + "..." : updated;
+                        Logger.Debug($"[Dev] LLM response preview for {entry.Path}: {preview}");
+
+                        var endPreview = updated.Length > 500 ? "..." + updated.Substring(updated.Length - 500) : "";
+                        if (!string.IsNullOrEmpty(endPreview))
+                        {
+                            Logger.Debug($"[Dev] LLM response end for {entry.Path}: {endPreview}");
+                        }
+                    }
+
                     if (string.IsNullOrWhiteSpace(updated))
                     {
+                        Logger.Warning($"[Dev] Empty LLM output for: {entry.Path}");
                         return (false, $"Dev blocked: empty output for {entry.Path}.");
                     }
+
+                    // Validate: For MODIFY operations, check if changes were made OR if file already satisfies spec
+                    if (entry.Operation == TouchOperation.Modify && existing != null)
+                    {
+                        if (string.Equals(updated.Trim(), existing.Trim(), StringComparison.Ordinal))
+                        {
+                            Logger.Info($"[Dev] LLM returned unchanged file for: {entry.Path}");
+                            Logger.Info($"[Dev] This likely means the file already satisfies the specification");
+                            // File is unchanged - this is OK if it already meets the spec
+                            // Don't write the file again, just continue
+                            continue;
+                        }
+                    }
+                    Logger.Debug($"[Dev] Writing updated content to: {entry.Path}");
                     await FileOperationHelper.WriteAllTextAsync(WorkContext, entry.Path, updated);
+                    Logger.Debug($"[Dev] File written successfully: {entry.Path}");
+
+                    // Debug: Check if specific methods were actually removed
+                    if (entry.Path.Contains("IGitHubClient.cs") || entry.Path.Contains("OctokitGitHubClient.cs"))
+                    {
+                        var hasCreateBranch = updated.Contains("CreateBranchAsync");
+                        var hasDeleteBranch = updated.Contains("DeleteBranchAsync");
+                        Logger.Warning($"[Dev] Method check for {entry.Path}: CreateBranchAsync={hasCreateBranch}, DeleteBranchAsync={hasDeleteBranch}");
+
+                        if (hasCreateBranch || hasDeleteBranch)
+                        {
+                            Logger.Warning($"[Dev] LLM FAILED to remove methods from {entry.Path}!");
+                        }
+                    }
+
                     changedFiles.Add(entry.Path);
                     break;
                 case TouchOperation.Delete:
+                    Logger.Debug($"[Dev] Deleting file: {entry.Path}");
                     await FileOperationHelper.DeleteAsync(WorkContext, entry.Path);
                     changedFiles.Add(entry.Path);
                     break;
@@ -77,18 +182,61 @@ internal sealed class DevExecutor : WorkflowStageExecutor
             changedFiles.Add(specPath);
         }
 
-        var branchName = WorkItemBranch.BuildBranchName(input.WorkItem);
-        WorkContext.Repo.EnsureBranch(branchName, WorkContext.Config.Workflow.DefaultBaseBranch);
-        var commitOk = WorkContext.Repo.CommitAndPush(branchName, $"feat: issue {input.WorkItem.Number}", changedFiles);
+        Logger.Info($"[Dev] Processed {changedFiles.Count} file(s)");
+
+        Logger.Debug($"[Dev] Committing and pushing {changedFiles.Count} changed file(s)");
+        
+        bool commitOk;
+        if (changedFiles.Count == 0)
+        {
+            Logger.Info("[Dev] No changes to commit, assuming Dev is complete.");
+            commitOk = true;
+        }
+        else
+        {
+            commitOk = WorkContext.Repo.CommitAndPush(branchName, $"feat: issue {input.WorkItem.Number}", changedFiles);
+        }
+
+        Logger.Info($"[Dev] Commit result: {(commitOk ? "SUCCESS" : "FAILED")}");
+
+        if (commitOk)
+        {
+            try
+            {
+                var prNumber = await WorkContext.GitHub.GetPullRequestNumberAsync(branchName);
+                if (prNumber.HasValue)
+                {
+                    Logger.Info($"[Dev] Pull Request already exists: #{prNumber.Value}");
+                }
+                else
+                {
+                    Logger.Info($"[Dev] Creating Pull Request for branch {branchName}");
+                    var prTitle = $"{input.WorkItem.Title} (#{input.WorkItem.Number})";
+                    var prBody = BuildPullRequestBody(parsedSpec, input.WorkItem);
+                    var prUrl = await WorkContext.GitHub.OpenPullRequestAsync(branchName, WorkContext.Config.Workflow.DefaultBaseBranch, prTitle, prBody);
+                    Logger.Info($"[Dev] Pull Request created: {prUrl}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"[Dev] Failed to ensure Pull Request: {ex.Message}");
+            }
+        }
 
         var result = new DevResult(commitOk, input.WorkItem.Number, changedFiles, "");
         var serializedResult = WorkflowJson.Serialize(result);
         await context.QueueStateUpdateAsync(WorkflowStateKeys.DevResult, serializedResult, cancellationToken);
         WorkContext.State[WorkflowStateKeys.DevResult] = serializedResult;
 
-        return commitOk
-            ? (true, $"Dev changes committed on {branchName}.")
-            : (false, "Dev changes could not be committed.");
+            return commitOk
+                ? (true, $"Dev changes committed on {branchName}.")
+                : (false, "Dev changes could not be committed.");
+        }
+        catch (Exception ex)
+        {
+            Logger.WriteLine($"[Dev] EXCEPTION during execution for issue #{input.WorkItem.Number}: {ex}");
+            throw;
+        }
     }
 
     private string ResolveMode(WorkflowInput input)
@@ -109,5 +257,14 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         }
 
         return "minimal";
+    }
+
+    private static string BuildPullRequestBody(ParsedSpec spec, WorkItem item)
+    {
+        var changes = spec.TouchList.Count > 0
+            ? string.Join("\n", spec.TouchList.Select(entry => $"- {entry.Operation} {entry.Path}"))
+            : "- No touch list entries.";
+
+        return $"## Summary\n{spec.Goal}\n\n## Changes\n{changes}\n\n## Testing\n- Not run (automated via CI)\n\n## Issue\n{item.Url}\n";
     }
 }

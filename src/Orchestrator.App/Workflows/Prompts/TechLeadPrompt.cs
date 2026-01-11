@@ -46,9 +46,30 @@ internal static class TechLeadPrompt
         builder.AppendLine("- Are you adding config? Hard-code defaults unless environment-specific.");
         builder.AppendLine("- Did you copy patterns from existing similar code?");
         builder.AppendLine("- Will implementation fit file size limits? (Executors 200-400 LOC max)");
+        builder.AppendLine("- IMPORTANT: If adding new files (Operation: Add in Touch List), reference at least one allowed framework ID (e.g., FW-01) and pattern ID (e.g., PAT-02) from the playbook in your spec.");
         builder.AppendLine();
-        builder.AppendLine("Write the spec in markdown using the template sections. " +
-                           "Include at least 3 Gherkin scenarios and a Touch List table with ONLY files needed for acceptance criteria.");
+        builder.AppendLine("TOUCH LIST REQUIREMENTS:");
+        builder.AppendLine("- Use ACTUAL file paths (e.g., 'src/App.cs') or directory paths (e.g., 'tests/')");
+        builder.AppendLine("- DO NOT use glob patterns like 'tests/**' or 'src/**/*.cs' - these will fail validation");
+        builder.AppendLine("- For test files, use 'tests/' to indicate the entire test directory");
+        builder.AppendLine("- Paths must exist in the repository or validation will fail");
+        builder.AppendLine();
+        builder.AppendLine("INTERFACES SECTION REQUIREMENTS (CRITICAL FOR CODE REMOVAL):");
+        builder.AppendLine("- Show CONCRETE BEFORE/AFTER examples for EACH file in the Touch List");
+        builder.AppendLine("- For MODIFY operations removing code: Show exact methods/classes BEFORE and their absence AFTER");
+        builder.AppendLine("- Use ACTUAL code from the repository, not simplified examples");
+        builder.AppendLine("- When removing methods: Show the complete method signature in BEFORE, completely absent in AFTER");
+        builder.AppendLine("- Format: '// BEFORE: path/to/file.cs' then '// AFTER: path/to/file.cs'");
+        builder.AppendLine("- Example removing a method:");
+        builder.AppendLine("  // BEFORE: src/IExample.cs");
+        builder.AppendLine("  Task MethodToKeep();");
+        builder.AppendLine("  Task MethodToRemove();  // ← Will be removed");
+        builder.AppendLine("  ");
+        builder.AppendLine("  // AFTER: src/IExample.cs");
+        builder.AppendLine("  Task MethodToKeep();");
+        builder.AppendLine("  // MethodToRemove is completely absent");
+        builder.AppendLine();
+        builder.AppendLine("Write the spec in markdown using the template sections with at least 3 Gherkin scenarios.");
 
         return (system, builder.ToString());
     }

@@ -11,7 +11,7 @@ namespace Orchestrator.App.Infrastructure.Mcp;
 
 /// <summary>
 /// Manages MCP (Model Context Protocol) client connections and provides AI tools
-/// for filesystem, git, and GitHub operations.
+/// for GitHub operations.
 /// </summary>
 public class McpClientManager : IAsyncDisposable
 {
@@ -72,7 +72,7 @@ public class McpClientManager : IAsyncDisposable
     }
 
     /// <summary>
-    /// Initializes all MCP clients and retrieves their tools.
+    /// Initializes GitHub MCP client and retrieves its tools.
     /// </summary>
     public async Task InitializeAsync(OrchestratorConfig config)
     {
@@ -83,24 +83,16 @@ public class McpClientManager : IAsyncDisposable
 
         try
         {
-            Logger.WriteLine("[MCP] Initializing MCP clients...");
+            Logger.WriteLine("[MCP] Initializing GitHub MCP client...");
 
-            // Initialize Filesystem MCP server
-            if (!string.IsNullOrWhiteSpace(config.WorkspaceHostPath))
-            {
-                await InitializeFilesystemServerAsync(config.WorkspaceHostPath);
-            }
-
-            // Initialize Git MCP server
-            if (!string.IsNullOrWhiteSpace(config.WorkspaceHostPath))
-            {
-                await InitializeGitServerAsync(config.WorkspaceHostPath);
-            }
-
-            // Initialize GitHub MCP server
+            // Initialize GitHub MCP server only
             if (!string.IsNullOrWhiteSpace(config.GitHubToken))
             {
                 await InitializeGitHubServerAsync(config.GitHubToken);
+            }
+            else
+            {
+                Logger.WriteLine("[MCP] GitHub token not provided, skipping GitHub MCP initialization");
             }
 
             _initialized = true;
@@ -119,50 +111,6 @@ public class McpClientManager : IAsyncDisposable
             await DisposeAsync();
             throw;
         }
-    }
-
-    private async Task InitializeFilesystemServerAsync(string workspaceHostPath)
-    {
-        await InitializeServerAsync(
-            serverName: "Filesystem",
-            toolPrefix: "filesystem",
-            transportName: "FilesystemServer",
-            dockerArgs: [
-                "run",
-                "-i",
-                "--rm",
-                "-v",
-                $"{workspaceHostPath}:/workspace",
-                "-w",
-                "/workspace",
-                "node:lts-alpine",
-                "sh",
-                "-c",
-                "npx -y @modelcontextprotocol/server-filesystem /workspace"
-            ],
-            helpMessage: "Ensure Docker is installed and workspace path is accessible.");
-    }
-
-    private async Task InitializeGitServerAsync(string repositoryHostPath)
-    {
-        await InitializeServerAsync(
-            serverName: "Git",
-            toolPrefix: "git",
-            transportName: "GitServer",
-            dockerArgs: [
-                "run",
-                "-i",
-                "--rm",
-                "-v",
-                $"{repositoryHostPath}:/workspace",
-                "-w",
-                "/workspace",
-                "python:3.12-alpine",
-                "sh",
-                "-c",
-                "apk add --no-cache git && pip install --no-cache-dir uv > /dev/null 2>&1 && uvx mcp-server-git --repository /workspace"
-            ],
-            helpMessage: "Ensure Docker is installed and repository path is accessible.");
     }
 
     private async Task InitializeGitHubServerAsync(string githubToken)

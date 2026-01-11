@@ -4,18 +4,45 @@ internal static class SpecGateValidator
 {
     public static GateResult Evaluate(ParsedSpec spec, Playbook playbook, IRepoWorkspace workspace)
     {
+        Logger.Debug($"[SpecGate] Starting validation");
+        Logger.Debug($"[SpecGate] Spec has {spec.Components.Count} component(s), {spec.TouchList.Count} touch list item(s), {spec.Scenarios.Count} scenario(s)");
+
         var failures = new List<string>();
 
         var specText = BuildSpecText(spec);
 
+        Logger.Debug($"[SpecGate] Checking required sections...");
         AddRequiredSectionsFailures(failures, spec);
+
+        Logger.Debug($"[SpecGate] Checking touch list...");
         AddTouchListFailures(failures, spec);
+
+        Logger.Debug($"[SpecGate] Checking scenarios...");
         AddScenarioFailures(failures, spec);
+
+        Logger.Debug($"[SpecGate] Checking sequence and test matrix...");
         AddSequenceAndMatrixFailures(failures, spec);
+
+        Logger.Debug($"[SpecGate] Checking missing files/directories...");
         AddMissingTouchFilesFailures(failures, spec, workspace);
+
+        Logger.Debug($"[SpecGate] Checking playbook constraints...");
         AddPlaybookFailures(failures, playbook);
+
+        Logger.Debug($"[SpecGate] Checking forbidden references...");
         AddForbiddenReferencesFailures(failures, playbook, specText);
-        AddAllowedReferencesFailures(failures, playbook, specText);
+
+        Logger.Debug($"[SpecGate] Checking allowed framework/pattern references...");
+        AddAllowedReferencesFailures(failures, spec, playbook, specText);
+
+        Logger.Info($"[SpecGate] Validation complete: {failures.Count} failure(s)");
+        if (failures.Count > 0)
+        {
+            foreach (var failure in failures)
+            {
+                Logger.Info($"[SpecGate]   - {failure}");
+            }
+        }
 
         return new GateResult(
             Passed: failures.Count == 0,
@@ -121,16 +148,48 @@ internal static class SpecGateValidator
 
     private static void AddMissingTouchFilesFailures(List<string> failures, ParsedSpec spec, IRepoWorkspace workspace)
     {
-        var missingFiles = spec.TouchList
+        var entriesToCheck = spec.TouchList
             .Where(entry => entry.Operation is TouchOperation.Modify or TouchOperation.Delete)
             .Where(entry => !string.IsNullOrWhiteSpace(entry.Path))
-            .Where(entry => !workspace.Exists(entry.Path))
+            .ToList();
+
+        Logger.Debug($"[SpecGate] Checking {entriesToCheck.Count} touch list path(s) for existence");
+
+        foreach (var entry in entriesToCheck)
+        {
+            var exists = FileOrDirectoryExists(workspace, entry.Path);
+            Logger.Debug($"[SpecGate]   {entry.Operation} | {entry.Path} -> {(exists ? "EXISTS" : "MISSING")}");
+        }
+
+        var missingPaths = entriesToCheck
+            .Where(entry => !FileOrDirectoryExists(workspace, entry.Path))
             .Select(entry => entry.Path)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        if (missingFiles.Count > 0)
+
+        if (missingPaths.Count > 0)
         {
-            failures.Add($"Spec-12: Missing files for touch list entries: {string.Join(", ", missingFiles)}.");
+            failures.Add($"Spec-12: Missing files or directories for touch list entries: {string.Join(", ", missingPaths)}.");
+        }
+    }
+
+    private static bool FileOrDirectoryExists(IRepoWorkspace workspace, string relativePath)
+    {
+        // First check if workspace.Exists returns true (for files and backward compatibility)
+        if (workspace.Exists(relativePath))
+        {
+            return true;
+        }
+
+        // If not found as a file, check if it's a directory
+        try
+        {
+            var fullPath = workspace.ResolvePath(relativePath);
+            return System.IO.Directory.Exists(fullPath);
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -159,18 +218,38 @@ internal static class SpecGateValidator
         }
     }
 
-    private static void AddAllowedReferencesFailures(List<string> failures, Playbook playbook, string specText)
+    private static void AddAllowedReferencesFailures(List<string> failures, ParsedSpec spec, Playbook playbook, string specText)
     {
-        if (playbook.AllowedFrameworks.Count > 0 &&
-            !playbook.AllowedFrameworks.Any(f => ContainsToken(specText, f.Name) || ContainsToken(specText, f.Id)))
+        // Only require framework/pattern references when adding new code
+        // Simple deletions or modifications don't need to reference frameworks/patterns
+        var hasAddOperations = spec.TouchList.Any(entry => entry.Operation == TouchOperation.Add);
+
+        Logger.Debug($"[SpecGate] Touch list has Add operations: {hasAddOperations}");
+
+        if (!hasAddOperations)
         {
-            failures.Add("Spec-15: No allowed frameworks referenced from the playbook.");
+            Logger.Debug($"[SpecGate] Skipping framework/pattern validation (no Add operations)");
+            return; // Skip framework/pattern validation for deletion-only or modification-only changes
         }
 
-        if (playbook.AllowedPatterns.Count > 0 &&
-            !playbook.AllowedPatterns.Any(p => ContainsToken(specText, p.Name) || ContainsToken(specText, p.Id)))
+        if (playbook.AllowedFrameworks.Count > 0)
         {
-            failures.Add("Spec-16: No allowed patterns referenced from the playbook.");
+            var foundFramework = playbook.AllowedFrameworks.Any(f => ContainsToken(specText, f.Name) || ContainsToken(specText, f.Id));
+            Logger.Debug($"[SpecGate] Found allowed framework reference: {foundFramework}");
+            if (!foundFramework)
+            {
+                failures.Add("Spec-15: No allowed frameworks referenced from the playbook.");
+            }
+        }
+
+        if (playbook.AllowedPatterns.Count > 0)
+        {
+            var foundPattern = playbook.AllowedPatterns.Any(p => ContainsToken(specText, p.Name) || ContainsToken(specText, p.Id));
+            Logger.Debug($"[SpecGate] Found allowed pattern reference: {foundPattern}");
+            if (!foundPattern)
+            {
+                failures.Add("Spec-16: No allowed patterns referenced from the playbook.");
+            }
         }
     }
 }

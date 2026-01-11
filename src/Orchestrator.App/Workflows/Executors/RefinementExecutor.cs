@@ -57,7 +57,7 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
             // Commit the refinement file (best effort - don't fail workflow if git fails)
             try
             {
-                var branchName = $"issue-{input.WorkItem.Number}";
+                var branchName = WorkItemBranch.BuildBranchName(input.WorkItem);
                 var commitMessage = $"refine: Update refinement for issue #{input.WorkItem.Number}\n\n" +
                                    $"- {refinement.AcceptanceCriteria.Count} acceptance criteria\n" +
                                    $"- {refinement.OpenQuestions.Count} open questions";
@@ -424,7 +424,8 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
         sb.AppendLine("---");
         sb.AppendLine("**Next Steps:**");
         sb.AppendLine();
-        sb.AppendLine($"1. **Edit the refinement file:** Check out branch `issue-{WorkContext.WorkItem.Number}` and open:");
+        var branchName = WorkItemBranch.BuildBranchName(WorkContext.WorkItem);
+        sb.AppendLine($"1. **Edit the refinement file:** Check out branch `{branchName}` and open:");
         sb.AppendLine($"   ```");
         sb.AppendLine($"   orchestrator/refinement/issue-{WorkContext.WorkItem.Number}.md");
         sb.AppendLine($"   ```");

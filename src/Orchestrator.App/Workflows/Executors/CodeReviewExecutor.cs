@@ -22,23 +22,32 @@ internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
-        var devJson = await ReadStateWithFallbackAsync(
-            context,
-            WorkflowStateKeys.DevResult,
-            cancellationToken);
+        Logger.Info($"[CodeReview] Starting code review for issue #{input.WorkItem.Number}");
 
-        if (!WorkflowJson.TryDeserialize(devJson, out DevResult? devResult) || devResult is null)
+        var branchName = WorkItemBranch.BuildBranchName(input.WorkItem);
+        Logger.Info($"[CodeReview] Looking for PR for branch '{branchName}'");
+        var prNumber = await WorkContext.GitHub.GetPullRequestNumberAsync(branchName);
+
+        if (prNumber == null)
         {
-            return (false, "Code review blocked: missing dev result.");
+            Logger.Warning($"[CodeReview] No PR found for branch '{branchName}'");
+            return (false, "Code review blocked: Pull Request not found.");
         }
 
-        var diffSummary = BuildDiffSummary(devResult.ChangedFiles);
-        var prompt = CodeReviewPrompt.Build(input.WorkItem, devResult.ChangedFiles, diffSummary);
+        Logger.Info($"[CodeReview] Found PR #{prNumber}. Fetching diff...");
+        var diff = await WorkContext.GitHub.GetPullRequestDiffAsync(prNumber.Value);
+        Logger.Info($"[CodeReview] Diff fetched. Length: {diff?.Length ?? 0} chars");
+
+        var prompt = CodeReviewPrompt.Build(input.WorkItem, new List<string>(), diff ?? "");
+        
+        Logger.Info($"[CodeReview] Calling LLM with diff...");
         var response = await CallLlmAsync(
             WorkContext.Config.OpenAiModel,
             prompt.System,
             prompt.User,
             cancellationToken);
+
+        Logger.Info($"[CodeReview] LLM Response received. Preview: {(response.Length > 200 ? response.Substring(0, 200) + "..." : response)}");
 
         if (!TryParseReview(response, out var reviewResult))
         {
@@ -71,7 +80,17 @@ internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
 
         WorkContext.Metrics?.RecordCodeReview(finalResult.Findings.Count, finalResult.Approved);
 
-        await FileOperationHelper.WriteAllTextAsync(WorkContext, finalResult.ReviewPath, BuildReviewMarkdown(finalResult));
+        var reviewMarkdown = BuildReviewMarkdown(finalResult);
+        await FileOperationHelper.WriteAllTextAsync(WorkContext, finalResult.ReviewPath, reviewMarkdown);
+        try
+        {
+            await WorkContext.GitHub.CommentOnWorkItemAsync(prNumber.Value, reviewMarkdown);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning($"[CodeReview] Failed to post comment on PR #{prNumber}: {ex.Message}");
+        }
+
         var serializedResult = WorkflowJson.Serialize(finalResult);
         await context.QueueStateUpdateAsync(WorkflowStateKeys.CodeReviewResult, serializedResult, cancellationToken);
         WorkContext.State[WorkflowStateKeys.CodeReviewResult] = serializedResult;
@@ -92,29 +111,6 @@ internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
         }
 
         return base.DetermineNextStage(success, input);
-    }
-
-    private string BuildDiffSummary(IReadOnlyList<string> changedFiles)
-    {
-        var summaryLines = new List<string>();
-        foreach (var file in changedFiles)
-        {
-            if (!WorkItemParsers.IsSafeRelativePath(file))
-            {
-                continue;
-            }
-
-            if (!WorkContext.Workspace.Exists(file))
-            {
-                summaryLines.Add($"{file}: deleted");
-                continue;
-            }
-
-            var content = FileOperationHelper.ReadAllTextAsync(WorkContext, file).GetAwaiter().GetResult();
-            summaryLines.Add($"{file}:\n{content}");
-        }
-
-        return string.Join("\n\n", summaryLines);
     }
 
     private static bool TryParseReview(string? json, out CodeReviewResult result)
@@ -146,8 +142,12 @@ internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
                     };
                     var category = finding.TryGetProperty("category", out var catProp) ? catProp.GetString() ?? "" : "";
                     var message = finding.TryGetProperty("message", out var msgProp) ? msgProp.GetString() ?? "" : "";
-                    var file = finding.TryGetProperty("file", out var fileProp) ? fileProp.GetString() : null;
-                    var line = finding.TryGetProperty("line", out var lineProp) && lineProp.TryGetInt32(out var lineValue)
+                    var file = finding.TryGetProperty("file", out var fileProp) && fileProp.ValueKind != System.Text.Json.JsonValueKind.Null
+                        ? fileProp.GetString()
+                        : null;
+                    var line = finding.TryGetProperty("line", out var lineProp)
+                        && lineProp.ValueKind != System.Text.Json.JsonValueKind.Null
+                        && lineProp.TryGetInt32(out var lineValue)
                         ? lineValue
                         : (int?)null;
 

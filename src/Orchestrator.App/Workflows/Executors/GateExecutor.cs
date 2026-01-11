@@ -120,7 +120,7 @@ internal abstract class GateExecutor<TInput> : WorkflowStageExecutor
     {
         try
         {
-            var branchName = $"issue-{workItem.Number}";
+            var branchName = WorkItemBranch.BuildBranchName(workItem);
             Logger.Debug($"[{Stage}] Committing {filePath} to branch '{branchName}'");
             var committed = WorkContext.Repo.CommitAndPush(branchName, commitMessage, new[] { filePath });
 

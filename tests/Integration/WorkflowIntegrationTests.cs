@@ -32,7 +32,7 @@ public class WorkflowIntegrationTests
         {
             BuildRefinementJson(),
             BuildValidSpec(workItem),
-            "namespace Example; public sealed class Example { }",
+            "namespace Example; public sealed class Example { // Updated }",
             BuildCodeReviewJson()
         });
         var github = new FakeGitHubClient();
@@ -49,7 +49,6 @@ public class WorkflowIntegrationTests
         var dev = new DevExecutor(context, config.Workflow);
         var codeReview = new CodeReviewExecutor(context, config.Workflow);
         var dod = new DodExecutor(context, config.Workflow);
-        var release = new ReleaseExecutor(context, config.Workflow);
 
         var refinementOutput = await refinement.HandleAsync(input, workflowContext.Context, CancellationToken.None);
         var dorOutput = await dor.HandleAsync(input, workflowContext.Context, CancellationToken.None);
@@ -58,20 +57,16 @@ public class WorkflowIntegrationTests
         var devOutput = await dev.HandleAsync(input, workflowContext.Context, CancellationToken.None);
         var codeReviewOutput = await codeReview.HandleAsync(input, workflowContext.Context, CancellationToken.None);
         var dodOutput = await dod.HandleAsync(input, workflowContext.Context, CancellationToken.None);
-        var output = await release.HandleAsync(input, workflowContext.Context, CancellationToken.None);
 
-        Assert.NotNull(output);
+        Assert.NotNull(dodOutput);
         Assert.True(dorOutput.Success);
         Assert.True(techLeadOutput.Success);
         Assert.True(specGateOutput.Success);
         Assert.True(devOutput.Success);
         Assert.True(codeReviewOutput.Success);
         Assert.True(dodOutput.Success);
-        Assert.True(output.Success);
-        Assert.Null(output.NextStage);
+        Assert.Null(dodOutput.NextStage);
         Assert.True(workspace.Workspace.Exists(WorkflowPaths.SpecPath(workItem.Number)));
-        Assert.True(workspace.Workspace.Exists(WorkflowPaths.ReleasePath(workItem.Number)));
-        Assert.True(github.OpenPullRequestCalled);
     }
 
     [Fact]
@@ -93,7 +88,7 @@ public class WorkflowIntegrationTests
         var llm = new QueueLlmClient(new[]
         {
             BuildValidSpec(workItem),
-            "namespace Example; public sealed class Example { }",
+            "namespace Example; public sealed class Example { // Updated }",
             BuildCodeReviewJson()
         });
         var github = new FakeGitHubClient();
@@ -108,7 +103,6 @@ public class WorkflowIntegrationTests
         var dev = new DevExecutor(context, config.Workflow);
         var codeReview = new CodeReviewExecutor(context, config.Workflow);
         var dod = new DodExecutor(context, config.Workflow);
-        var release = new ReleaseExecutor(context, config.Workflow);
 
         var initialGate = await specGate.HandleAsync(input, workflowContext.Context, CancellationToken.None);
         var techLeadOutput = await techLead.HandleAsync(input, workflowContext.Context, CancellationToken.None);
@@ -116,11 +110,10 @@ public class WorkflowIntegrationTests
         var devOutput = await dev.HandleAsync(input, workflowContext.Context, CancellationToken.None);
         var codeReviewOutput = await codeReview.HandleAsync(input, workflowContext.Context, CancellationToken.None);
         var dodOutput = await dod.HandleAsync(input, workflowContext.Context, CancellationToken.None);
-        var output = await release.HandleAsync(input, workflowContext.Context, CancellationToken.None);
 
-        Assert.NotNull(output);
-        Assert.True(output.Success);
-        Assert.Null(output.NextStage);
+        Assert.NotNull(dodOutput);
+        Assert.True(dodOutput.Success);
+        Assert.Null(dodOutput.NextStage);
         Assert.False(initialGate.Success);
         Assert.Equal(WorkflowStage.TechLead, initialGate.NextStage);
         Assert.True(techLeadOutput.Success);
@@ -390,6 +383,7 @@ Missing required sections.
     private sealed class FakeGitHubClient : IGitHubClient
     {
         public bool OpenPullRequestCalled { get; private set; }
+        private int? _prNumber;
 
         public Task<IReadOnlyList<WorkItem>> GetOpenWorkItemsAsync(int perPage = 50) =>
             Task.FromResult<IReadOnlyList<WorkItem>>(Array.Empty<WorkItem>());
@@ -400,10 +394,11 @@ Missing required sections.
         public Task<string> OpenPullRequestAsync(string headBranch, string baseBranch, string title, string body)
         {
             OpenPullRequestCalled = true;
+            _prNumber = 1;
             return Task.FromResult("https://github.com/test/repo/pull/1");
         }
 
-        public Task<int?> GetPullRequestNumberAsync(string branchName) => Task.FromResult<int?>(null);
+        public Task<int?> GetPullRequestNumberAsync(string branchName) => Task.FromResult(_prNumber);
         public Task ClosePullRequestAsync(int prNumber) => Task.CompletedTask;
         public Task<IReadOnlyList<IssueComment>> GetIssueCommentsAsync(int issueNumber) =>
             Task.FromResult<IReadOnlyList<IssueComment>>(Array.Empty<IssueComment>());
@@ -441,6 +436,10 @@ Missing required sections.
         }
 
         public bool IsGitRepo() => true;
+
+        public void CleanWorkingTree()
+        {
+        }
 
         public void EnsureBranch(string branchName, string baseBranch)
         {

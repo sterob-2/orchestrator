@@ -5,7 +5,8 @@ using System.Threading.Tasks;
 namespace Orchestrator.App.Utilities;
 
 /// <summary>
-/// Helper for file operations that uses MCP if available, otherwise falls back to Workspace.
+/// Helper for file operations using direct filesystem access via IRepoWorkspace.
+/// Simplified to use System.IO directly (no MCP fallback needed).
 /// </summary>
 internal static class FileOperationHelper
 {
@@ -18,45 +19,35 @@ internal static class FileOperationHelper
     }
 
     /// <summary>
-    /// Checks if a file exists using MCP if available, otherwise Workspace.
+    /// Checks if a file exists.
     /// </summary>
-    public static async Task<bool> ExistsAsync(WorkContext ctx, string path)
+    public static Task<bool> ExistsAsync(WorkContext ctx, string path)
     {
         EnsureSafeRelativePath(path);
-        if (ctx.McpFiles != null)
-        {
-            return await ctx.McpFiles.ExistsAsync(path);
-        }
-        return ctx.Workspace.Exists(path);
+        return Task.FromResult(ctx.Workspace.Exists(path));
     }
 
     /// <summary>
-    /// Reads file content using MCP if available, otherwise Workspace.
+    /// Reads file content.
     /// </summary>
-    public static async Task<string> ReadAllTextAsync(WorkContext ctx, string path)
+    public static Task<string> ReadAllTextAsync(WorkContext ctx, string path)
     {
         EnsureSafeRelativePath(path);
-        if (ctx.McpFiles != null)
-        {
-            return await ctx.McpFiles.ReadAllTextAsync(path);
-        }
-        return ctx.Workspace.ReadAllText(path);
+        return Task.FromResult(ctx.Workspace.ReadAllText(path));
     }
 
     /// <summary>
-    /// Writes file content using MCP if available, otherwise Workspace.
+    /// Writes file content.
     /// </summary>
-    public static async Task WriteAllTextAsync(WorkContext ctx, string path, string content)
+    public static Task WriteAllTextAsync(WorkContext ctx, string path, string content)
     {
         EnsureSafeRelativePath(path);
-        if (ctx.McpFiles != null)
-        {
-            await ctx.McpFiles.WriteAllTextAsync(path, content);
-        }
-        else
-        {
-            ctx.Workspace.WriteAllText(path, content);
-        }
+
+        Logger.Debug($"[FileOp] Writing {content.Length} bytes to: {path}");
+        ctx.Workspace.WriteAllText(path, content);
+        Logger.Debug($"[FileOp] Write completed for: {path}");
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -64,28 +55,43 @@ internal static class FileOperationHelper
     /// </summary>
     public static async Task<string?> ReadAllTextIfExistsAsync(WorkContext ctx, string path)
     {
-        if (!await ExistsAsync(ctx, path))
+        try
         {
+            if (!await ExistsAsync(ctx, path))
+            {
+                Logger.Debug($"[FileOp] File does not exist: {path}");
+                return null;
+            }
+
+            Logger.Debug($"[FileOp] Reading file: {path}");
+            return await ReadAllTextAsync(ctx, path);
+        }
+        catch (FileNotFoundException ex)
+        {
+            Logger.Debug($"[FileOp] File not found: {path} - {ex.Message}");
             return null;
         }
-        return await ReadAllTextAsync(ctx, path);
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.Debug($"[FileOp] Access denied reading file: {path} - {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>
-    /// Deletes a file using MCP if available, otherwise Workspace.
+    /// Deletes a file.
     /// </summary>
-    public static async Task DeleteAsync(WorkContext ctx, string path)
+    public static Task DeleteAsync(WorkContext ctx, string path)
     {
         EnsureSafeRelativePath(path);
-        if (ctx.McpFiles != null)
-        {
-            await ctx.McpFiles.DeleteAsync(path);
-        }
 
         var fullPath = ctx.Workspace.ResolvePath(path);
         if (File.Exists(fullPath))
         {
+            Logger.Debug($"[FileOp] Deleting file: {path}");
             File.Delete(fullPath);
         }
+
+        return Task.CompletedTask;
     }
 }

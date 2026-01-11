@@ -25,12 +25,16 @@ internal sealed class ContextBuilderExecutor : WorkflowStageExecutor
         CancellationToken cancellationToken)
     {
         var workItem = input.WorkItem;
-        var branchName = $"issue-{workItem.Number}";
+        var branchName = WorkItemBranch.BuildBranchName(workItem);
 
         Logger.Info($"[ContextBuilder] Creating branch '{branchName}' for issue #{workItem.Number}");
 
         try
         {
+            // Clean working tree before starting workflow (discard any uncommitted changes)
+            Logger.Debug($"[ContextBuilder] Cleaning working tree");
+            WorkContext.Repo.CleanWorkingTree();
+
             // Ensure branch exists and is checked out
             WorkContext.Repo.EnsureBranch(branchName, WorkContext.Config.Workflow.DefaultBaseBranch);
             Logger.Info($"[ContextBuilder] Branch '{branchName}' created and checked out");

@@ -143,8 +143,10 @@ Then Edge
         );
 
         // We need to setup GitHub mocks for Pull Request
-        _githubMock.Setup(x => x.GetPullRequestNumberAsync(It.IsAny<string>()))
-            .ReturnsAsync((int?)null); // PR doesn't exist yet
+        _githubMock.SetupSequence(x => x.GetPullRequestNumberAsync(It.IsAny<string>()))
+            .ReturnsAsync((int?)null) // For DevExecutor (PR check -> create)
+            .ReturnsAsync(1);         // For CodeReviewExecutor (PR check -> proceed)
+        
         _githubMock.Setup(x => x.OpenPullRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync("https://github.com/test/repo/pull/1");
 
@@ -202,7 +204,7 @@ Then ...
 
         // Act
         // Build the full graph
-        var workflow = WorkflowFactory.BuildGraph(workContext, startOverride: null);
+        var workflow = WorkflowFactory.BuildGraph(workContext, startStage: null);
 
         var input = new WorkflowInput(
             workItem,
@@ -216,13 +218,12 @@ Then ...
         // Assert
         Assert.NotNull(output);
         Assert.True(output.Success, $"Workflow failed: {output.Notes}");
-        Assert.Null(output.NextStage); // Release is the final stage
+        Assert.Null(output.NextStage); // DoD is the final stage (manual merge)
 
         // Verify Artifacts
         Assert.True(File.Exists(Path.Combine(_tempWorkspace.WorkspacePath, "orchestrator/specs/issue-1.md")), "Spec should exist");
         Assert.True(File.Exists(Path.Combine(_tempWorkspace.WorkspacePath, "src/Feature.cs")), "Source file should exist");
         Assert.True(File.Exists(Path.Combine(_tempWorkspace.WorkspacePath, "orchestrator/reviews/issue-1.md")), "Review should exist");
-        Assert.True(File.Exists(Path.Combine(_tempWorkspace.WorkspacePath, "orchestrator/release/issue-1.md")), "Release notes should exist");
 
         // Verify Git Interactions
         _repoMock.Verify(x => x.CommitAndPush(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>()), Times.AtLeastOnce);
@@ -295,7 +296,7 @@ Then ...
         _tempWorkspace.CreateFile("docs/architecture-playbook.yaml", "project: Test\nversion: 1.0");
 
         // Act
-        var workflow = WorkflowFactory.BuildGraph(workContext, startOverride: null);
+        var workflow = WorkflowFactory.BuildGraph(workContext, startStage: null);
         var input = new WorkflowInput(
             workItem,
             new ProjectContext("owner", "repo", "main", _tempWorkspace.WorkspacePath, _tempWorkspace.WorkspacePath, "owner", "user", 1),
@@ -419,7 +420,7 @@ Story text
 
         // Act
         // Start from Refinement stage (simulating workflow restart)
-        var workflow = WorkflowFactory.BuildGraph(workContext, startOverride: WorkflowStage.Refinement);
+        var workflow = WorkflowFactory.BuildGraph(workContext, startStage: WorkflowStage.Refinement);
         var input = new WorkflowInput(
             workItem,
             new ProjectContext("owner", "repo", "main", _tempWorkspace.WorkspacePath, _tempWorkspace.WorkspacePath, "owner", "user", 1),

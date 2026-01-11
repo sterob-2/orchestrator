@@ -85,9 +85,43 @@ internal abstract class WorkflowStageExecutor : Executor<WorkflowInput, Workflow
         string userPrompt,
         CancellationToken cancellationToken)
     {
+        if (WorkContext.Config.Debug)
+        {
+            var debugPath = $"orchestrator/prompts/issue-{WorkContext.WorkItem.Number}-{Stage}-attempt-{CurrentAttempt}.md";
+            var debugContent = $"# System Prompt\n\n{systemPrompt}\n\n# User Prompt\n\n{userPrompt}";
+            WorkContext.Workspace.WriteAllText(debugPath, debugContent);
+
+            try
+            {
+                var branchName = WorkItemBranch.BuildBranchName(WorkContext.WorkItem);
+                WorkContext.Repo.CommitAndPush(branchName, $"debug: prompt for {Stage} attempt {CurrentAttempt}", new[] { debugPath });
+            }
+            catch (Exception ex)
+            {
+                // Swallow error to not fail workflow if debug commit fails
+                System.Console.WriteLine($"[WARN] Failed to commit debug file: {ex.Message}");
+            }
+        }
+
         var stopwatch = Stopwatch.StartNew();
         var response = await WorkContext.Llm.GetUpdatedFileAsync(model, systemPrompt, userPrompt);
         stopwatch.Stop();
+
+        if (WorkContext.Config.Debug)
+        {
+            var responsePath = $"orchestrator/prompts/issue-{WorkContext.WorkItem.Number}-{Stage}-attempt-{CurrentAttempt}-response.md";
+            WorkContext.Workspace.WriteAllText(responsePath, response);
+
+            try
+            {
+                var branchName = WorkItemBranch.BuildBranchName(WorkContext.WorkItem);
+                WorkContext.Repo.CommitAndPush(branchName, $"debug: response for {Stage} attempt {CurrentAttempt}", new[] { responsePath });
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[WARN] Failed to commit debug response file: {ex.Message}");
+            }
+        }
 
         WorkContext.Metrics?.RecordLlmCall(new LlmCallMetrics(
             Model: model,
