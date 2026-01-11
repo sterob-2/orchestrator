@@ -15,19 +15,19 @@ diff --git a/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md b/or
 @@ -0,0 +1,62 @@
 +{
 +  "approved": true,
-+  "summary": "The change removes two unused branch-related members (CreateBranchAsync, DeleteBranchAsync) from the internal IGitHubClient interface and deletes their implementations from OctokitGitHubClient. The edits match the reported spec (remove dead API surface). Approve conditionally: the change is small and appears correct, but require the author to run a repo-wide verification (build, tests, search for references) and to address a few minor housekeeping items before merging.",
++  "summary": "The change removes two unused branch-related members (CreateBranchAsync, DeleteBranchAsync) from IGitHubClient and deletes their implementations from OctokitGitHubClient. The edits match the stated goal (remove dead API surface) and are small and focused. Approve conditionally: require the author to run a full build, run tests, perform a repo-wide search for the removed symbols, and perform a small housekeeping pass (remove now-unused usings/config, update tests/docs/changelog) before merging.",
 +  "findings": [
 +    {
 +      "severity": "MAJOR",
 +      "category": "BUILD_AND_TEST_VERIFICATION",
-+      "message": "No build/test results are provided with this change. Removing interface members can cause compile-time failures in other projects, tests, mocks, or explicit interface implementations. Run a full solution build ('dotnet build') and run the full test suite ('dotnet test') and ensure CI is green before merging.",
++      "message": "No build/test results are included with this change. Removing interface members can cause compile-time failures in other projects, tests, mocks, or explicit interface implementations. Run 'dotnet build' for the solution and 'dotnet test' (full test suite) and ensure CI is green before merging.",
 +      "file": null,
 +      "line": null
 +    },
 +    {
 +      "severity": "MAJOR",
 +      "category": "COMPILATION_IMPACT",
-+      "message": "Two members were removed from IGitHubClient (CreateBranchAsync, DeleteBranchAsync). Perform a repository-wide search for these symbol names to find remaining callers, explicit interface implementations, Moq setups, or generated code that will fail to compile.",
++      "message": "Two members were removed from IGitHubClient (CreateBranchAsync, DeleteBranchAsync). Perform a repository-wide search for these symbol names to find remaining callers, explicit interface implementations, Moq setups, generated code, or other projects that will fail to compile.",
 +      "file": "src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs",
 +      "line": 28
 +    },
@@ -41,28 +41,28 @@ diff --git a/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md b/or
 +    {
 +      "severity": "MINOR",
 +      "category": "IMPLEMENTATION_CONFORMANCE",
-+      "message": "Verify all concrete types implementing IGitHubClient. The OctokitGitHubClient implementations were removed (around OctokitGitHubClient.cs line ~244), but other implementations or explicit interface implementations may still declare these methods and now be inconsistent.",
++      "message": "Verify all concrete types that implement IGitHubClient. The OctokitGitHubClient implementations were removed (around OctokitGitHubClient.cs line ~244), but other implementations or explicit interface implementations may still declare these methods and now be inconsistent.",
 +      "file": "src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs",
 +      "line": 244
 +    },
 +    {
 +      "severity": "MINOR",
 +      "category": "CLEANUP",
-+      "message": "The removed methods referenced _cfg.Workflow.DefaultBaseBranch and Octokit exception/API types (ApiException, NotFoundException). After removal, search for now-unused configuration keys, private fields, or using directives and remove them to avoid warnings.",
++      "message": "The removed methods referenced _cfg.Workflow.DefaultBaseBranch and Octokit exception/API types (ApiException, NotFoundException). After removal, search for now-unused configuration keys, private fields, or using directives and remove them to avoid compiler warnings and keep the codebase tidy.",
 +      "file": "src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs",
 +      "line": 244
 +    },
 +    {
 +      "severity": "MINOR",
 +      "category": "API_COMPATIBILITY",
-+      "message": "IGitHubClient is declared internal in this change; external semantic-versioning impact is unlikely. However, if the assembly is packaged/published or consumed by other repositories (or via InternalsVisibleTo), removing members could still be breaking. Confirm packaging/publishing and any external consumers before merging.",
++      "message": "IGitHubClient appears to be declared internal in this repo, which reduces external breakage risk. However, if the assembly is packaged/published or consumed by other repositories (or via InternalsVisibleTo), removing members could still be breaking. Confirm packaging/publishing and any external consumers before merging.",
 +      "file": "src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs",
 +      "line": 1
 +    },
 +    {
 +      "severity": "MINOR",
 +      "category": "REPO_NOISE",
-+      "message": "This PR adds many files under orchestrator/prompts/ and orchestrator/specs/ that look like generated prompt artifacts. Confirm these were intentionally committed; they add review noise and may contain sensitive prompts not intended for the main repository.",
++      "message": "This PR adds many files under orchestrator/prompts/ and orchestrator/specs/ that appear to be generated artifacts (prompting/refinement outputs). Confirm these were intentionally committed; they add review noise and may contain sensitive prompts not intended for the main repository.",
 +      "file": "orchestrator/prompts/",
 +      "line": null
 +    },
