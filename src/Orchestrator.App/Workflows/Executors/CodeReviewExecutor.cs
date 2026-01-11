@@ -22,21 +22,32 @@ internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
+        Logger.Info($"[CodeReview] Starting code review for issue #{input.WorkItem.Number}");
+
         var branchName = WorkItemBranch.BuildBranchName(input.WorkItem);
+        Logger.Info($"[CodeReview] Looking for PR for branch '{branchName}'");
         var prNumber = await WorkContext.GitHub.GetPullRequestNumberAsync(branchName);
 
         if (prNumber == null)
         {
+            Logger.Warning($"[CodeReview] No PR found for branch '{branchName}'");
             return (false, "Code review blocked: Pull Request not found.");
         }
 
+        Logger.Info($"[CodeReview] Found PR #{prNumber}. Fetching diff...");
         var diff = await WorkContext.GitHub.GetPullRequestDiffAsync(prNumber.Value);
-        var prompt = CodeReviewPrompt.Build(input.WorkItem, new List<string>(), diff);
+        Logger.Info($"[CodeReview] Diff fetched. Length: {diff?.Length ?? 0} chars");
+
+        var prompt = CodeReviewPrompt.Build(input.WorkItem, new List<string>(), diff ?? "");
+        
+        Logger.Info($"[CodeReview] Calling LLM with diff...");
         var response = await CallLlmAsync(
             WorkContext.Config.OpenAiModel,
             prompt.System,
             prompt.User,
             cancellationToken);
+
+        Logger.Info($"[CodeReview] LLM Response received. Preview: {(response.Length > 200 ? response.Substring(0, 200) + "..." : response)}");
 
         if (!TryParseReview(response, out var reviewResult))
         {
