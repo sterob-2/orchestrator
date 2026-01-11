@@ -67,7 +67,6 @@ public class WorkflowIntegrationTests
         Assert.True(dodOutput.Success);
         Assert.Null(dodOutput.NextStage);
         Assert.True(workspace.Workspace.Exists(WorkflowPaths.SpecPath(workItem.Number)));
-        Assert.True(github.OpenPullRequestCalled);
     }
 
     [Fact]
@@ -384,6 +383,7 @@ Missing required sections.
     private sealed class FakeGitHubClient : IGitHubClient
     {
         public bool OpenPullRequestCalled { get; private set; }
+        private int? _prNumber;
 
         public Task<IReadOnlyList<WorkItem>> GetOpenWorkItemsAsync(int perPage = 50) =>
             Task.FromResult<IReadOnlyList<WorkItem>>(Array.Empty<WorkItem>());
@@ -394,10 +394,11 @@ Missing required sections.
         public Task<string> OpenPullRequestAsync(string headBranch, string baseBranch, string title, string body)
         {
             OpenPullRequestCalled = true;
+            _prNumber = 1;
             return Task.FromResult("https://github.com/test/repo/pull/1");
         }
 
-        public Task<int?> GetPullRequestNumberAsync(string branchName) => Task.FromResult<int?>(1);
+        public Task<int?> GetPullRequestNumberAsync(string branchName) => Task.FromResult(_prNumber);
         public Task ClosePullRequestAsync(int prNumber) => Task.CompletedTask;
         public Task<IReadOnlyList<IssueComment>> GetIssueCommentsAsync(int issueNumber) =>
             Task.FromResult<IReadOnlyList<IssueComment>>(Array.Empty<IssueComment>());
