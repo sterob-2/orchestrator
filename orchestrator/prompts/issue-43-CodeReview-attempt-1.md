@@ -15,12 +15,12 @@ diff --git a/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md b/or
 @@ -0,0 +1,62 @@
 +{
 +  "approved": true,
-+  "summary": "The change removes two unused branch-related members (CreateBranchAsync, DeleteBranchAsync) from IGitHubClient and deletes their implementations from OctokitGitHubClient. The edits match the stated goal (remove dead API surface) and are small and focused. Approve conditionally: require the author to run a full build, run tests, perform a repo-wide search for the removed symbols, and perform a small housekeeping pass (remove now-unused usings/config, update tests/docs/changelog) before merging.",
++  "summary": "This change removes two unused branch-related members (CreateBranchAsync, DeleteBranchAsync) from IGitHubClient and deletes their implementations from OctokitGitHubClient. The edits are small and focused and match the stated goal of removing dead API surface. Approve conditionally: require a full solution build, run the full test suite, a repo-wide search for the removed symbols, and a small housekeeping pass (remove now-unused config/fields/usings, update tests/docs/changelog) before merging.",
 +  "findings": [
 +    {
 +      "severity": "MAJOR",
 +      "category": "BUILD_AND_TEST_VERIFICATION",
-+      "message": "No build/test results are included with this change. Removing interface members can cause compile-time failures in other projects, tests, mocks, or explicit interface implementations. Run 'dotnet build' for the solution and 'dotnet test' (full test suite) and ensure CI is green before merging.",
++      "message": "No build/test results are provided with this change. Removing interface members can cause compile-time failures in other projects, tests, mocks, or explicit interface implementations. Run 'dotnet build' for the solution and 'dotnet test' (full test suite) and ensure CI is green before merging.",
 +      "file": null,
 +      "line": null
 +    },
@@ -34,14 +34,14 @@ diff --git a/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md b/or
 +    {
 +      "severity": "MAJOR",
 +      "category": "TEST_UPDATES_REQUIRED",
-+      "message": "Any unit/integration tests, Moq setups, or test helpers that referenced CreateBranchAsync/DeleteBranchAsync must be removed or updated. Moq setups or test interfaces referencing removed members will fail to compile. Search the tests/ tree and update/delete affected tests.",
++      "message": "Any unit/integration tests, Moq setups, or test helpers that referenced CreateBranchAsync/DeleteBranchAsync must be removed or updated. Moq setups or test interfaces referencing removed members will fail to compile. Search the tests/ tree and update/delete affected tests prior to merge.",
 +      "file": "tests/",
 +      "line": null
 +    },
 +    {
 +      "severity": "MINOR",
 +      "category": "IMPLEMENTATION_CONFORMANCE",
-+      "message": "Verify all concrete types that implement IGitHubClient. The OctokitGitHubClient implementations were removed (around OctokitGitHubClient.cs line ~244), but other implementations or explicit interface implementations may still declare these methods and now be inconsistent.",
++      "message": "Verify all concrete types that implement IGitHubClient. The OctokitGitHubClient implementations were deleted (around OctokitGitHubClient.cs line ~244), but other implementations or explicit interface implementations in the repo may still declare these methods and now be inconsistent.",
 +      "file": "src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs",
 +      "line": 244
 +    },
@@ -55,7 +55,7 @@ diff --git a/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md b/or
 +    {
 +      "severity": "MINOR",
 +      "category": "API_COMPATIBILITY",
-+      "message": "IGitHubClient appears to be declared internal in this repo, which reduces external breakage risk. However, if the assembly is packaged/published or consumed by other repositories (or via InternalsVisibleTo), removing members could still be breaking. Confirm packaging/publishing and any external consumers before merging.",
++      "message": "IGitHubClient is declared internal in this repository, which reduces external breakage risk. However, if the assembly is packaged/published or consumed by other repositories (or via InternalsVisibleTo), removing members could still be breaking. Confirm packaging/publishing and any external consumers before merging.",
 +      "file": "src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs",
 +      "line": 1
 +    },
