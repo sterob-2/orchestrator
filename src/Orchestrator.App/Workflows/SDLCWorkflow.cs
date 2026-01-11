@@ -4,7 +4,7 @@ using Orchestrator.App.Workflows.Executors;
 namespace Orchestrator.App.Workflows;
 
 /// <summary>
-/// Builder for SDLC workflow using Microsoft Agent Framework
+/// Runner for SDLC workflow using Microsoft Agent Framework
 /// </summary>
 internal static class SDLCWorkflow
 {

@@ -70,11 +70,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner
                 return blocked;
             }
 
-            // Use single-stage workflow for direct stage execution
-            // Only use BuildGraph for ContextBuilder (which might route to other stages)
-            var workflow = stage == WorkflowStage.ContextBuilder
-                ? WorkflowFactory.BuildGraph(runContext, null)
-                : WorkflowFactory.Build(stage, runContext);
+            // Always use full graph - let Microsoft Agent Framework route messages between stages
+            // Labels are only for user visibility and re-entry after restart
+            var workflow = WorkflowFactory.BuildGraph(runContext, stage);
             var input = new WorkflowInput(
                 runContext.WorkItem,
                 BuildProjectContext(runContext.Config),

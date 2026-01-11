@@ -204,7 +204,7 @@ Then ...
 
         // Act
         // Build the full graph
-        var workflow = WorkflowFactory.BuildGraph(workContext, startOverride: null);
+        var workflow = WorkflowFactory.BuildGraph(workContext, startStage: null);
 
         var input = new WorkflowInput(
             workItem,
@@ -296,7 +296,7 @@ Then ...
         _tempWorkspace.CreateFile("docs/architecture-playbook.yaml", "project: Test\nversion: 1.0");
 
         // Act
-        var workflow = WorkflowFactory.BuildGraph(workContext, startOverride: null);
+        var workflow = WorkflowFactory.BuildGraph(workContext, startStage: null);
         var input = new WorkflowInput(
             workItem,
             new ProjectContext("owner", "repo", "main", _tempWorkspace.WorkspacePath, _tempWorkspace.WorkspacePath, "owner", "user", 1),
@@ -420,7 +420,7 @@ Story text
 
         // Act
         // Start from Refinement stage (simulating workflow restart)
-        var workflow = WorkflowFactory.BuildGraph(workContext, startOverride: WorkflowStage.Refinement);
+        var workflow = WorkflowFactory.BuildGraph(workContext, startStage: WorkflowStage.Refinement);
         var input = new WorkflowInput(
             workItem,
             new ProjectContext("owner", "repo", "main", _tempWorkspace.WorkspacePath, _tempWorkspace.WorkspacePath, "owner", "user", 1),
