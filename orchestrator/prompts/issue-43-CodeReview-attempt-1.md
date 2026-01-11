@@ -12,57 +12,64 @@ Diff Summary:
 diff --git a/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md b/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md
 --- a/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md
 +++ b/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,62 @@
 +{
 +  "approved": false,
-+  "summary": "The PR removes CreateBranchAsync and DeleteBranchAsync from the IGitHubClient surface and deletes their implementations from OctokitGitHubClient. The changes themselves are straightforward and align with the stated goal of removing dead code, but I cannot approve merging yet because required verification steps (build, tests, repo-wide usage search, and release/compatibility assessment) are not shown in the diff. Please run CI (dotnet build / dotnet test), ensure no remaining references exist, and document the change (or deprecate first if this is a published API).",
++  "summary": "The PR removes CreateBranchAsync and DeleteBranchAsync from the IGitHubClient interface and deletes their implementations from OctokitGitHubClient. The changes are appropriate for eliminating dead code, and because the interface is internal the risk of breaking external consumers is reduced. However, I cannot approve merging yet because there is no evidence of CI/build/test verification, no repo-wide search/report showing zero remaining references, and no note about release/compatibility considerations. Please run a full build and test, perform a repo-wide search for the removed symbols, and document the change (or deprecate first if this is a published API).",
 +  "findings": [
 +    {
 +      "severity": "MAJOR",
 +      "category": "BUILD_AND_TEST_VERIFICATION",
-+      "message": "No evidence in the PR that a full build and test run were executed after removing the interface members and implementations. Removing methods from an interface can produce compilation errors if callers or implementations reference them; a full 'dotnet build' and 'dotnet test' must be run and the results attached to the PR before merging.",
++      "message": "No CI/build/test output is attached to the PR. Removing interface members and implementations can introduce compile or test failures if callers, mocks, or tests reference them. Run 'dotnet build' and the full test suite (dotnet test / xUnit) and attach the results before merging.",
 +      "file": null,
 +      "line": null
 +    },
 +    {
 +      "severity": "MAJOR",
-+      "category": "POTENTIAL_BREAKING_CHANGE",
-+      "message": "Removing methods from a shared contract can be a breaking change for consumers. The interface here is declared as internal, which typically limits impact to the assembly, but you must verify whether IGitHubClient is consumed outside the assembly (e.g., via InternalsVisibleTo or if the assembly is packaged/published). If it is part of a published API/nuget, follow a deprecation strategy or plan a major version bump.",
-+      "file": "src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs",
-+      "line": 1
-+    },
-+    {
-+      "severity": "MAJOR",
 +      "category": "COMPILATION_IMPACT",
-+      "message": "Implementations of IGitHubClient (including any test doubles/mocks or partner implementations) may have explicitly implemented the removed methods or unit tests may reference them. Confirm there are no remaining compile-time references. The Octokit implementation removal starts at approximately line 244 in OctokitGitHubClient.cs; ensure no other types rely on these members.",
++      "message": "Removal of interface members requires verifying that all implementations, test doubles, and any reflection-based code do not reference the deleted members. Ensure there are no remaining compile-time references (calls, explicit interface implementations, or mock setups).",
 +      "file": "src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs",
 +      "line": 244
 +    },
 +    {
++      "severity": "MAJOR",
++      "category": "POTENTIAL_BREAKING_CHANGE",
++      "message": "IGitHubClient is declared internal in the repo, which reduces the risk of breaking external consumers. However, confirm that the assembly is not packaged/published or referenced externally (e.g., via InternalsVisibleTo, internal test projects, or a NuGet package). If the interface is part of a public package, follow a deprecation plan or schedule a major-version bump.",
++      "file": "src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs",
++      "line": 1
++    },
++    {
 +      "severity": "MINOR",
 +      "category": "TESTS",
-+      "message": "The PR does not show tests being updated or removed. Search the test suite for 'CreateBranchAsync' and 'DeleteBranchAsync' and remove or update any tests that reference them. Ensure unit/integration tests continue to pass and add a CI run result to the PR.",
++      "message": "The diff doesn't show updates to tests beyond the code changes. Search the tests/ tree for 'CreateBranchAsync' and 'DeleteBranchAsync' and remove or update any references. Also ensure mock setups (Moq) and test fixtures were updated accordingly.",
 +      "file": "tests/",
 +      "line": null
 +    },
 +    {
 +      "severity": "MINOR",
 +      "category": "DOCUMENTATION",
-+      "message": "Update any public docs, CHANGELOG, or READMEs that mention the removed methods. If the methods were exposed in docs or samples, add a migration note explaining the removal and the recommended workflow (RepoGit.EnsureBranch / CommitAndPush).",
-+      "file": null,
-+      "line": null
-+    },
-+    {
-+      "severity": "MINOR",
-+      "category": "SECURITY",
-+      "message": "No direct security issues were introduced by removing these methods. However, verify that any authorization/audit expectations previously associated with branch creation/deletion (if any) are preserved in the remaining flows so callers don't implement insecure workarounds.",
++      "message": "Update any developer docs, README, or changelog entries to reflect the removal of these methods. If consumers exist, add migration guidance (e.g., use RepoGit.EnsureBranch and CommitAndPush instead).",
 +      "file": null,
 +      "line": null
 +    },
 +    {
 +      "severity": "MINOR",
 +      "category": "CLEANUP",
-+      "message": "If there are now orphaned helper methods or unused usings related to the branch API, please remove them to keep the codebase clean. Also run an automated repo-wide text search to ensure no stray references remain in examples or infrastructure code.",
++      "message": "Run a repository-wide text search to ensure there are no stray references to the removed methods and remove any now-orphaned helper code or unused using directives introduced by the change.",
++      "file": null,
++      "line": null
++    },
++    {
++      "severity": "MINOR",
++      "category": "REPO_CONTENT_REVIEW",
++      "message": "This PR adds a large number of 'orchestrator/prompts' files (various attempts/responses). Confirm those files are intended to be part of this change and not accidentally committed generated prompt artifacts.",
++      "file": "orchestrator/prompts/",
++      "line": null
++    },
++    {
++      "severity": "MINOR",
++      "category": "SECURITY",
++      "message": "No direct security issue is apparent from removing these methods. Verify any audit/authorization expectations previously handled by the deleted API methods are preserved in the remaining flows so callers don't implement insecure workarounds.",
 +      "file": null,
 +      "line": null
 +    }
