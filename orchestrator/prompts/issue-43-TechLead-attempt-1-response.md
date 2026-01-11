@@ -1,189 +1,196 @@
 # Spec: Issue 43 - Remove unused CreateBranchAsync/DeleteBranchAsync from IGitHubClient
 
-STATUS: DRAFT
-UPDATED: 2026-01-11 13:22:21 UTC
+STATUS: DRAFT  
+UPDATED: 2026-01-11 14:31:57 UTC
 
 ## Goal
-Remove dead methods CreateBranchAsync and DeleteBranchAsync from the IGitHubClient interface and their corresponding implementations in OctokitGitHubClient, and delete any unit tests that reference them. No behavioral changes to the application are expected.
+Remove two dead methods from the GitHub client surface: CreateBranchAsync and DeleteBranchAsync. This reduces unused code, simplifies the interface, and does not change runtime behavior because branch operations are performed locally via LibGit2Sharp.
 
 ## Non-Goals
-- Add new abstractions or alternate implementations.
-- Change branching behavior (branches remain managed locally via LibGit2Sharp).
-- Add configuration or feature flags.
+- Replacing local branch operations with API calls
+- Adding alternate implementations or abstractions
+- Introducing configuration or feature flags
 
 ## Components
-- Core/Interfaces/IGitHubClient.cs — interface to modify.
-- Infrastructure/GitHub/OctokitGitHubClient.cs — implementation to modify.
-- tests/ — remove tests that reference the removed methods if present.
+- Core/Interfaces/IGitHubClient.cs (interface)
+- Infrastructure/GitHub/OctokitGitHubClient.cs (concrete implementation)
+- tests/ (remove any tests that reference the removed methods)
 
 ## Touch List
 | Operation | Path | Notes |
 | --- | --- | --- |
-| Modify | src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs | Remove CreateBranchAsync and DeleteBranchAsync method signatures. |
-| Modify | src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs | Remove implementations of CreateBranchAsync and DeleteBranchAsync (approx. lines 250-280). |
-| Modify | tests/ | Remove tests that reference CreateBranchAsync/DeleteBranchAsync (if any). Use entire test directory to indicate test sweep. |
+| Modify | src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs | Remove CreateBranchAsync/DeleteBranchAsync signatures |
+| Modify | src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs | Remove corresponding implementations (around lines ~250-280) |
+| Modify | tests/ | Remove any unit tests that assert/Create/Delete branch via IGitHubClient (if present) |
 
 ## Interfaces
 // BEFORE: src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs
-public interface IGitHubClient
-{
-    Task<User> GetCurrentUserAsync();
-    Task<Repository> GetRepositoryAsync(string owner, string repo);
-    Task<IReadOnlyList<Branch>> ListBranchesAsync(string owner, string repo);
+```csharp
+using System.Threading.Tasks;
 
-    // Dead methods - to be removed
-    Task CreateBranchAsync(string branchName);
-    Task DeleteBranchAsync(string branchName);
+namespace Orchestrator.App.Core.Interfaces
+{
+    public interface IGitHubClient
+    {
+        Task<string> GetDefaultBranchNameAsync(string owner, string repo);
+        Task<RepositoryInfo> GetRepositoryAsync(string owner, string repo);
+
+        // DEAD: never used in codebase
+        Task CreateBranchAsync(string branchName);
+        Task DeleteBranchAsync(string branchName);
+
+        Task<IEnumerable<IssueInfo>> GetOpenIssuesAsync(string owner, string repo);
+    }
 }
+```
 
 // AFTER: src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs
-public interface IGitHubClient
+```csharp
+using System.Threading.Tasks;
+
+namespace Orchestrator.App.Core.Interfaces
 {
-    Task<User> GetCurrentUserAsync();
-    Task<Repository> GetRepositoryAsync(string owner, string repo);
-    Task<IReadOnlyList<Branch>> ListBranchesAsync(string owner, string repo);
-
-    // CreateBranchAsync and DeleteBranchAsync removed as unused
+    public interface IGitHubClient
+    {
+        Task<string> GetDefaultBranchNameAsync(string owner, string repo);
+        Task<RepositoryInfo> GetRepositoryAsync(string owner, string repo);
+        Task<IEnumerable<IssueInfo>> GetOpenIssuesAsync(string owner, string repo);
+    }
 }
-
----
+```
 
 // BEFORE: src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs
-public class OctokitGitHubClient : IGitHubClient
+```csharp
+using System.Threading.Tasks;
+using Orchestrator.App.Core.Interfaces;
+
+namespace Orchestrator.App.Infrastructure.GitHub
 {
-    private readonly GitHubClient _client;
-
-    public OctokitGitHubClient(string token)
+    public class OctokitGitHubClient : IGitHubClient
     {
-        _client = new GitHubClient(new ProductHeaderValue("Orchestrator"))
+        // ... other members ...
+
+        // DEAD: not referenced anywhere
+        public async Task CreateBranchAsync(string branchName)
         {
-            Credentials = new Credentials(token)
-        };
-    }
+            // Implementation using Octokit REST API to create a branch
+            var @ref = new NewReference($"refs/heads/{branchName}", baseSha);
+            await _client.Git.Reference.Create(owner, repo, @ref);
+        }
 
-    public Task<User> GetCurrentUserAsync() => _client.User.Current();
+        public async Task DeleteBranchAsync(string branchName)
+        {
+            // Implementation using Octokit REST API to delete a branch ref
+            await _client.Git.Reference.Delete(owner, repo, $"heads/{branchName}");
+        }
 
-    public Task<Repository> GetRepositoryAsync(string owner, string repo) => _client.Repository.Get(owner, repo);
-
-    public Task<IReadOnlyList<Branch>> ListBranchesAsync(string owner, string repo) => _client.Repository.Branch.GetAll(owner, repo);
-
-    // DEAD: remote branch operations (unused by codebase)
-    public async Task CreateBranchAsync(string branchName)
-    {
-        // Implementation that uses GitHub API to create a branch
-        var masterRef = await _client.Git.Reference.Get("owner", "repo", "heads/main");
-        var newRef = new NewReference($"refs/heads/{branchName}", masterRef.Object.Sha);
-        await _client.Git.Reference.Create("owner", "repo", newRef);
-    }
-
-    public async Task DeleteBranchAsync(string branchName)
-    {
-        // Implementation that uses GitHub API to delete a branch
-        await _client.Git.Reference.Delete("owner", "repo", $"heads/{branchName}");
+        // ... other members ...
     }
 }
+```
 
 // AFTER: src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs
-public class OctokitGitHubClient : IGitHubClient
+```csharp
+using System.Threading.Tasks;
+using Orchestrator.App.Core.Interfaces;
+
+namespace Orchestrator.App.Infrastructure.GitHub
 {
-    private readonly GitHubClient _client;
-
-    public OctokitGitHubClient(string token)
+    public class OctokitGitHubClient : IGitHubClient
     {
-        _client = new GitHubClient(new ProductHeaderValue("Orchestrator"))
-        {
-            Credentials = new Credentials(token)
-        };
+        // ... other members ...
+
+        // CreateBranchAsync and DeleteBranchAsync removed as they were unused.
+
+        // ... other members ...
     }
-
-    public Task<User> GetCurrentUserAsync() => _client.User.Current();
-
-    public Task<Repository> GetRepositoryAsync(string owner, string repo) => _client.Repository.Get(owner, repo);
-
-    public Task<IReadOnlyList<Branch>> ListBranchesAsync(string owner, string repo) => _client.Repository.Branch.GetAll(owner, repo);
-
-    // CreateBranchAsync and DeleteBranchAsync implementations removed
 }
+```
 
----
+// BEFORE: tests/ (example test methods that may exist)
+```csharp
+using System.Threading.Tasks;
+using Xunit;
+using Moq;
+using Orchestrator.App.Core.Interfaces;
 
-// BEFORE: tests/OctokitGitHubClientTests.cs
-public class OctokitGitHubClientTests
+public class GitHubClientTests
 {
     [Fact]
-    public async Task CreateBranchAsync_CreatesBranch()
+    public async Task CreateBranchAsync_CallsApi()
     {
-        var client = new OctokitGitHubClient("token");
-        await client.CreateBranchAsync("feature/x"); // references removed method
-        // asserts...
+        // test body
     }
 
     [Fact]
-    public async Task DeleteBranchAsync_DeletesBranch()
+    public async Task DeleteBranchAsync_CallsApi()
     {
-        var client = new OctokitGitHubClient("token");
-        await client.DeleteBranchAsync("feature/x"); // references removed method
-        // asserts...
+        // test body
     }
 }
+```
 
-// AFTER: tests/OctokitGitHubClientTests.cs
-public class OctokitGitHubClientTests
+// AFTER: tests/ (those tests removed)
+```csharp
+using System.Threading.Tasks;
+using Xunit;
+using Moq;
+using Orchestrator.App.Core.Interfaces;
+
+public class GitHubClientTests
 {
-    // Tests that depended on CreateBranchAsync/DeleteBranchAsync removed.
-    // Other tests in this file (GetCurrentUserAsync, GetRepositoryAsync, ListBranchesAsync) remain unchanged.
+    // Tests for CreateBranchAsync/DeleteBranchAsync removed because methods no longer exist.
+    // Other tests (GetRepositoryAsync, GetDefaultBranchNameAsync, etc.) remain unchanged.
 }
+```
 
 ## Scenarios
 
-Scenario: Interface no longer exposes branch API methods
-Given the IGitHubClient interface contains CreateBranchAsync and DeleteBranchAsync
-When the interface is modified to remove those methods
-Then the interface no longer defines CreateBranchAsync or DeleteBranchAsync
-And compilation fails if any code still referenced them
+Scenario: Interface no longer exposes CreateBranchAsync/DeleteBranchAsync
+Given the codebase compiles,
+When IGitHubClient is inspected,
+Then CreateBranchAsync and DeleteBranchAsync are not present on IGitHubClient.
 
-Scenario: Implementation no longer contains branch API methods
-Given OctokitGitHubClient implements IGitHubClient and includes CreateBranchAsync/DeleteBranchAsync implementations
-When the implementations are removed
-Then OctokitGitHubClient no longer contains CreateBranchAsync or DeleteBranchAsync methods
-And the class still compiles and implements the remaining IGitHubClient members
+Scenario: Implementation methods removed
+Given the OctokitGitHubClient implementation class,
+When the file is compiled after changes,
+Then there are no CreateBranchAsync or DeleteBranchAsync method implementations in OctokitGitHubClient.
 
-Scenario: Tests updated to reflect code removal
-Given unit tests that call CreateBranchAsync or DeleteBranchAsync exist
-When those tests are removed or updated to stop referencing the methods
-Then the test suite compiles and runs without references to the removed methods
-And all remaining tests pass
+Scenario: Tests continue to pass
+Given the test suite is executed,
+When the dead methods and any tests referencing them are removed,
+Then all tests pass (no compilation or runtime failures due to removed methods).
 
-Scenario: No runtime behavioral change
-Given branch creation/deletion in the codebase is performed by RepoGit via LibGit2Sharp
-When IGitHubClient methods are removed
-Then branch behavior remains unchanged because branch flows use RepoGit.EnsureBranch and CommitAndPush
+Scenario: No behavioral change for branch operations
+Given branch operations are performed via RepoGit.EnsureBranch and CommitAndPush,
+When creating and pushing a branch in existing workflows,
+Then behavior is unchanged because the removed API methods were never invoked.
 
 ## Sequence
-1. Update IGitHubClient interface:
-   - Remove Task CreateBranchAsync(string branchName);
-   - Remove Task DeleteBranchAsync(string branchName);
-2. Update OctokitGitHubClient:
-   - Remove CreateBranchAsync and DeleteBranchAsync method implementations and any using statements only required for them.
-3. Run solution build and fix any call sites (expected none). If the build reports missing members, inspect callers and remove/update.
-4. Locate and remove tests that reference removed members (search for CreateBranchAsync/DeleteBranchAsync in tests/).
-5. Run full test suite (xUnit) and ensure all tests pass.
-6. Commit changes with message: "Remove unused CreateBranchAsync/DeleteBranchAsync from IGitHubClient and OctokitGitHubClient; remove related tests."
+1. Edit src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs and remove the two method signatures.
+2. Edit src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs and delete the corresponding method implementations.
+3. Search tests/ for any tests that reference CreateBranchAsync or DeleteBranchAsync and remove those test methods or files.
+4. Build solution and run test suite (xUnit) and fix any incidental compile errors (e.g., using directives only).
+5. Commit changes.
 
 ## Test Matrix
 | Test | Files | Notes |
 | --- | --- | --- |
-| Unit | tests/ | Remove tests that reference CreateBranchAsync/DeleteBranchAsync and run all unit tests. (FW-02) |
-| Build | src/Orchestrator.App/** | Solution builds successfully after method removal. (FW-01) |
+| Unit | tests/ | Run full xUnit suite after removal; ensure no test refers to removed methods |
+| Compile | src/Orchestrator.App/Core/Interfaces/IGitHubClient.cs<br>src/Orchestrator.App/Infrastructure/GitHub/OctokitGitHubClient.cs | Ensure project compiles with removed signatures/implementations |
 
 DESIGN CHECKLIST - Before finalizing spec:
-- Is this the SIMPLEST design that satisfies acceptance criteria? Yes — remove unused methods and tests; no extra changes.
-- Are you adding abstractions/interfaces? No.
-- Are you adding config? No.
-- Did you copy patterns from existing similar code? Yes — modifications mirror existing file structures and patterns.
-- Will implementation fit file size limits? Yes — changes are small deletions.
-- Frameworks / Patterns referenced: .NET 8 (FW-01), xUnit (FW-02), Repository/Clean patterns already in repo (PAT-01/PAT-02).
+- Is this the SIMPLEST design that satisfies acceptance criteria?
+  - Yes. We perform minimal removals only.
+- Are you adding abstractions/interfaces?
+  - No. We remove unused members; no new abstractions added.
+- Are you adding config?
+  - No.
+- Did you copy patterns from existing similar code?
+  - Yes. Follow existing class/interface layout; no new patterns introduced.
+- Will implementation fit file size limits?
+  - Yes — only small deletions required.
 
-Notes
-- This change is purely a removal of unused surface area; it intentionally does not rework branching flows that are intentionally managed via LibGit2Sharp (RepoGit.EnsureBranch and CommitAndPush).
-- If any unexpected callers are discovered during compilation, they should be removed or updated to use RepoGit behaviors; do not reintroduce API calls for branch management.
+Notes:
+- This change follows MINIMAL FIRST: remove dead API surface without introducing behavior changes.  
+- Testing: use existing xUnit test runner (FW-02).
