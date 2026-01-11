@@ -5,7 +5,8 @@ using System.Threading.Tasks;
 namespace Orchestrator.App.Utilities;
 
 /// <summary>
-/// Helper for file operations that uses MCP if available, otherwise falls back to Workspace.
+/// Helper for file operations using direct filesystem access via IRepoWorkspace.
+/// Simplified to use System.IO directly (no MCP fallback needed).
 /// </summary>
 internal static class FileOperationHelper
 {
@@ -18,91 +19,35 @@ internal static class FileOperationHelper
     }
 
     /// <summary>
-    /// Checks if a file exists using MCP if available, otherwise Workspace.
-    /// Falls back to Workspace if MCP fails.
+    /// Checks if a file exists.
     /// </summary>
-    public static async Task<bool> ExistsAsync(WorkContext ctx, string path)
+    public static Task<bool> ExistsAsync(WorkContext ctx, string path)
     {
         EnsureSafeRelativePath(path);
-        if (ctx.McpFiles != null)
-        {
-            try
-            {
-                return await ctx.McpFiles.ExistsAsync(path);
-            }
-            catch (Exception ex)
-            {
-                Logger.Debug($"[FileOp] MCP error checking existence of {path}, falling back to Workspace: {ex.Message}");
-                // Fallback to Workspace if MCP has any error
-            }
-        }
-        return ctx.Workspace.Exists(path);
+        return Task.FromResult(ctx.Workspace.Exists(path));
     }
 
     /// <summary>
-    /// Reads file content using MCP if available, otherwise Workspace.
-    /// Falls back to Workspace if MCP fails.
+    /// Reads file content.
     /// </summary>
-    public static async Task<string> ReadAllTextAsync(WorkContext ctx, string path)
+    public static Task<string> ReadAllTextAsync(WorkContext ctx, string path)
     {
         EnsureSafeRelativePath(path);
-        if (ctx.McpFiles != null)
-        {
-            try
-            {
-                return await ctx.McpFiles.ReadAllTextAsync(path);
-            }
-            catch (FileNotFoundException ex)
-            {
-                Logger.Debug($"[FileOp] MCP failed to read {path}, falling back to Workspace: {ex.Message}");
-                // Fallback to Workspace if MCP cannot find the file
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"[FileOp] MCP error reading {path}, falling back to Workspace: {ex.Message}");
-                // Fallback to Workspace if MCP has any other error
-            }
-        }
-        return ctx.Workspace.ReadAllText(path);
+        return Task.FromResult(ctx.Workspace.ReadAllText(path));
     }
 
     /// <summary>
-    /// Writes file content to both MCP and Workspace to ensure git operations see the changes.
+    /// Writes file content.
     /// </summary>
-    public static async Task WriteAllTextAsync(WorkContext ctx, string path, string content)
+    public static Task WriteAllTextAsync(WorkContext ctx, string path, string content)
     {
         EnsureSafeRelativePath(path);
 
-        // Always write to Workspace first (git operates on this)
-        Logger.Debug($"[FileOp] Writing {content.Length} bytes to Workspace: {path}");
+        Logger.Debug($"[FileOp] Writing {content.Length} bytes to: {path}");
         ctx.Workspace.WriteAllText(path, content);
-        Logger.Debug($"[FileOp] Workspace write completed for: {path}");
+        Logger.Debug($"[FileOp] Write completed for: {path}");
 
-        // Verify the write succeeded by reading it back
-        var verifyContent = ctx.Workspace.ReadAllText(path);
-        if (verifyContent.Length != content.Length)
-        {
-            Logger.Warning($"[FileOp] Workspace write verification FAILED for {path}: wrote {content.Length} bytes but read back {verifyContent.Length} bytes");
-        }
-        else
-        {
-            Logger.Debug($"[FileOp] Workspace write verified for {path}: {verifyContent.Length} bytes");
-        }
-
-        // Also try to write to MCP if available (keep MCP in sync)
-        if (ctx.McpFiles != null)
-        {
-            try
-            {
-                await ctx.McpFiles.WriteAllTextAsync(path, content);
-                Logger.Debug($"[FileOp] MCP write succeeded for: {path}");
-            }
-            catch (Exception ex)
-            {
-                Logger.Debug($"[FileOp] MCP write failed for {path}, but Workspace write succeeded: {ex.Message}");
-                // Continue - Workspace write succeeded which is what matters for git
-            }
-        }
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -123,43 +68,30 @@ internal static class FileOperationHelper
         }
         catch (FileNotFoundException ex)
         {
-            // File was deleted between ExistsAsync and ReadAllTextAsync, or permission issue
-            Logger.Debug($"[FileOp] File not found during read (race condition or permissions): {path} - {ex.Message}");
+            Logger.Debug($"[FileOp] File not found: {path} - {ex.Message}");
             return null;
         }
         catch (UnauthorizedAccessException ex)
         {
-            // Permission denied
             Logger.Debug($"[FileOp] Access denied reading file: {path} - {ex.Message}");
             return null;
         }
     }
 
     /// <summary>
-    /// Deletes a file using MCP if available, otherwise Workspace.
-    /// Falls back to Workspace if MCP fails.
+    /// Deletes a file.
     /// </summary>
-    public static async Task DeleteAsync(WorkContext ctx, string path)
+    public static Task DeleteAsync(WorkContext ctx, string path)
     {
         EnsureSafeRelativePath(path);
-        if (ctx.McpFiles != null)
-        {
-            try
-            {
-                await ctx.McpFiles.DeleteAsync(path);
-                return;
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"[FileOp] MCP error deleting {path}, falling back to Workspace: {ex.Message}");
-                // Fallback to Workspace if MCP has any error
-            }
-        }
 
         var fullPath = ctx.Workspace.ResolvePath(path);
         if (File.Exists(fullPath))
         {
+            Logger.Debug($"[FileOp] Deleting file: {path}");
             File.Delete(fullPath);
         }
+
+        return Task.CompletedTask;
     }
 }

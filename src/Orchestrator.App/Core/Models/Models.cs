@@ -13,11 +13,6 @@ internal sealed record WorkContext(
     McpClientManager? Mcp = null,
     System.Collections.Concurrent.ConcurrentDictionary<string, string>? SharedState = null)
 {
-    /// <summary>
-    /// Gets MCP-based file operations. Returns null if MCP is not available.
-    /// </summary>
-    public McpFileOperations? McpFiles => Mcp != null ? new McpFileOperations(Mcp) : null;
-
     public System.Collections.Concurrent.ConcurrentDictionary<string, string> State { get; } = SharedState ?? new();
 };
 

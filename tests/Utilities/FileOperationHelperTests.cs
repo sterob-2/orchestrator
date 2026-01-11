@@ -1,6 +1,4 @@
 using System.Threading.Tasks;
-using Moq;
-using Orchestrator.App;
 using Orchestrator.App.Tests.TestHelpers;
 using Orchestrator.App.Utilities;
 using Xunit;
@@ -10,30 +8,14 @@ namespace Orchestrator.App.Tests.Utilities;
 public class FileOperationHelperTests
 {
     [Fact]
-    public async Task ExistsAsync_WithMcp_UsesMcpFiles()
-    {
-        var mockMcp = new Mock<McpClientManager>();
-        mockMcp.Setup(m => m.CallToolAsync("get_file_info", It.IsAny<System.Collections.Generic.IDictionary<string, object?>>()))
-            .ReturnsAsync("file info");
-
-        var ctx = MockWorkContext.Create();
-        var ctxWithMcp = ctx with { Mcp = mockMcp.Object };
-
-        var result = await FileOperationHelper.ExistsAsync(ctxWithMcp, "test.txt");
-
-        Assert.True(result);
-    }
-
-    [Fact]
-    public async Task ExistsAsync_WithoutMcp_UsesWorkspace()
+    public async Task ExistsAsync_FileExists_ReturnsTrue()
     {
         var workspace = MockWorkContext.CreateWorkspace();
         System.IO.File.WriteAllText(System.IO.Path.Combine(workspace.Root, "test.txt"), "content");
 
         var ctx = MockWorkContext.Create(workspace: workspace);
-        var ctxWithoutMcp = ctx with { Mcp = null };
 
-        var result = await FileOperationHelper.ExistsAsync(ctxWithoutMcp, "test.txt");
+        var result = await FileOperationHelper.ExistsAsync(ctx, "test.txt");
 
         Assert.True(result);
 
@@ -42,31 +24,29 @@ public class FileOperationHelperTests
     }
 
     [Fact]
-    public async Task ReadAllTextAsync_WithMcp_UsesMcpFiles()
+    public async Task ExistsAsync_FileDoesNotExist_ReturnsFalse()
     {
-        var mockMcp = new Mock<McpClientManager>();
-        mockMcp.Setup(m => m.CallToolAsync("read_file", It.IsAny<System.Collections.Generic.IDictionary<string, object?>>()))
-            .ReturnsAsync("file content from MCP");
+        var workspace = MockWorkContext.CreateWorkspace();
+        var ctx = MockWorkContext.Create(workspace: workspace);
 
-        var ctx = MockWorkContext.Create();
-        var ctxWithMcp = ctx with { Mcp = mockMcp.Object };
+        var result = await FileOperationHelper.ExistsAsync(ctx, "nonexistent.txt");
 
-        var result = await FileOperationHelper.ReadAllTextAsync(ctxWithMcp, "test.txt");
+        Assert.False(result);
 
-        Assert.Equal("file content from MCP", result);
+        // Cleanup
+        System.IO.Directory.Delete(workspace.Root, true);
     }
 
     [Fact]
-    public async Task ReadAllTextAsync_WithoutMcp_UsesWorkspace()
+    public async Task ReadAllTextAsync_ReadsContent()
     {
         var workspace = MockWorkContext.CreateWorkspace();
         var filePath = System.IO.Path.Combine(workspace.Root, "test.txt");
         System.IO.File.WriteAllText(filePath, "workspace content");
 
         var ctx = MockWorkContext.Create(workspace: workspace);
-        var ctxWithoutMcp = ctx with { Mcp = null };
 
-        var result = await FileOperationHelper.ReadAllTextAsync(ctxWithoutMcp, "test.txt");
+        var result = await FileOperationHelper.ReadAllTextAsync(ctx, "test.txt");
 
         Assert.Equal("workspace content", result);
 
@@ -75,32 +55,12 @@ public class FileOperationHelperTests
     }
 
     [Fact]
-    public async Task WriteAllTextAsync_WithMcp_UsesMcpFiles()
-    {
-        var mockMcp = new Mock<McpClientManager>();
-        mockMcp.Setup(m => m.CallToolAsync("write_file", It.IsAny<System.Collections.Generic.IDictionary<string, object?>>()))
-            .ReturnsAsync(string.Empty);
-
-        var ctx = MockWorkContext.Create();
-        var ctxWithMcp = ctx with { Mcp = mockMcp.Object };
-
-        await FileOperationHelper.WriteAllTextAsync(ctxWithMcp, "test.txt", "new content");
-
-        mockMcp.Verify(m => m.CallToolAsync("write_file",
-            It.Is<System.Collections.Generic.IDictionary<string, object?>>(d =>
-                d["path"]!.ToString() == "test.txt" &&
-                d["content"]!.ToString() == "new content")),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task WriteAllTextAsync_WithoutMcp_UsesWorkspace()
+    public async Task WriteAllTextAsync_WritesContent()
     {
         var workspace = MockWorkContext.CreateWorkspace();
         var ctx = MockWorkContext.Create(workspace: workspace);
-        var ctxWithoutMcp = ctx with { Mcp = null };
 
-        await FileOperationHelper.WriteAllTextAsync(ctxWithoutMcp, "test.txt", "workspace write");
+        await FileOperationHelper.WriteAllTextAsync(ctx, "test.txt", "workspace write");
 
         var written = workspace.ReadAllText("test.txt");
         Assert.Equal("workspace write", written);
@@ -112,34 +72,48 @@ public class FileOperationHelperTests
     [Fact]
     public async Task ReadAllTextIfExistsAsync_FileExists_ReturnsContent()
     {
-        var mockMcp = new Mock<McpClientManager>();
-        mockMcp.Setup(m => m.CallToolAsync("get_file_info", It.IsAny<System.Collections.Generic.IDictionary<string, object?>>()))
-            .ReturnsAsync("file info");
-        mockMcp.Setup(m => m.CallToolAsync("read_file", It.IsAny<System.Collections.Generic.IDictionary<string, object?>>()))
-            .ReturnsAsync("file content");
+        var workspace = MockWorkContext.CreateWorkspace();
+        System.IO.File.WriteAllText(System.IO.Path.Combine(workspace.Root, "test.txt"), "file content");
 
-        var ctx = MockWorkContext.Create();
-        var ctxWithMcp = ctx with { Mcp = mockMcp.Object };
+        var ctx = MockWorkContext.Create(workspace: workspace);
 
-        var result = await FileOperationHelper.ReadAllTextIfExistsAsync(ctxWithMcp, "test.txt");
+        var result = await FileOperationHelper.ReadAllTextIfExistsAsync(ctx, "test.txt");
 
         Assert.NotNull(result);
         Assert.Equal("file content", result);
+
+        // Cleanup
+        System.IO.Directory.Delete(workspace.Root, true);
     }
 
     [Fact]
     public async Task ReadAllTextIfExistsAsync_FileDoesNotExist_ReturnsNull()
     {
-        var mockMcp = new Mock<McpClientManager>();
-        mockMcp.Setup(m => m.CallToolAsync("get_file_info", It.IsAny<System.Collections.Generic.IDictionary<string, object?>>()))
-            .ThrowsAsync(new System.InvalidOperationException("File not found"));
+        var workspace = MockWorkContext.CreateWorkspace();
+        var ctx = MockWorkContext.Create(workspace: workspace);
 
-        var ctx = MockWorkContext.Create();
-        var ctxWithMcp = ctx with { Mcp = mockMcp.Object };
-
-        var result = await FileOperationHelper.ReadAllTextIfExistsAsync(ctxWithMcp, "nonexistent.txt");
+        var result = await FileOperationHelper.ReadAllTextIfExistsAsync(ctx, "nonexistent.txt");
 
         Assert.Null(result);
+
+        // Cleanup
+        System.IO.Directory.Delete(workspace.Root, true);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_DeletesFile()
+    {
+        var workspace = MockWorkContext.CreateWorkspace();
+        System.IO.File.WriteAllText(System.IO.Path.Combine(workspace.Root, "test.txt"), "content");
+
+        var ctx = MockWorkContext.Create(workspace: workspace);
+
+        await FileOperationHelper.DeleteAsync(ctx, "test.txt");
+
+        Assert.False(workspace.Exists("test.txt"));
+
+        // Cleanup
+        System.IO.Directory.Delete(workspace.Root, true);
     }
 
     [Fact]

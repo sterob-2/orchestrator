@@ -145,27 +145,4 @@ public class ModelsTests
         Assert.Equal(WorkflowStage.Dev, output.NextStage);
     }
 
-    [Fact]
-    public void WorkContext_McpFiles_WithMcp_ReturnsOperationsInstance()
-    {
-        var item = new WorkItem(1, "Title", "Body", "https://example.com", new List<string>());
-        var config = OrchestratorConfig.FromEnvironment();
-        var mockMcp = new Mock<McpClientManager>();
-
-        var context = new WorkContext(item, null!, config, null!, null!, null!, Mcp: mockMcp.Object);
-
-        Assert.NotNull(context.McpFiles);
-        Assert.IsType<McpFileOperations>(context.McpFiles);
-    }
-
-    [Fact]
-    public void WorkContext_McpFiles_WithoutMcp_ReturnsNull()
-    {
-        var item = new WorkItem(1, "Title", "Body", "https://example.com", new List<string>());
-        var config = OrchestratorConfig.FromEnvironment();
-
-        var context = new WorkContext(item, null!, config, null!, null!, null!, Mcp: null);
-
-        Assert.Null(context.McpFiles);
-    }
 }
