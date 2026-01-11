@@ -17,6 +17,7 @@ public class ContextBuilderExecutorTests
         var github = new Mock<IGitHubClient>();
         var workspace = new Mock<IRepoWorkspace>();
         var repo = new Mock<IRepoGit>();
+        repo.Setup(r => r.CleanWorkingTree());
         repo.Setup(r => r.EnsureBranch("issue-1", config.Workflow.DefaultBaseBranch));
         var llm = new Mock<ILlmClient>();
         var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
@@ -47,6 +48,7 @@ public class ContextBuilderExecutorTests
         var github = new Mock<IGitHubClient>();
         var workspace = new Mock<IRepoWorkspace>();
         var repo = new Mock<IRepoGit>();
+        repo.Setup(r => r.CleanWorkingTree());
         repo.Setup(r => r.EnsureBranch(It.IsAny<string>(), It.IsAny<string>()))
             .Throws(new LibGit2Sharp.LibGit2SharpException("Git error"));
         var llm = new Mock<ILlmClient>();
@@ -78,6 +80,7 @@ public class ContextBuilderExecutorTests
         var github = new Mock<IGitHubClient>();
         var workspace = new Mock<IRepoWorkspace>();
         var repo = new Mock<IRepoGit>();
+        repo.Setup(r => r.CleanWorkingTree());
         repo.Setup(r => r.EnsureBranch(It.IsAny<string>(), It.IsAny<string>()))
             .Throws(new System.IO.IOException("IO error"));
         var llm = new Mock<ILlmClient>();
@@ -109,6 +112,7 @@ public class ContextBuilderExecutorTests
         var github = new Mock<IGitHubClient>();
         var workspace = new Mock<IRepoWorkspace>();
         var repo = new Mock<IRepoGit>();
+        repo.Setup(r => r.CleanWorkingTree());
         repo.Setup(r => r.EnsureBranch("issue-1", config.Workflow.DefaultBaseBranch));
         var llm = new Mock<ILlmClient>();
         var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
@@ -138,6 +142,7 @@ public class ContextBuilderExecutorTests
         var github = new Mock<IGitHubClient>();
         var workspace = new Mock<IRepoWorkspace>();
         var repo = new Mock<IRepoGit>();
+        repo.Setup(r => r.CleanWorkingTree());
         repo.Setup(r => r.EnsureBranch(It.IsAny<string>(), It.IsAny<string>()))
             .Throws(new LibGit2Sharp.LibGit2SharpException("Git error"));
         var llm = new Mock<ILlmClient>();
@@ -168,6 +173,7 @@ public class ContextBuilderExecutorTests
         var github = new Mock<IGitHubClient>();
         var workspace = new Mock<IRepoWorkspace>();
         var repo = new Mock<IRepoGit>();
+        repo.Setup(r => r.CleanWorkingTree());
         repo.Setup(r => r.EnsureBranch("issue-1", config.Workflow.DefaultBaseBranch));
         var llm = new Mock<ILlmClient>();
         var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);

@@ -69,6 +69,17 @@ internal sealed class RepoGit : IRepoGit
         }
     }
 
+    public void CleanWorkingTree()
+    {
+        using var repo = new Repository(_root);
+
+        MoveUntrackedGeneratedFiles();
+
+        // Clean working tree - only called by ContextBuilder at workflow start
+        repo.Reset(ResetMode.Hard);
+        repo.RemoveUntrackedFiles();
+    }
+
     public void EnsureBranch(string branchName, string baseBranch)
     {
         using var repo = new Repository(_root);
@@ -88,10 +99,6 @@ internal sealed class RepoGit : IRepoGit
         }
 
         MoveUntrackedGeneratedFiles();
-
-        // Clean working tree before checkout to prevent conflicts
-        repo.Reset(ResetMode.Hard);
-        repo.RemoveUntrackedFiles();
 
         // Check if remote branch exists
         var remoteBranchName = $"origin/{branchName}";
@@ -125,7 +132,6 @@ internal sealed class RepoGit : IRepoGit
                 if (localBranch != null)
                 {
                     Commands.Checkout(repo, localBranch);
-                    repo.Reset(ResetMode.Hard, baseRef.Tip);
                 }
                 else
                 {

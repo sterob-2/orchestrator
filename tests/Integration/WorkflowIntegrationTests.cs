@@ -442,6 +442,10 @@ Missing required sections.
 
         public bool IsGitRepo() => true;
 
+        public void CleanWorkingTree()
+        {
+        }
+
         public void EnsureBranch(string branchName, string baseBranch)
         {
         }
