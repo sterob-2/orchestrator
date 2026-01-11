@@ -55,7 +55,6 @@ internal sealed class DevExecutor : WorkflowStageExecutor
             if (!WorkItemParsers.IsSafeRelativePath(entry.Path))
             {
                 Logger.Warning($"[Dev] Unsafe path detected: {entry.Path}");
-                CommitDebugFiles(branchName, input.WorkItem.Number);
                 return (false, $"Dev blocked: unsafe path {entry.Path}.");
             }
 
@@ -133,7 +132,6 @@ internal sealed class DevExecutor : WorkflowStageExecutor
                     if (string.IsNullOrWhiteSpace(updated))
                     {
                         Logger.Warning($"[Dev] Empty LLM output for: {entry.Path}");
-                        CommitDebugFiles(branchName, input.WorkItem.Number);
                         return (false, $"Dev blocked: empty output for {entry.Path}.");
                     }
 
@@ -144,7 +142,6 @@ internal sealed class DevExecutor : WorkflowStageExecutor
                         {
                             Logger.Warning($"[Dev] LLM returned unchanged file for: {entry.Path}");
                             Logger.Warning($"[Dev] Expected: Code removal/modification, Got: Identical content");
-                            CommitDebugFiles(branchName, input.WorkItem.Number);
                             return (false, $"Dev blocked: LLM did not modify {entry.Path} as instructed. File content unchanged.");
                         }
                     }
@@ -180,13 +177,6 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         {
             await FileOperationHelper.WriteAllTextAsync(WorkContext, specPath, updatedSpec);
             changedFiles.Add(specPath);
-        }
-
-        // Include debug files in the commit if any were generated
-        if (GeneratedDebugFiles.Count > 0)
-        {
-            Logger.Debug($"[Dev] Including {GeneratedDebugFiles.Count} debug file(s) in commit");
-            changedFiles.AddRange(GeneratedDebugFiles);
         }
 
         Logger.Info($"[Dev] Processed {changedFiles.Count} file(s)");
@@ -229,14 +219,5 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         }
 
         return "minimal";
-    }
-
-    private void CommitDebugFiles(string branchName, int issueNumber)
-    {
-        if (GeneratedDebugFiles.Count > 0)
-        {
-            Logger.Info($"[Dev] Committing {GeneratedDebugFiles.Count} debug file(s) despite failure");
-            WorkContext.Repo.CommitAndPush(branchName, $"debug: prompt logs for failed dev attempt on issue #{issueNumber}", GeneratedDebugFiles);
-        }
     }
 }

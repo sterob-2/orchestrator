@@ -19,7 +19,6 @@ internal abstract class WorkflowStageExecutor : Executor<WorkflowInput, Workflow
     private readonly WorkflowConfig _workflowConfig;
     protected WorkContext WorkContext { get; }
     protected int CurrentAttempt { get; private set; }
-    protected List<string> GeneratedDebugFiles { get; } = new();
 
     protected WorkflowStageExecutor(string id, WorkContext workContext, WorkflowConfig workflowConfig) : base(id)
     {
@@ -91,7 +90,17 @@ internal abstract class WorkflowStageExecutor : Executor<WorkflowInput, Workflow
             var debugPath = $"orchestrator/debug/issue-{WorkContext.WorkItem.Number}-{Stage}-attempt-{CurrentAttempt}-prompt.md";
             var debugContent = $"# System Prompt\n\n{systemPrompt}\n\n# User Prompt\n\n{userPrompt}";
             WorkContext.Workspace.WriteAllText(debugPath, debugContent);
-            GeneratedDebugFiles.Add(debugPath);
+
+            try
+            {
+                var branchName = WorkItemBranch.BuildBranchName(WorkContext.WorkItem);
+                WorkContext.Repo.CommitAndPush(branchName, $"debug: prompt for {Stage} attempt {CurrentAttempt}", new[] { debugPath });
+            }
+            catch (Exception ex)
+            {
+                // Swallow error to not fail workflow if debug commit fails
+                System.Console.WriteLine($"[WARN] Failed to commit debug file: {ex.Message}");
+            }
         }
 
         var stopwatch = Stopwatch.StartNew();
