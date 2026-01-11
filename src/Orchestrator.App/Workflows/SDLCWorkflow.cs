@@ -9,14 +9,6 @@ namespace Orchestrator.App.Workflows;
 internal static class SDLCWorkflow
 {
     /// <summary>
-    /// Creates a single-stage workflow for the requested stage.
-    /// </summary>
-    public static Workflow BuildStageWorkflow(WorkflowStage stage, WorkContext workContext)
-    {
-        return WorkflowFactory.Build(stage, workContext);
-    }
-
-    /// <summary>
     /// Executes the workflow for a given work item
     /// </summary>
     public static async Task<WorkflowOutput?> RunWorkflowAsync(
@@ -54,6 +46,9 @@ internal static class SDLCWorkflow
                                 Logger.WriteLine($"   Next Stage: {output.NextStage}");
                             }
                         }
+                        break;
+                    default:
+                        Logger.WriteLine($"[Workflow] Unhandled event: {evt.GetType().Name}");
                         break;
                 }
             }

@@ -82,7 +82,14 @@ internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
 
         var reviewMarkdown = BuildReviewMarkdown(finalResult);
         await FileOperationHelper.WriteAllTextAsync(WorkContext, finalResult.ReviewPath, reviewMarkdown);
-        await WorkContext.GitHub.CommentOnWorkItemAsync(prNumber.Value, reviewMarkdown);
+        try
+        {
+            await WorkContext.GitHub.CommentOnWorkItemAsync(prNumber.Value, reviewMarkdown);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning($"[CodeReview] Failed to post comment on PR #{prNumber}: {ex.Message}");
+        }
 
         var serializedResult = WorkflowJson.Serialize(finalResult);
         await context.QueueStateUpdateAsync(WorkflowStateKeys.CodeReviewResult, serializedResult, cancellationToken);
