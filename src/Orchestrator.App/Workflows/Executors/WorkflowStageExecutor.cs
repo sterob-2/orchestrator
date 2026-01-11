@@ -87,7 +87,7 @@ internal abstract class WorkflowStageExecutor : Executor<WorkflowInput, Workflow
     {
         if (WorkContext.Config.Debug)
         {
-            var debugPath = $"orchestrator/debug/issue-{WorkContext.WorkItem.Number}-{Stage}-attempt-{CurrentAttempt}-prompt.md";
+            var debugPath = $"orchestrator/prompts/issue-{WorkContext.WorkItem.Number}-{Stage}-attempt-{CurrentAttempt}.md";
             var debugContent = $"# System Prompt\n\n{systemPrompt}\n\n# User Prompt\n\n{userPrompt}";
             WorkContext.Workspace.WriteAllText(debugPath, debugContent);
 
