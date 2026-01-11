@@ -179,6 +179,13 @@ internal sealed class DevExecutor : WorkflowStageExecutor
             changedFiles.Add(specPath);
         }
 
+        // Include debug files in the commit if any were generated
+        if (GeneratedDebugFiles.Count > 0)
+        {
+            Logger.Debug($"[Dev] Including {GeneratedDebugFiles.Count} debug file(s) in commit");
+            changedFiles.AddRange(GeneratedDebugFiles);
+        }
+
         Logger.Info($"[Dev] Processed {changedFiles.Count} file(s)");
 
         Logger.Debug($"[Dev] Committing and pushing {changedFiles.Count} changed file(s)");

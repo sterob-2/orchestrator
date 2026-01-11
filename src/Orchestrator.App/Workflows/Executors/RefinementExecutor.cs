@@ -62,8 +62,14 @@ internal sealed class RefinementExecutor : WorkflowStageExecutor
                                    $"- {refinement.AcceptanceCriteria.Count} acceptance criteria\n" +
                                    $"- {refinement.OpenQuestions.Count} open questions";
 
-                Logger.Debug($"[Refinement] Committing {refinementPath} to branch '{branchName}'");
-                var committed = WorkContext.Repo.CommitAndPush(branchName, commitMessage, new[] { refinementPath });
+                var filesToCommit = new List<string> { refinementPath };
+                if (GeneratedDebugFiles.Count > 0)
+                {
+                    filesToCommit.AddRange(GeneratedDebugFiles);
+                }
+
+                Logger.Debug($"[Refinement] Committing {filesToCommit.Count} file(s) to branch '{branchName}'");
+                var committed = WorkContext.Repo.CommitAndPush(branchName, commitMessage, filesToCommit);
 
                 if (committed)
                 {
