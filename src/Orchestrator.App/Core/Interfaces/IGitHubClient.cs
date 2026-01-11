@@ -28,10 +28,6 @@ internal interface IGitHubClient
     [ExcludeFromCodeCoverage]
     Task<string> GetPullRequestDiffAsync(int prNumber);
     [ExcludeFromCodeCoverage]
-    Task CreateBranchAsync(string branchName);
-    [ExcludeFromCodeCoverage]
-    Task DeleteBranchAsync(string branchName);
-    [ExcludeFromCodeCoverage]
     Task<bool> HasCommitsAsync(string baseBranch, string headBranch);
     [ExcludeFromCodeCoverage]
     Task<RepoFile?> TryGetFileContentAsync(string branch, string path);
