@@ -32,7 +32,7 @@ public class WorkflowIntegrationTests
         {
             BuildRefinementJson(),
             BuildValidSpec(workItem),
-            "namespace Example; public sealed class Example { }",
+            "namespace Example; public sealed class Example { // Updated }",
             BuildCodeReviewJson()
         });
         var github = new FakeGitHubClient();
@@ -93,7 +93,7 @@ public class WorkflowIntegrationTests
         var llm = new QueueLlmClient(new[]
         {
             BuildValidSpec(workItem),
-            "namespace Example; public sealed class Example { }",
+            "namespace Example; public sealed class Example { // Updated }",
             BuildCodeReviewJson()
         });
         var github = new FakeGitHubClient();

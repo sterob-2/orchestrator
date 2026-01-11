@@ -73,7 +73,8 @@ public class McpTestFixture : IAsyncLifetime
             WebhookSecret: "",
             ProjectOwner: "test-owner",
             ProjectOwnerType: "user",
-            ProjectNumber: 1
+            ProjectNumber: 1,
+            Debug: false
         );
 
         _manager = new McpClientManager();
