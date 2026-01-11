@@ -216,13 +216,12 @@ Then ...
         // Assert
         Assert.NotNull(output);
         Assert.True(output.Success, $"Workflow failed: {output.Notes}");
-        Assert.Null(output.NextStage); // Release is the final stage
+        Assert.Null(output.NextStage); // DoD is the final stage (manual merge)
 
         // Verify Artifacts
         Assert.True(File.Exists(Path.Combine(_tempWorkspace.WorkspacePath, "orchestrator/specs/issue-1.md")), "Spec should exist");
         Assert.True(File.Exists(Path.Combine(_tempWorkspace.WorkspacePath, "src/Feature.cs")), "Source file should exist");
         Assert.True(File.Exists(Path.Combine(_tempWorkspace.WorkspacePath, "orchestrator/reviews/issue-1.md")), "Review should exist");
-        Assert.True(File.Exists(Path.Combine(_tempWorkspace.WorkspacePath, "orchestrator/release/issue-1.md")), "Release notes should exist");
 
         // Verify Git Interactions
         _repoMock.Verify(x => x.CommitAndPush(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>()), Times.AtLeastOnce);

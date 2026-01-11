@@ -188,6 +188,22 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         var commitOk = WorkContext.Repo.CommitAndPush(branchName, $"feat: issue {input.WorkItem.Number}", changedFiles);
         Logger.Info($"[Dev] Commit result: {(commitOk ? "SUCCESS" : "FAILED")}");
 
+        if (commitOk)
+        {
+            Logger.Info($"[Dev] Creating Pull Request for branch {branchName}");
+            var prTitle = $"{input.WorkItem.Title} (#{input.WorkItem.Number})";
+            var prBody = BuildPullRequestBody(parsedSpec, input.WorkItem);
+            try
+            {
+                var prUrl = await WorkContext.GitHub.OpenPullRequestAsync(branchName, WorkContext.Config.Workflow.DefaultBaseBranch, prTitle, prBody);
+                Logger.Info($"[Dev] Pull Request created: {prUrl}");
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"[Dev] Failed to create Pull Request: {ex.Message}");
+            }
+        }
+
         var result = new DevResult(commitOk, input.WorkItem.Number, changedFiles, "");
         var serializedResult = WorkflowJson.Serialize(result);
         await context.QueueStateUpdateAsync(WorkflowStateKeys.DevResult, serializedResult, cancellationToken);
@@ -222,5 +238,14 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         }
 
         return "minimal";
+    }
+
+    private static string BuildPullRequestBody(ParsedSpec spec, WorkItem item)
+    {
+        var changes = spec.TouchList.Count > 0
+            ? string.Join("\n", spec.TouchList.Select(entry => $"- {entry.Operation} {entry.Path}"))
+            : "- No touch list entries.";
+
+        return $"## Summary\n{spec.Goal}\n\n## Changes\n{changes}\n\n## Testing\n- Not run (automated via CI)\n\n## Issue\n{item.Url}\n";
     }
 }

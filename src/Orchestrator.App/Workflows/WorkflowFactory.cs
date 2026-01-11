@@ -28,7 +28,6 @@ internal static class WorkflowFactory
         var dev = new DevExecutor(workContext, workflowConfig);
         var codeReview = new CodeReviewExecutor(workContext, workflowConfig);
         var dodGate = new DodExecutor(workContext, workflowConfig);
-        var release = new ReleaseExecutor(workContext, workflowConfig);
 
         var builder = new WorkflowBuilder(contextBuilder)
             .WithOutputFrom(contextBuilder)
@@ -42,7 +41,6 @@ internal static class WorkflowFactory
             .WithOutputFrom(dev)
             .WithOutputFrom(codeReview)
             .WithOutputFrom(dodGate)
-            .WithOutputFrom(release)
             .AddEdge(contextBuilder, refinement)
             .AddEdge(contextBuilder, dorGate)
             .AddEdge(contextBuilder, techLead)
@@ -50,7 +48,6 @@ internal static class WorkflowFactory
             .AddEdge(contextBuilder, dev)
             .AddEdge(contextBuilder, codeReview)
             .AddEdge(contextBuilder, dodGate)
-            .AddEdge(contextBuilder, release)
             .AddEdge(refinement, dorGate)
             .AddEdge(refinement, questionClassifier)
             .AddEdge(questionClassifier, refinement)
@@ -66,7 +63,6 @@ internal static class WorkflowFactory
             .AddEdge(dev, codeReview)
             .AddEdge(codeReview, dodGate)
             .AddEdge(codeReview, dev)
-            .AddEdge(dodGate, release)
             .AddEdge(dodGate, dev);
 
         return builder.Build();
@@ -91,7 +87,6 @@ internal static class WorkflowFactory
             WorkflowStage.Dev => new DevExecutor(workContext, workflowConfig),
             WorkflowStage.CodeReview => new CodeReviewExecutor(workContext, workflowConfig),
             WorkflowStage.DoD => new DodExecutor(workContext, workflowConfig),
-            WorkflowStage.Release => new ReleaseExecutor(workContext, workflowConfig),
             _ => new RefinementExecutor(workContext, workflowConfig)
         };
     }

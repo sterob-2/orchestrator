@@ -39,11 +39,6 @@ internal static class WorkflowStageGraph
             return WorkflowStage.CodeReview;
         }
 
-        if (HasLabel(item, labels.ReleaseLabel))
-        {
-            return WorkflowStage.Release;
-        }
-
         return WorkflowStage.Refinement;
     }
 
@@ -66,8 +61,7 @@ internal static class WorkflowStageGraph
             WorkflowStage.SpecGate => success ? WorkflowStage.Dev : WorkflowStage.TechLead,
             WorkflowStage.Dev => WorkflowStage.CodeReview,
             WorkflowStage.CodeReview => success ? WorkflowStage.DoD : WorkflowStage.Dev,
-            WorkflowStage.DoD => success ? WorkflowStage.Release : WorkflowStage.Dev,
-            WorkflowStage.Release => null,
+            WorkflowStage.DoD => success ? null : WorkflowStage.Dev,
             _ => null
         };
     }
@@ -87,7 +81,6 @@ internal static class WorkflowStageGraph
             WorkflowStage.Dev => "Dev",
             WorkflowStage.CodeReview => "CodeReview",
             WorkflowStage.DoD => "DoD",
-            WorkflowStage.Release => "Release",
             _ => "Refinement"
         };
     }

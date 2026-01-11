@@ -49,7 +49,6 @@ public class WorkflowIntegrationTests
         var dev = new DevExecutor(context, config.Workflow);
         var codeReview = new CodeReviewExecutor(context, config.Workflow);
         var dod = new DodExecutor(context, config.Workflow);
-        var release = new ReleaseExecutor(context, config.Workflow);
 
         var refinementOutput = await refinement.HandleAsync(input, workflowContext.Context, CancellationToken.None);
         var dorOutput = await dor.HandleAsync(input, workflowContext.Context, CancellationToken.None);
@@ -58,19 +57,16 @@ public class WorkflowIntegrationTests
         var devOutput = await dev.HandleAsync(input, workflowContext.Context, CancellationToken.None);
         var codeReviewOutput = await codeReview.HandleAsync(input, workflowContext.Context, CancellationToken.None);
         var dodOutput = await dod.HandleAsync(input, workflowContext.Context, CancellationToken.None);
-        var output = await release.HandleAsync(input, workflowContext.Context, CancellationToken.None);
 
-        Assert.NotNull(output);
+        Assert.NotNull(dodOutput);
         Assert.True(dorOutput.Success);
         Assert.True(techLeadOutput.Success);
         Assert.True(specGateOutput.Success);
         Assert.True(devOutput.Success);
         Assert.True(codeReviewOutput.Success);
         Assert.True(dodOutput.Success);
-        Assert.True(output.Success);
-        Assert.Null(output.NextStage);
+        Assert.Null(dodOutput.NextStage);
         Assert.True(workspace.Workspace.Exists(WorkflowPaths.SpecPath(workItem.Number)));
-        Assert.True(workspace.Workspace.Exists(WorkflowPaths.ReleasePath(workItem.Number)));
         Assert.True(github.OpenPullRequestCalled);
     }
 
@@ -108,7 +104,6 @@ public class WorkflowIntegrationTests
         var dev = new DevExecutor(context, config.Workflow);
         var codeReview = new CodeReviewExecutor(context, config.Workflow);
         var dod = new DodExecutor(context, config.Workflow);
-        var release = new ReleaseExecutor(context, config.Workflow);
 
         var initialGate = await specGate.HandleAsync(input, workflowContext.Context, CancellationToken.None);
         var techLeadOutput = await techLead.HandleAsync(input, workflowContext.Context, CancellationToken.None);
@@ -116,11 +111,10 @@ public class WorkflowIntegrationTests
         var devOutput = await dev.HandleAsync(input, workflowContext.Context, CancellationToken.None);
         var codeReviewOutput = await codeReview.HandleAsync(input, workflowContext.Context, CancellationToken.None);
         var dodOutput = await dod.HandleAsync(input, workflowContext.Context, CancellationToken.None);
-        var output = await release.HandleAsync(input, workflowContext.Context, CancellationToken.None);
 
-        Assert.NotNull(output);
-        Assert.True(output.Success);
-        Assert.Null(output.NextStage);
+        Assert.NotNull(dodOutput);
+        Assert.True(dodOutput.Success);
+        Assert.Null(dodOutput.NextStage);
         Assert.False(initialGate.Success);
         Assert.Equal(WorkflowStage.TechLead, initialGate.NextStage);
         Assert.True(techLeadOutput.Success);

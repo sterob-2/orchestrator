@@ -14,7 +14,6 @@ public class WorkflowFactoryTests
     [InlineData("Dev")]
     [InlineData("CodeReview")]
     [InlineData("DoD")]
-    [InlineData("Release")]
     [InlineData("ContextBuilder")]
     public async Task Build_ReturnsWorkflowWithExpectedNextStage(string stageName)
     {
@@ -77,11 +76,6 @@ public class WorkflowFactoryTests
         {
             Assert.False(output!.Success);
             Assert.Equal(WorkflowStage.Dev, output.NextStage);
-        }
-        else if (stage == WorkflowStage.Release)
-        {
-            Assert.False(output!.Success);
-            Assert.Null(output.NextStage);
         }
         else
         {
