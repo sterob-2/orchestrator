@@ -22,16 +22,6 @@ internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
         IWorkflowContext context,
         CancellationToken cancellationToken)
     {
-        var devJson = await ReadStateWithFallbackAsync(
-            context,
-            WorkflowStateKeys.DevResult,
-            cancellationToken);
-
-        if (!WorkflowJson.TryDeserialize(devJson, out DevResult? devResult) || devResult is null)
-        {
-            return (false, "Code review blocked: missing dev result.");
-        }
-
         var branchName = WorkItemBranch.BuildBranchName(input.WorkItem);
         var prNumber = await WorkContext.GitHub.GetPullRequestNumberAsync(branchName);
 
@@ -41,7 +31,7 @@ internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
         }
 
         var diff = await WorkContext.GitHub.GetPullRequestDiffAsync(prNumber.Value);
-        var prompt = CodeReviewPrompt.Build(input.WorkItem, devResult.ChangedFiles, diff);
+        var prompt = CodeReviewPrompt.Build(input.WorkItem, new List<string>(), diff);
         var response = await CallLlmAsync(
             WorkContext.Config.OpenAiModel,
             prompt.System,

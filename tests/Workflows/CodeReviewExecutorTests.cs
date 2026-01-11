@@ -18,10 +18,16 @@ public class CodeReviewExecutorTests
         var workspace = new Mock<IRepoWorkspace>();
         workspace.Setup(w => w.Exists(It.IsAny<string>())).Returns(true);
         workspace.Setup(w => w.ReadAllText(It.IsAny<string>())).Returns("content");
+        workspace.Setup(w => w.WriteAllText(It.IsAny<string>(), It.IsAny<string>()));
+        
         var repo = new Mock<IRepoGit>();
         var llm = new Mock<ILlmClient>();
         llm.Setup(l => l.GetUpdatedFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync("{\"approved\":true,\"summary\":\"ok\",\"findings\":[]}");
+        
+        // Mock CommentOnWorkItemAsync
+        github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+
         var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
 
         var devResult = new DevResult(true, workItem.Number, new List<string> { "src/App.cs" }, "");
@@ -60,10 +66,15 @@ public class CodeReviewExecutorTests
         var workspace = new Mock<IRepoWorkspace>();
         workspace.Setup(w => w.Exists(It.IsAny<string>())).Returns(true);
         workspace.Setup(w => w.ReadAllText(It.IsAny<string>())).Returns("content");
+        workspace.Setup(w => w.WriteAllText(It.IsAny<string>(), It.IsAny<string>()));
+
         var repo = new Mock<IRepoGit>();
         var llm = new Mock<ILlmClient>();
         llm.Setup(l => l.GetUpdatedFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync("{\"approved\":false,\"summary\":\"issues\",\"findings\":[{\"severity\":\"BLOCKER\",\"category\":\"Security\",\"message\":\"Issue\"}]}");
+        
+        github.Setup(g => g.CommentOnWorkItemAsync(It.IsAny<int>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+
         var workContext = new WorkContext(workItem, github.Object, config, workspace.Object, repo.Object, llm.Object);
 
         var devResult = new DevResult(true, workItem.Number, new List<string> { "src/App.cs" }, "");
