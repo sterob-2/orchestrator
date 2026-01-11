@@ -142,8 +142,12 @@ internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
                     };
                     var category = finding.TryGetProperty("category", out var catProp) ? catProp.GetString() ?? "" : "";
                     var message = finding.TryGetProperty("message", out var msgProp) ? msgProp.GetString() ?? "" : "";
-                    var file = finding.TryGetProperty("file", out var fileProp) ? fileProp.GetString() : null;
-                    var line = finding.TryGetProperty("line", out var lineProp) && lineProp.TryGetInt32(out var lineValue)
+                    var file = finding.TryGetProperty("file", out var fileProp) && fileProp.ValueKind != System.Text.Json.JsonValueKind.Null
+                        ? fileProp.GetString()
+                        : null;
+                    var line = finding.TryGetProperty("line", out var lineProp)
+                        && lineProp.ValueKind != System.Text.Json.JsonValueKind.Null
+                        && lineProp.TryGetInt32(out var lineValue)
                         ? lineValue
                         : (int?)null;
 
