@@ -245,42 +245,6 @@ internal sealed class OctokitGitHubClient : Orchestrator.App.Core.Interfaces.IGi
     // ========================================
 
     /// <summary>
-    /// Create a branch
-    /// </summary>
-    public async Task CreateBranchAsync(string branchName)
-    {
-        var baseBranch = await _octokit.Git.Reference.Get(RepoOwner, RepoName, $"heads/{_cfg.Workflow.DefaultBaseBranch}");
-
-        try
-        {
-            await _octokit.Git.Reference.Create(
-                RepoOwner,
-                RepoName,
-                new NewReference($"refs/heads/{branchName}", baseBranch.Object.Sha)
-            );
-        }
-        catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
-        {
-            // Branch already exists - ignore
-        }
-    }
-
-    /// <summary>
-    /// Delete a branch
-    /// </summary>
-    public async Task DeleteBranchAsync(string branchName)
-    {
-        try
-        {
-            await _octokit.Git.Reference.Delete(RepoOwner, RepoName, $"heads/{branchName}");
-        }
-        catch (NotFoundException)
-        {
-            // Branch doesn't exist - ignore
-        }
-    }
-
-    /// <summary>
     /// Check if there are commits between base and head branches
     /// </summary>
     public async Task<bool> HasCommitsAsync(string baseBranch, string headBranch)
