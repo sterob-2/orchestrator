@@ -47,6 +47,13 @@ internal static class SDLCWorkflow
                             }
                         }
                         break;
+                    case ExecutorFailedEvent failedEvt:
+                        Logger.WriteLine($"[Workflow] Executor failed: {failedEvt.ExecutorId}");
+                        Logger.WriteLine($"[Workflow] Error: {failedEvt.Error}");
+                        break;
+                    case WorkflowErrorEvent errorEvt:
+                        Logger.WriteLine($"[Workflow] Workflow error: {errorEvt.Error}");
+                        break;
                     default:
                         Logger.WriteLine($"[Workflow] Unhandled event: {evt.GetType().Name}");
                         break;
