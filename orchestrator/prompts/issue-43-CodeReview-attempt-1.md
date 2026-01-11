@@ -15,12 +15,12 @@ diff --git a/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md b/or
 @@ -0,0 +1,69 @@
 +{
 +  "approved": false,
-+  "summary": "The change cleanly removes the two unused branch methods from IGitHubClient and deletes their implementations from OctokitGitHubClient, which reduces dead surface area. I cannot approve merging yet: there is no evidence of a full build/test run and the repo-wide impact (callers, tests, mocks, other implementations, packaging) has not been demonstrated. Please run a full build and test run, search the repository for remaining references (including tests/mocks and reflection), and perform small cleanups (potentially unused config fields/usings) before merging.",
++  "summary": "The PR correctly removes the two unused branch methods from IGitHubClient and deletes their implementations from OctokitGitHubClient, reducing dead surface area. I cannot approve merging yet because there is no evidence of a repository-wide build/test run or verification that no remaining callers (including tests, mocks, or other implementations) reference the removed members. Please run a full build and test run, search the repo for remaining references (including strings/reflection, test doubles and CI/publishing consumers), and perform small cleanups (unused config/usings) before merging.",
 +  "findings": [
 +    {
 +      "severity": "MAJOR",
 +      "category": "BUILD_AND_TEST_VERIFICATION",
-+      "message": "No build or test results are included with this change. Removing interface members and implementations can surface compile-time and test failures in other code, test doubles, or downstream consumers. Run 'dotnet build' and the full test suite ('dotnet test' / CI) and attach the results or ensure branch CI is green before merging.",
++      "message": "No build or test results are included with this change. Removing interface members and implementations can surface compile-time and test failures in other code, test doubles, or downstream consumers. Run 'dotnet build' and the full test suite ('dotnet test' / CI) and attach the results or ensure CI is green before merging.",
 +      "file": null,
 +      "line": null
 +    },
@@ -34,7 +34,7 @@ diff --git a/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md b/or
 +    {
 +      "severity": "MAJOR",
 +      "category": "IMPLEMENTATION_UPDATES_REQUIRED",
-+      "message": "All types that implemented IGitHubClient must be verified. OctokitGitHubClient had the implementations removed, but other implementations or test doubles (mocks, fakes) may still expect those members. Search for 'CreateBranchAsync' and 'DeleteBranchAsync' in tests/ and the repo to update/remove mocks and explicit interface implementations.",
++      "message": "All types that implemented IGitHubClient must be verified. OctokitGitHubClient had the implementations removed, but other implementations or test doubles (mocks, fakes) may still expect those members. Search for 'CreateBranchAsync' and 'DeleteBranchAsync' in tests/ and the repo and update/remove any references.",
 +      "file": "tests/",
 +      "line": null
 +    },
@@ -69,7 +69,7 @@ diff --git a/orchestrator/prompts/issue-43-CodeReview-attempt-1-response.md b/or
 +    {
 +      "severity": "MINOR",
 +      "category": "REPO_CLEANUP_AND_PRIVACY",
-+      "message": "This PR adds many orchestrator/prompts and refinement/spec artifacts under 'orchestrator/prompts/'. Confirm these were intentionally committed; they can add noise and may contain internal prompts or sensitive content. Remove or relocate if accidental.",
++      "message": "This PR adds many orchestrator/prompts and refinement/spec artifacts under 'orchestrator/prompts/'. Confirm these were intentionally committed; they can add noise and may contain internal prompts or sensitive content. Consider moving or excluding from publishable artifacts if accidental.",
 +      "file": "orchestrator/prompts/",
 +      "line": null
 +    },
