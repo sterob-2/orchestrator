@@ -13,6 +13,8 @@ public class CodeReviewExecutorTests
         var config = MockWorkContext.CreateConfig();
         var workItem = new WorkItem(6, "Title", "Body", "url", new List<string>());
         var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetPullRequestNumberAsync(It.IsAny<string>())).ReturnsAsync(1);
+        github.Setup(g => g.GetPullRequestDiffAsync(It.IsAny<int>())).ReturnsAsync("diff");
         var workspace = new Mock<IRepoWorkspace>();
         workspace.Setup(w => w.Exists(It.IsAny<string>())).Returns(true);
         workspace.Setup(w => w.ReadAllText(It.IsAny<string>())).Returns("content");
@@ -53,6 +55,8 @@ public class CodeReviewExecutorTests
         var config = MockWorkContext.CreateConfig();
         var workItem = new WorkItem(7, "Title", "Body", "url", new List<string>());
         var github = new Mock<IGitHubClient>();
+        github.Setup(g => g.GetPullRequestNumberAsync(It.IsAny<string>())).ReturnsAsync(1);
+        github.Setup(g => g.GetPullRequestDiffAsync(It.IsAny<int>())).ReturnsAsync("diff");
         var workspace = new Mock<IRepoWorkspace>();
         workspace.Setup(w => w.Exists(It.IsAny<string>())).Returns(true);
         workspace.Setup(w => w.ReadAllText(It.IsAny<string>())).Returns("content");

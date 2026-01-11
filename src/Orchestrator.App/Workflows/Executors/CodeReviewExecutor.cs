@@ -32,8 +32,16 @@ internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
             return (false, "Code review blocked: missing dev result.");
         }
 
-        var diffSummary = BuildDiffSummary(devResult.ChangedFiles);
-        var prompt = CodeReviewPrompt.Build(input.WorkItem, devResult.ChangedFiles, diffSummary);
+        var branchName = WorkItemBranch.BuildBranchName(input.WorkItem);
+        var prNumber = await WorkContext.GitHub.GetPullRequestNumberAsync(branchName);
+
+        if (prNumber == null)
+        {
+            return (false, "Code review blocked: Pull Request not found.");
+        }
+
+        var diff = await WorkContext.GitHub.GetPullRequestDiffAsync(prNumber.Value);
+        var prompt = CodeReviewPrompt.Build(input.WorkItem, devResult.ChangedFiles, diff);
         var response = await CallLlmAsync(
             WorkContext.Config.OpenAiModel,
             prompt.System,
@@ -71,7 +79,10 @@ internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
 
         WorkContext.Metrics?.RecordCodeReview(finalResult.Findings.Count, finalResult.Approved);
 
-        await FileOperationHelper.WriteAllTextAsync(WorkContext, finalResult.ReviewPath, BuildReviewMarkdown(finalResult));
+        var reviewMarkdown = BuildReviewMarkdown(finalResult);
+        await FileOperationHelper.WriteAllTextAsync(WorkContext, finalResult.ReviewPath, reviewMarkdown);
+        await WorkContext.GitHub.CommentOnWorkItemAsync(prNumber.Value, reviewMarkdown);
+
         var serializedResult = WorkflowJson.Serialize(finalResult);
         await context.QueueStateUpdateAsync(WorkflowStateKeys.CodeReviewResult, serializedResult, cancellationToken);
         WorkContext.State[WorkflowStateKeys.CodeReviewResult] = serializedResult;
@@ -92,29 +103,6 @@ internal sealed partial class CodeReviewExecutor : WorkflowStageExecutor
         }
 
         return base.DetermineNextStage(success, input);
-    }
-
-    private string BuildDiffSummary(IReadOnlyList<string> changedFiles)
-    {
-        var summaryLines = new List<string>();
-        foreach (var file in changedFiles)
-        {
-            if (!WorkItemParsers.IsSafeRelativePath(file))
-            {
-                continue;
-            }
-
-            if (!WorkContext.Workspace.Exists(file))
-            {
-                summaryLines.Add($"{file}: deleted");
-                continue;
-            }
-
-            var content = FileOperationHelper.ReadAllTextAsync(WorkContext, file).GetAwaiter().GetResult();
-            summaryLines.Add($"{file}:\n{content}");
-        }
-
-        return string.Join("\n\n", summaryLines);
     }
 
     private static bool TryParseReview(string? json, out CodeReviewResult result)

@@ -144,7 +144,7 @@ Then Edge
 
         // We need to setup GitHub mocks for Pull Request
         _githubMock.Setup(x => x.GetPullRequestNumberAsync(It.IsAny<string>()))
-            .ReturnsAsync((int?)null); // PR doesn't exist yet
+            .ReturnsAsync(1); // PR exists (simulated for CodeReview)
         _githubMock.Setup(x => x.OpenPullRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync("https://github.com/test/repo/pull/1");
 

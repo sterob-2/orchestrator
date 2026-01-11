@@ -397,7 +397,7 @@ Missing required sections.
             return Task.FromResult("https://github.com/test/repo/pull/1");
         }
 
-        public Task<int?> GetPullRequestNumberAsync(string branchName) => Task.FromResult<int?>(null);
+        public Task<int?> GetPullRequestNumberAsync(string branchName) => Task.FromResult<int?>(1);
         public Task ClosePullRequestAsync(int prNumber) => Task.CompletedTask;
         public Task<IReadOnlyList<IssueComment>> GetIssueCommentsAsync(int issueNumber) =>
             Task.FromResult<IReadOnlyList<IssueComment>>(Array.Empty<IssueComment>());
