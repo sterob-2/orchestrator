@@ -41,6 +41,12 @@ internal sealed class DevExecutor : WorkflowStageExecutor
             }
 
             var mode = ResolveMode(input);
+
+            // Ensure branch exists BEFORE modifying files
+            var branchName = WorkItemBranch.BuildBranchName(input.WorkItem);
+            Logger.Debug($"[Dev] Ensuring branch: {branchName}");
+            WorkContext.Repo.EnsureBranch(branchName, WorkContext.Config.Workflow.DefaultBaseBranch);
+
             var changedFiles = new List<string>();
             foreach (var entry in parsedSpec.TouchList)
         {
@@ -140,10 +146,6 @@ internal sealed class DevExecutor : WorkflowStageExecutor
         }
 
         Logger.Info($"[Dev] Processed {changedFiles.Count} file(s)");
-
-        var branchName = WorkItemBranch.BuildBranchName(input.WorkItem);
-        Logger.Debug($"[Dev] Ensuring branch: {branchName}");
-        WorkContext.Repo.EnsureBranch(branchName, WorkContext.Config.Workflow.DefaultBaseBranch);
 
         Logger.Debug($"[Dev] Committing and pushing {changedFiles.Count} changed file(s)");
         var commitOk = WorkContext.Repo.CommitAndPush(branchName, $"feat: issue {input.WorkItem.Number}", changedFiles);
