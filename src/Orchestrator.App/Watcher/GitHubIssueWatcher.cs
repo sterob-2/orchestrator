@@ -121,6 +121,7 @@ internal sealed class GitHubIssueWatcher
 
     internal async Task<WorkItem?> RunOnceAsync(CancellationToken cancellationToken)
     {
+        Logger.Debug("[Watcher] RunOnceAsync: Starting");
         var workItem = await GetNextWorkItemAsync();
         if (workItem is null)
         {
@@ -128,28 +129,36 @@ internal sealed class GitHubIssueWatcher
             return null;
         }
 
+        Logger.Debug($"[Watcher] RunOnceAsync: Got work item #{workItem.Number}");
+
         if (HasLabel(workItem, _config.Labels.ResetLabel))
         {
+            Logger.Debug($"[Watcher] RunOnceAsync: Work item #{workItem.Number} has reset label, resetting");
             await ResetWorkItemAsync(workItem);
             return workItem;
         }
 
         // Check if this workflow is already in progress
-        if (_checkpointStore.IsWorkflowInProgress(workItem.Number))
+        var isInProgress = _checkpointStore.IsWorkflowInProgress(workItem.Number);
+        Logger.Debug($"[Watcher] RunOnceAsync: IsWorkflowInProgress(#{workItem.Number}) = {isInProgress}");
+        if (isInProgress)
         {
             Logger.WriteLine($"[Watcher] Issue #{workItem.Number} already has a workflow in progress, skipping");
             return workItem;
         }
 
         var stage = GetStageFromLabels(workItem);
+        Logger.Debug($"[Watcher] RunOnceAsync: GetStageFromLabels returned: {stage?.ToString() ?? "null"}");
         if (stage is null)
         {
             Logger.WriteLine($"No runnable stage for work item #{workItem.Number}.");
             return workItem;
         }
 
+        Logger.Info($"[Watcher] Starting workflow for issue #{workItem.Number} at stage: {stage.Value}");
         var context = _contextFactory(workItem);
         await _runner.RunAsync(context, stage.Value, cancellationToken);
+        Logger.Debug($"[Watcher] RunOnceAsync: Workflow completed for issue #{workItem.Number}");
         return workItem;
     }
 
@@ -163,13 +172,15 @@ internal sealed class GitHubIssueWatcher
             var labelsStr = string.Join(", ", item.Labels);
             Logger.WriteLine($"[Watcher] Checking issue #{item.Number}: '{item.Title}' (labels: {labelsStr})");
 
+            Logger.Debug($"[Watcher] Checking labels: DoneLabel={_config.Labels.DoneLabel}, BlockedLabel={_config.Labels.BlockedLabel}");
             if (HasLabel(item, _config.Labels.DoneLabel) || HasLabel(item, _config.Labels.BlockedLabel))
             {
                 Logger.WriteLine($"[Watcher]   -> Skipped: Issue is done or blocked");
                 continue;
             }
 
-            if (HasAnyLabel(
+            Logger.Debug($"[Watcher] Checking if item has any workflow labels (CodeReviewNeededLabel={_config.Labels.CodeReviewNeededLabel})");
+            var hasWorkflowLabel = HasAnyLabel(
                 item,
                 _config.Labels.WorkItemLabel,
                 _config.Labels.PlannerLabel,
@@ -181,7 +192,10 @@ internal sealed class GitHubIssueWatcher
                 _config.Labels.ReleaseLabel,
                 _config.Labels.CodeReviewNeededLabel,
                 _config.Labels.CodeReviewChangesRequestedLabel,
-                _config.Labels.ResetLabel))
+                _config.Labels.ResetLabel);
+            Logger.Debug($"[Watcher] HasAnyLabel result: {hasWorkflowLabel}");
+
+            if (hasWorkflowLabel)
             {
                 Logger.WriteLine($"[Watcher]   -> Selected: Issue has matching workflow label");
                 return item;
