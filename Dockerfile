@@ -3,7 +3,7 @@ WORKDIR /src
 COPY ./src/Orchestrator.App/ ./Orchestrator.App/
 RUN dotnet publish ./Orchestrator.App/Orchestrator.App.csproj -c Release -o /out
 
-FROM mcr.microsoft.com/dotnet/runtime:8.0
+FROM mcr.microsoft.com/dotnet/runtime:10.0
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
