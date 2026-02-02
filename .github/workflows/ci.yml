@@ -48,7 +48,7 @@ jobs:
 
     - name: Cache SonarCloud packages
       if: steps.check_token.outputs.has_token == 'true'
-      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
       with:
         path: ~/sonar/cache
         key: ${{ runner.os }}-sonar
@@ -57,7 +57,7 @@ jobs:
     - name: Cache SonarCloud scanner
       if: steps.check_token.outputs.has_token == 'true'
       id: cache-sonar-scanner
-      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
       with:
         path: ./.sonar/scanner
         key: ${{ runner.os }}-sonar-scanner
