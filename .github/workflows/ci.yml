@@ -332,7 +332,7 @@ jobs:
         platforms: linux/amd64
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@22438a435773de8c97dc0958cc0b823c45b064ac # master
+      uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # master
       with:
         image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
         format: 'sarif'
